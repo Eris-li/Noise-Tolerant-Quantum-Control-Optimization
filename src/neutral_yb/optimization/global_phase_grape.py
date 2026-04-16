@@ -143,17 +143,7 @@ class PaperGlobalPhaseOptimizer:
             callback_state = {"iterations": 0}
 
             def callback(_: np.ndarray) -> None:
-                if not self.config.show_progress:
-                    return
                 callback_state["iterations"] += 1
-                if callback_state["iterations"] % 25 != 0:
-                    return
-                elapsed = time.perf_counter() - restart_started_at
-                print(
-                    f"[opt] restart {restart + 1}/{self.config.num_restarts} "
-                    f"iter={callback_state['iterations']:4d} elapsed={elapsed:7.1f}s",
-                    flush=True,
-                )
 
             result = minimize(
                 fun=self.objective_and_gradient,
@@ -193,6 +183,17 @@ class PaperGlobalPhaseOptimizer:
                 smoothness_cost=float(smoothness_cost),
                 curvature_cost=float(curvature_cost),
             )
+            if self.config.show_progress:
+                elapsed = time.perf_counter() - restart_started_at
+                print(
+                    f"[opt-summary] restart {restart + 1}/{self.config.num_restarts} "
+                    f"iter={callback_state['iterations']:4d} "
+                    f"elapsed={elapsed:7.1f}s "
+                    f"F={candidate.fidelity:.9f} "
+                    f"smooth={candidate.smoothness_cost:.6f} "
+                    f"curv={candidate.curvature_cost:.6f}",
+                    flush=True,
+                )
             if best_result is None or self._is_better(candidate, best_result):
                 best_result = candidate
 
@@ -239,10 +240,12 @@ class PaperGlobalPhaseOptimizer:
                 avg_per_step = total_elapsed / index
                 remaining = avg_per_step * (len(durations) - index)
                 percent = 100.0 * index / len(durations)
+                remaining_points = len(durations) - index
                 print(
                     f"[scan] {index}/{len(durations)} ({percent:5.1f}%) "
                     f"T={duration:.3f} F={result.fidelity:.9f} "
-                    f"step={step_elapsed:7.1f}s elapsed={total_elapsed:7.1f}s eta={remaining:7.1f}s",
+                    f"step={step_elapsed:7.1f}s elapsed={total_elapsed:7.1f}s "
+                    f"remaining_T={remaining_points:2d} eta={remaining:7.1f}s",
                     flush=True,
                 )
 

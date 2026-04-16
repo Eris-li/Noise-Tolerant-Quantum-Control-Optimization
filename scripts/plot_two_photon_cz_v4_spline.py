@@ -17,9 +17,9 @@ import numpy as np
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.optimization.amplitude_phase_grape import (
-    AmplitudePhaseOptimizationConfig,
-    AmplitudePhaseOptimizer,
+from neutral_yb.optimization.spline_phase_grape import (
+    SplinePhaseOptimizationConfig,
+    SplinePhaseOptimizer,
 )
 
 
@@ -30,11 +30,11 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     artifacts = ROOT / "artifacts"
-    scan = json.loads((artifacts / "two_photon_cz_v3_coarse_scan.json").read_text(encoding="utf-8"))
-    optimal = json.loads((artifacts / "two_photon_cz_v3_best.json").read_text(encoding="utf-8"))
+    scan = json.loads((artifacts / "two_photon_cz_v4_spline_coarse_scan.json").read_text(encoding="utf-8"))
+    optimal = json.loads((artifacts / "two_photon_cz_v4_spline_best.json").read_text(encoding="utf-8"))
 
     phases = np.asarray(optimal["phases"], dtype=np.float64)
-    amplitudes = np.asarray(optimal["amplitudes"], dtype=np.float64)
+    node_phases = np.asarray(optimal["node_phases"], dtype=np.float64)
 
     model = TwoPhotonCZ9DModel(
         species=idealised_yb171(),
@@ -45,52 +45,55 @@ def main() -> None:
         two_photon_detuning_01=0.01,
         two_photon_detuning_11=0.01,
     )
-    optimizer = AmplitudePhaseOptimizer(
+    optimizer = SplinePhaseOptimizer(
         model=model,
-        config=AmplitudePhaseOptimizationConfig(
+        config=SplinePhaseOptimizationConfig(
             num_tslots=len(phases),
+            num_nodes=len(node_phases),
             evo_time=float(optimal["evo_time"]),
-            max_iter=220,
-            phase_smoothness_weight=0.01,
-            phase_curvature_weight=0.02,
-            amplitude_smoothness_weight=0.01,
-            amplitude_curvature_weight=0.01,
-            num_restarts=3,
+            max_iter=250,
+            fidelity_target=0.9999,
+            smoothness_weight=0.01,
+            curvature_weight=0.02,
+            node_curvature_weight=0.01,
+            num_restarts=4,
         ),
     )
-    times, states = optimizer.trajectory(amplitudes, phases)
+    times, states = optimizer.trajectory(node_phases)
     array = np.stack(states, axis=0)
-
-    intermediate_total = np.abs(array[:, 1]) ** 2 + np.abs(array[:, 4]) ** 2 + np.abs(array[:, 5]) ** 2
-    rydberg_total = np.abs(array[:, 2]) ** 2 + np.abs(array[:, 6]) ** 2 + np.abs(array[:, 7]) ** 2 + np.abs(array[:, 8]) ** 2
+    phase_jumps = np.diff(np.unwrap(phases))
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
 
     ax = axes[0, 0]
     ax.plot(scan["durations"], scan["fidelities"], marker="o", linewidth=2.0, markersize=5, color="#1f78b4")
     ax.axhline(0.9999, color="#d95f0e", linestyle="--", label="1 - F = 1e-4")
-    ax.axvline(optimal["evo_time"], color="#6a3d9a", linestyle=":", label=f"T*={optimal['evo_time']:.3f}")
+    ax.axvline(optimal["evo_time"], color="#6a3d9a", linestyle=":", label=f"T={optimal['evo_time']:.3f}")
     ax.set_xlabel("T * Omega_eff")
     ax.set_ylabel("Fidelity")
     ax.set_ylim(0.35, 1.001)
-    ax.set_title("Two-photon CZ coarse time scan")
+    ax.set_title("Two-photon CZ spline coarse scan")
     ax.legend()
 
     ax = axes[0, 1]
-    ax.plot(np.arange(len(phases)), centered_phase(phases), color="#1f78b4", label="optimized lower-leg phase")
+    ax.plot(np.arange(len(phases)), centered_phase(phases), color="#1f78b4", label="slice phases")
+    node_positions = np.linspace(0, len(phases) - 1, len(node_phases))
+    ax.scatter(node_positions, centered_phase(node_phases), color="#e31a1c", label="spline nodes", zorder=3)
     ax.set_xlabel("Time slice")
     ax.set_ylabel("Phase [rad]")
-    ax.set_title("Optimized phase sequence")
+    ax.set_title("Spline phase profile")
     ax.legend()
 
     ax = axes[1, 0]
-    ax.plot(np.arange(len(amplitudes)), amplitudes, color="#e31a1c", label="lower-leg amplitude")
+    ax.plot(np.arange(len(phase_jumps)), phase_jumps, color="#1f78b4", label="adjacent phase jump")
     ax.set_xlabel("Time slice")
-    ax.set_ylabel("Amplitude")
-    ax.set_title("Optimized amplitude sequence")
+    ax.set_ylabel("Adjacent phase change [rad]")
+    ax.set_title("Phase jumps from spline-expanded profile")
     ax.legend()
 
     ax = axes[1, 1]
+    intermediate_total = np.abs(array[:, 1]) ** 2 + np.abs(array[:, 4]) ** 2 + np.abs(array[:, 5]) ** 2
+    rydberg_total = np.abs(array[:, 2]) ** 2 + np.abs(array[:, 6]) ** 2 + np.abs(array[:, 7]) ** 2 + np.abs(array[:, 8]) ** 2
     ax.plot(times, np.abs(array[:, 0]) ** 2, label="|01>", color="#1f78b4")
     ax.plot(times, np.abs(array[:, 3]) ** 2, label="|11>", color="#e31a1c")
     ax.plot(times, intermediate_total, label="intermediate total", color="#33a02c")
@@ -98,13 +101,13 @@ def main() -> None:
     ax.set_xlabel("t Omega_eff")
     ax.set_ylabel("Population")
     ax.set_ylim(0.0, 1.05)
-    ax.set_title("Population dynamics at coarse optimum")
+    ax.set_title("Population dynamics at spline optimum")
     ax.legend()
 
-    fig.suptitle("Two-photon closed-system CZ with explicit intermediate state")
+    fig.suptitle("Two-photon CZ with spline-node single-phase control")
     fig.tight_layout()
 
-    output_path = artifacts / "two_photon_cz_v3_summary.png"
+    output_path = artifacts / "two_photon_cz_v4_spline_summary.png"
     fig.savefig(output_path, dpi=180)
     print(output_path)
 

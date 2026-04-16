@@ -16,8 +16,23 @@ from neutral_yb.optimization.linear_control_grape import (
     LinearControlOptimizationResult,
     LinearTimeOptimalScanResult,
 )
+from neutral_yb.optimization.spline_phase_grape import (
+    SplinePhaseOptimizationConfig,
+    SplinePhaseOptimizationResult,
+    SplinePhaseOptimizer,
+)
+from neutral_yb.optimization.amplitude_phase_grape import (
+    AmplitudePhaseOptimizationConfig,
+    AmplitudePhaseOptimizationResult,
+    AmplitudePhaseOptimizer,
+    AmplitudePhaseScanResult,
+)
 
 __all__ = [
+    "AmplitudePhaseOptimizationConfig",
+    "AmplitudePhaseOptimizationResult",
+    "AmplitudePhaseOptimizer",
+    "AmplitudePhaseScanResult",
     "FiniteBlockadeCZ5DModel",
     "GlobalCZ4DModel",
     "GlobalPhaseOptimizationConfig",
@@ -28,6 +43,9 @@ __all__ = [
     "LinearTimeOptimalScanResult",
     "NeutralYb171Species",
     "PaperGlobalPhaseOptimizer",
+    "SplinePhaseOptimizationConfig",
+    "SplinePhaseOptimizationResult",
+    "SplinePhaseOptimizer",
     "TimeOptimalScanResult",
     "TwoPhotonCZ9DModel",
     "idealised_yb171",

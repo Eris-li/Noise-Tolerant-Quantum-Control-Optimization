@@ -10,9 +10,9 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.optimization.global_phase_grape import (
-    GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
+from neutral_yb.optimization.amplitude_phase_grape import (
+    AmplitudePhaseOptimizationConfig,
+    AmplitudePhaseOptimizer,
 )
 
 
@@ -40,18 +40,21 @@ def build_model() -> TwoPhotonCZ9DModel:
 def main() -> None:
     threshold = 0.9999
     durations = list(reversed(frange(1.0, 10.0, 0.5)))
-    optimizer = PaperGlobalPhaseOptimizer(
+    optimizer = AmplitudePhaseOptimizer(
         model=build_model(),
-        config=GlobalPhaseOptimizationConfig(
-            num_tslots=120,
+        config=AmplitudePhaseOptimizationConfig(
+            num_tslots=100,
             evo_time=durations[0],
             max_iter=220,
-            phase_seed=17,
+            seed=17,
             init_phase_spread=0.35,
+            init_amplitude_scale=0.75,
             fidelity_target=threshold,
-            smoothness_weight=0.01,
-            curvature_weight=0.02,
-            num_restarts=4,
+            phase_smoothness_weight=0.01,
+            phase_curvature_weight=0.02,
+            amplitude_smoothness_weight=0.01,
+            amplitude_curvature_weight=0.01,
+            num_restarts=3,
             show_progress=True,
         ),
     )
@@ -66,22 +69,26 @@ def main() -> None:
     if not qualifying:
         raise RuntimeError("No coarse-scan point reached fidelity >= 0.9999")
     threshold_candidate = min(qualifying, key=lambda res: res.evo_time)
-    refined_optimizer = PaperGlobalPhaseOptimizer(
+    refined_optimizer = AmplitudePhaseOptimizer(
         model=build_model(),
-        config=GlobalPhaseOptimizationConfig(
+        config=AmplitudePhaseOptimizationConfig(
             num_tslots=threshold_candidate.num_tslots,
             evo_time=threshold_candidate.evo_time,
-            max_iter=400,
-            phase_seed=17,
+            max_iter=320,
+            seed=17,
             init_phase_spread=0.35,
+            init_amplitude_scale=0.75,
             fidelity_target=threshold,
-            smoothness_weight=0.01,
-            curvature_weight=0.02,
-            num_restarts=6,
+            phase_smoothness_weight=0.01,
+            phase_curvature_weight=0.02,
+            amplitude_smoothness_weight=0.01,
+            amplitude_curvature_weight=0.01,
+            num_restarts=4,
             show_progress=True,
         ),
     )
     optimal = refined_optimizer.optimize(
+        initial_amplitudes=threshold_candidate.amplitudes,
         initial_phases=threshold_candidate.phases,
         initial_theta=threshold_candidate.theta,
     )

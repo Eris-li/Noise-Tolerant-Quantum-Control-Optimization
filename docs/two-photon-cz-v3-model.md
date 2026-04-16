@@ -11,6 +11,11 @@
 
 对应代码在 [two_photon_cz_9d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_9d.py)。
 
+当前仓库里保留了两种单相位参数化：
+
+- 切片相位版：直接优化每个时间片的相位，主优化器是 [global_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/global_phase_grape.py)
+- 样条节点版：只优化少量节点，再用三次样条展开成完整相位曲线，优化器是 [spline_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/spline_phase_grape.py)
+
 ## 2. 基底
 
 当前采用的 9 维对称约化基底为：

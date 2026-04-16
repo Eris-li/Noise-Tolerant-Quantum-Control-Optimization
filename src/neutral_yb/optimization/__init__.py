@@ -12,8 +12,23 @@ from neutral_yb.optimization.linear_control_grape import (
     LinearControlOptimizationResult,
     LinearTimeOptimalScanResult,
 )
+from neutral_yb.optimization.spline_phase_grape import (
+    SplinePhaseOptimizationConfig,
+    SplinePhaseOptimizationResult,
+    SplinePhaseOptimizer,
+)
+from neutral_yb.optimization.amplitude_phase_grape import (
+    AmplitudePhaseOptimizationConfig,
+    AmplitudePhaseOptimizationResult,
+    AmplitudePhaseOptimizer,
+    AmplitudePhaseScanResult,
+)
 
 __all__ = [
+    "AmplitudePhaseOptimizationConfig",
+    "AmplitudePhaseOptimizationResult",
+    "AmplitudePhaseOptimizer",
+    "AmplitudePhaseScanResult",
     "GlobalPhaseOptimizationConfig",
     "GlobalPhaseOptimizationResult",
     "LinearControlGRAPEOptimizer",
@@ -21,5 +36,8 @@ __all__ = [
     "LinearControlOptimizationResult",
     "LinearTimeOptimalScanResult",
     "PaperGlobalPhaseOptimizer",
+    "SplinePhaseOptimizationConfig",
+    "SplinePhaseOptimizationResult",
+    "SplinePhaseOptimizer",
     "TimeOptimalScanResult",
 ]
