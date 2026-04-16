@@ -10,9 +10,9 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.optimization.linear_control_grape import (
-    LinearControlGRAPEOptimizer,
-    LinearControlOptimizationConfig,
+from neutral_yb.optimization.global_phase_grape import (
+    GlobalPhaseOptimizationConfig,
+    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -40,20 +40,19 @@ def build_model() -> TwoPhotonCZ9DModel:
 def main() -> None:
     threshold = 0.9999
     durations = list(reversed(frange(1.0, 10.0, 0.5)))
-    optimizer = LinearControlGRAPEOptimizer(
+    optimizer = PaperGlobalPhaseOptimizer(
         model=build_model(),
-        config=LinearControlOptimizationConfig(
+        config=GlobalPhaseOptimizationConfig(
             num_tslots=120,
             evo_time=durations[0],
             max_iter=220,
-            control_seed=17,
-            init_control_scale=0.1,
-            control_bound=2.0,
+            phase_seed=17,
+            init_phase_spread=0.35,
             fidelity_target=threshold,
             smoothness_weight=0.01,
-            amplitude_weight=0.0005,
             curvature_weight=0.02,
             num_restarts=4,
+            show_progress=True,
         ),
     )
 
@@ -67,24 +66,23 @@ def main() -> None:
     if not qualifying:
         raise RuntimeError("No coarse-scan point reached fidelity >= 0.9999")
     threshold_candidate = min(qualifying, key=lambda res: res.evo_time)
-    refined_optimizer = LinearControlGRAPEOptimizer(
+    refined_optimizer = PaperGlobalPhaseOptimizer(
         model=build_model(),
-        config=LinearControlOptimizationConfig(
+        config=GlobalPhaseOptimizationConfig(
             num_tslots=threshold_candidate.num_tslots,
             evo_time=threshold_candidate.evo_time,
             max_iter=400,
-            control_seed=17,
-            init_control_scale=0.1,
-            control_bound=2.0,
+            phase_seed=17,
+            init_phase_spread=0.35,
             fidelity_target=threshold,
             smoothness_weight=0.01,
-            amplitude_weight=0.0005,
             curvature_weight=0.02,
             num_restarts=6,
+            show_progress=True,
         ),
     )
     optimal = refined_optimizer.optimize(
-        initial_controls=threshold_candidate.controls,
+        initial_phases=threshold_candidate.phases,
         initial_theta=threshold_candidate.theta,
     )
     refined_optimizer.save_result(optimal, artifacts / "two_photon_cz_v3_best.json")

@@ -24,10 +24,10 @@ class TwoPhotonCZ9DModel:
     7. |E_er> = (|er> + |re>) / sqrt(2)
     8. |rr>
 
-    The Hamiltonian is written in a frame where the two optical couplings are
-    real and fixed. The time-dependent controls are the two laser phase rates,
-    which enter as diagonal frequency shifts. The integrated controls can be
-    interpreted as the two optical phase sequences to compare across pulses.
+    The Hamiltonian uses a phase-modulated lower-leg optical coupling and a
+    fixed-phase upper-leg coupling. This matches the common experimental gauge
+    choice where only one optical phase is optimized explicitly and the second
+    leg is kept as a phase reference.
     """
 
     species: NeutralYb171Species
@@ -37,12 +37,16 @@ class TwoPhotonCZ9DModel:
     blockade_shift: float
     two_photon_detuning_01: float = 0.0
     two_photon_detuning_11: float = 0.0
+    upper_leg_phase: float = 0.0
 
     def basis_labels(self) -> tuple[str, ...]:
         return ("01", "0e", "0r", "11", "W_e", "ee", "W_r", "E_er", "rr")
 
     def dimension(self) -> int:
         return 9
+
+    def phase_gate_state_indices(self) -> tuple[int, int]:
+        return 0, 3
 
     def drift_hamiltonian(self) -> qutip.Qobj:
         h_d = np.zeros((9, 9), dtype=np.complex128)
@@ -58,21 +62,25 @@ class TwoPhotonCZ9DModel:
         h_d[7, 7] = -(delta + det_11)
         h_d[8, 8] = self.blockade_shift - 2.0 * det_11
 
-        self._add_real_coupling(h_d, 0, 1, 0.5 * self.lower_rabi)
-        self._add_real_coupling(h_d, 3, 4, (1.0 / np.sqrt(2.0)) * self.lower_rabi)
-        self._add_real_coupling(h_d, 4, 5, (1.0 / np.sqrt(2.0)) * self.lower_rabi)
-        self._add_real_coupling(h_d, 6, 7, 0.5 * self.lower_rabi)
-
-        self._add_real_coupling(h_d, 1, 2, 0.5 * self.upper_rabi)
-        self._add_real_coupling(h_d, 4, 6, 0.5 * self.upper_rabi)
-        self._add_real_coupling(h_d, 5, 7, (1.0 / np.sqrt(2.0)) * self.upper_rabi)
-        self._add_real_coupling(h_d, 7, 8, (1.0 / np.sqrt(2.0)) * self.upper_rabi)
+        upper_x, upper_y = self._upper_leg_control_matrices()
+        h_d += self.upper_rabi * (
+            np.cos(self.upper_leg_phase) * upper_x + np.sin(self.upper_leg_phase) * upper_y
+        )
         return qutip.Qobj(h_d)
 
-    def control_hamiltonians(self) -> tuple[qutip.Qobj, qutip.Qobj]:
-        lower_phase_rate = np.diag([0.0, 1.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 2.0])
-        upper_phase_rate = np.diag([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0])
-        return qutip.Qobj(lower_phase_rate), qutip.Qobj(upper_phase_rate)
+    def phase_control_hamiltonians(self) -> tuple[tuple[qutip.Qobj, qutip.Qobj], ...]:
+        lower_x = np.zeros((9, 9), dtype=np.complex128)
+        lower_y = np.zeros((9, 9), dtype=np.complex128)
+
+        self._add_quadrature_coupling(lower_x, lower_y, 0, 1, 0.5)
+        self._add_quadrature_coupling(lower_x, lower_y, 3, 4, 1.0 / np.sqrt(2.0))
+        self._add_quadrature_coupling(lower_x, lower_y, 4, 5, 1.0 / np.sqrt(2.0))
+        self._add_quadrature_coupling(lower_x, lower_y, 6, 7, 0.5)
+
+        return ((qutip.Qobj(lower_x), qutip.Qobj(lower_y)),)
+
+    def phase_control_amplitudes(self) -> tuple[float]:
+        return (self.lower_rabi,)
 
     def initial_state(self) -> qutip.Qobj:
         return qutip.Qobj(np.array([1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.complex128))
@@ -103,6 +111,23 @@ class TwoPhotonCZ9DModel:
         )
 
     @staticmethod
-    def _add_real_coupling(matrix: np.ndarray, left: int, right: int, strength: float) -> None:
-        matrix[left, right] = strength
-        matrix[right, left] = strength
+    def _add_quadrature_coupling(
+        h_x: np.ndarray,
+        h_y: np.ndarray,
+        left: int,
+        right: int,
+        strength: float,
+    ) -> None:
+        h_x[left, right] = strength
+        h_x[right, left] = strength
+        h_y[left, right] = -1j * strength
+        h_y[right, left] = 1j * strength
+
+    def _upper_leg_control_matrices(self) -> tuple[np.ndarray, np.ndarray]:
+        upper_x = np.zeros((9, 9), dtype=np.complex128)
+        upper_y = np.zeros((9, 9), dtype=np.complex128)
+        self._add_quadrature_coupling(upper_x, upper_y, 1, 2, 0.5)
+        self._add_quadrature_coupling(upper_x, upper_y, 4, 6, 0.5)
+        self._add_quadrature_coupling(upper_x, upper_y, 5, 7, 1.0 / np.sqrt(2.0))
+        self._add_quadrature_coupling(upper_x, upper_y, 7, 8, 1.0 / np.sqrt(2.0))
+        return upper_x, upper_y

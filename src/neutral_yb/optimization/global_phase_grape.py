@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+import time
 from typing import Protocol
 
 import numpy as np
@@ -28,7 +29,9 @@ class GlobalPhaseOptimizationConfig:
     init_phase_spread: float = 0.8
     fidelity_target: float = 0.999
     smoothness_weight: float = 0.0
+    curvature_weight: float = 0.0
     num_restarts: int = 1
+    show_progress: bool = False
 
     @property
     def dt(self) -> float:
@@ -47,6 +50,7 @@ class GlobalPhaseOptimizationResult:
     evo_time: float
     num_tslots: int
     smoothness_cost: float
+    curvature_cost: float
 
     def to_json(self) -> dict[str, float | int | bool | str | list[float]]:
         serialized_phases = (
@@ -65,6 +69,7 @@ class GlobalPhaseOptimizationResult:
             "evo_time": float(self.evo_time),
             "num_tslots": int(self.num_tslots),
             "smoothness_cost": float(self.smoothness_cost),
+            "curvature_cost": float(self.curvature_cost),
         }
 
 
@@ -106,6 +111,7 @@ class PaperGlobalPhaseOptimizer:
         self.control_groups = self._extract_control_groups()
         self.num_controls = len(self.control_groups)
         self.control_amplitudes = self._extract_control_amplitudes()
+        self.phase_gate_indices = self._extract_phase_gate_indices()
 
     def initial_phases(self) -> np.ndarray:
         rng = np.random.default_rng(self.config.phase_seed)
@@ -129,10 +135,26 @@ class PaperGlobalPhaseOptimizer:
         )
 
         for restart in range(self.config.num_restarts):
+            restart_started_at = time.perf_counter()
             phases0 = base_phases if restart == 0 else self._jittered_initial_phases(base_phases, restart)
             variables0 = np.concatenate(
                 [np.asarray(phases0, dtype=np.float64).ravel(), np.array([initial_theta])]
             )
+            callback_state = {"iterations": 0}
+
+            def callback(_: np.ndarray) -> None:
+                if not self.config.show_progress:
+                    return
+                callback_state["iterations"] += 1
+                if callback_state["iterations"] % 25 != 0:
+                    return
+                elapsed = time.perf_counter() - restart_started_at
+                print(
+                    f"[opt] restart {restart + 1}/{self.config.num_restarts} "
+                    f"iter={callback_state['iterations']:4d} elapsed={elapsed:7.1f}s",
+                    flush=True,
+                )
+
             result = minimize(
                 fun=self.objective_and_gradient,
                 x0=variables0,
@@ -140,6 +162,7 @@ class PaperGlobalPhaseOptimizer:
                 method="L-BFGS-B",
                 bounds=[(0.0, 2.0 * np.pi)] * len(variables0),
                 options={"maxiter": self.config.max_iter},
+                callback=callback,
             )
 
             phases = np.mod(
@@ -150,18 +173,25 @@ class PaperGlobalPhaseOptimizer:
             final_state = self.final_state(phases)
             fidelity = self.model.phase_gate_fidelity(final_state, theta)
             smoothness_cost = self._smoothness_cost(phases)
+            curvature_cost = self._curvature_cost(phases)
 
             candidate = GlobalPhaseOptimizationResult(
                 phases=self._phase_output(phases),
                 theta=theta,
                 fidelity=float(fidelity),
-                objective=float(1.0 - fidelity + self.config.smoothness_weight * smoothness_cost),
+                objective=float(
+                    1.0
+                    - fidelity
+                    + self.config.smoothness_weight * smoothness_cost
+                    + self.config.curvature_weight * curvature_cost
+                ),
                 iterations=int(result.nit),
                 success=bool(result.success),
                 message=str(result.message),
                 evo_time=float(self.config.evo_time),
                 num_tslots=int(self.config.num_tslots),
                 smoothness_cost=float(smoothness_cost),
+                curvature_cost=float(curvature_cost),
             )
             if best_result is None or self._is_better(candidate, best_result):
                 best_result = candidate
@@ -178,8 +208,10 @@ class PaperGlobalPhaseOptimizer:
         theta = 0.0
         results: list[GlobalPhaseOptimizationResult] = []
         fidelities: list[float] = []
+        scan_started_at = time.perf_counter()
 
         for duration in durations:
+            started_at = time.perf_counter()
             optimizer = PaperGlobalPhaseOptimizer(
                 self.model,
                 GlobalPhaseOptimizationConfig(
@@ -190,7 +222,9 @@ class PaperGlobalPhaseOptimizer:
                     init_phase_spread=self.config.init_phase_spread,
                     fidelity_target=self.config.fidelity_target,
                     smoothness_weight=self.config.smoothness_weight,
+                    curvature_weight=self.config.curvature_weight,
                     num_restarts=self.config.num_restarts,
+                    show_progress=self.config.show_progress,
                 ),
             )
             result = optimizer.optimize(phases, theta)
@@ -198,6 +232,19 @@ class PaperGlobalPhaseOptimizer:
             fidelities.append(result.fidelity)
             phases = result.phases
             theta = result.theta
+            if self.config.show_progress:
+                index = len(results)
+                step_elapsed = time.perf_counter() - started_at
+                total_elapsed = time.perf_counter() - scan_started_at
+                avg_per_step = total_elapsed / index
+                remaining = avg_per_step * (len(durations) - index)
+                percent = 100.0 * index / len(durations)
+                print(
+                    f"[scan] {index}/{len(durations)} ({percent:5.1f}%) "
+                    f"T={duration:.3f} F={result.fidelity:.9f} "
+                    f"step={step_elapsed:7.1f}s elapsed={total_elapsed:7.1f}s eta={remaining:7.1f}s",
+                    flush=True,
+                )
 
         qualified = [res for res in results if res.fidelity >= self.config.fidelity_target]
         best_duration = None if not qualified else min(res.evo_time for res in qualified)
@@ -262,13 +309,19 @@ class PaperGlobalPhaseOptimizer:
             state_prefix.append(current_state)
 
         final_state = state_prefix[-1]
-        alpha = final_state[0]
-        beta = final_state[2]
+        alpha = final_state[self.phase_gate_indices[0]]
+        beta = final_state[self.phase_gate_indices[1]]
         s = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
 
         fidelity = self.model.phase_gate_fidelity(final_state, theta)
         smoothness_cost = self._smoothness_cost(phases)
-        objective = 1.0 - fidelity + self.config.smoothness_weight * smoothness_cost
+        curvature_cost = self._curvature_cost(phases)
+        objective = (
+            1.0
+            - fidelity
+            + self.config.smoothness_weight * smoothness_cost
+            + self.config.curvature_weight * curvature_cost
+        )
 
         suffix_unitaries: list[np.ndarray] = [
             np.eye(self.dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)
@@ -290,8 +343,8 @@ class PaperGlobalPhaseOptimizer:
                 du_k = expm_frechet(-1j * dt * h_k, -1j * dt * dh_k, compute_expm=False)
                 d_state = suffix_unitaries[slot_index] @ du_k @ state_prefix[slot_index]
 
-                d_alpha = d_state[0]
-                d_beta = d_state[2]
+                d_alpha = d_state[self.phase_gate_indices[0]]
+                d_beta = d_state[self.phase_gate_indices[1]]
                 d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
                 d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
                 d_fidelity = (2.0 * np.real(np.conj(s) * d_s) + d_pop) / 20.0
@@ -302,6 +355,8 @@ class PaperGlobalPhaseOptimizer:
 
         if self.config.smoothness_weight > 0.0:
             phase_gradient += self.config.smoothness_weight * self._smoothness_gradient(phases)
+        if self.config.curvature_weight > 0.0:
+            phase_gradient += self.config.curvature_weight * self._curvature_gradient(phases)
 
         gradient = np.concatenate([phase_gradient.ravel(), np.array([-d_fidelity_theta])])
 
@@ -357,6 +412,29 @@ class PaperGlobalPhaseOptimizer:
             grad[:, 1:-1] = (np.sin(delta[:, :-1]) - np.sin(delta[:, 1:])) * scale
         return grad
 
+    @staticmethod
+    def _curvature_cost(phases: np.ndarray) -> float:
+        phase_matrix = phases if np.asarray(phases).ndim == 2 else np.asarray(phases)[None, :]
+        if phase_matrix.shape[1] < 3:
+            return 0.0
+        delta = np.angle(np.exp(1j * (phase_matrix[:, 1:] - phase_matrix[:, :-1])))
+        curvature = delta[:, 1:] - delta[:, :-1]
+        return float(np.mean(curvature**2))
+
+    @staticmethod
+    def _curvature_gradient(phases: np.ndarray) -> np.ndarray:
+        phase_matrix = phases if np.asarray(phases).ndim == 2 else np.asarray(phases)[None, :]
+        grad = np.zeros_like(phase_matrix)
+        if phase_matrix.shape[1] < 3:
+            return grad
+        unwrapped = np.unwrap(phase_matrix, axis=1)
+        curvature = unwrapped[:, 2:] - 2.0 * unwrapped[:, 1:-1] + unwrapped[:, :-2]
+        scale = 2.0 / curvature.size
+        grad[:, :-2] += curvature * scale
+        grad[:, 1:-1] += -2.0 * curvature * scale
+        grad[:, 2:] += curvature * scale
+        return grad
+
     def _extract_control_groups(self) -> list[tuple[np.ndarray, np.ndarray]]:
         if hasattr(self.model, "phase_control_hamiltonians"):
             groups = getattr(self.model, "phase_control_hamiltonians")()
@@ -387,3 +465,11 @@ class PaperGlobalPhaseOptimizer:
 
     def _phase_output(self, phases: np.ndarray) -> np.ndarray:
         return phases[0].copy() if self.num_controls == 1 else phases.copy()
+
+    def _extract_phase_gate_indices(self) -> tuple[int, int]:
+        if hasattr(self.model, "phase_gate_state_indices"):
+            indices = tuple(int(index) for index in getattr(self.model, "phase_gate_state_indices")())
+            if len(indices) != 2:
+                raise ValueError("phase_gate_state_indices must return exactly two indices")
+            return indices[0], indices[1]
+        return 0, 2

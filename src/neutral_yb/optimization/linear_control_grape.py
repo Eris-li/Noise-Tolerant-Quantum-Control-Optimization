@@ -99,6 +99,7 @@ class LinearControlGRAPEOptimizer:
         self.initial_state = model.initial_state().full().ravel()
         self.dimension = self.initial_state.shape[0]
         self.num_controls = len(self.control_ops)
+        self.phase_gate_indices = self._extract_phase_gate_indices()
 
     def initial_controls(self) -> np.ndarray:
         rng = np.random.default_rng(self.config.control_seed)
@@ -271,8 +272,8 @@ class LinearControlGRAPEOptimizer:
             state_prefix.append(current_state)
 
         final_state = state_prefix[-1]
-        alpha = final_state[0]
-        beta = final_state[3]
+        alpha = final_state[self.phase_gate_indices[0]]
+        beta = final_state[self.phase_gate_indices[1]]
         s = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
 
         fidelity = self.model.phase_gate_fidelity(final_state, theta)
@@ -305,8 +306,8 @@ class LinearControlGRAPEOptimizer:
                     compute_expm=False,
                 )
                 d_state = suffix_unitaries[slot_index] @ du_k @ state_prefix[slot_index]
-                d_alpha = d_state[0]
-                d_beta = d_state[3]
+                d_alpha = d_state[self.phase_gate_indices[0]]
+                d_beta = d_state[self.phase_gate_indices[1]]
                 d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
                 d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
                 d_fidelity = (2.0 * np.real(np.conj(s) * d_s) + d_pop) / 20.0
@@ -341,6 +342,14 @@ class LinearControlGRAPEOptimizer:
         if array.shape != (self.num_controls, self.config.num_tslots):
             raise ValueError("Control array shape does not match optimizer configuration")
         return array
+
+    def _extract_phase_gate_indices(self) -> tuple[int, int]:
+        if hasattr(self.model, "phase_gate_state_indices"):
+            indices = tuple(int(index) for index in getattr(self.model, "phase_gate_state_indices")())
+            if len(indices) != 2:
+                raise ValueError("phase_gate_state_indices must return exactly two indices")
+            return indices[0], indices[1]
+        return 0, 2
 
     @staticmethod
     def _is_better(left: LinearControlOptimizationResult, right: LinearControlOptimizationResult) -> bool:

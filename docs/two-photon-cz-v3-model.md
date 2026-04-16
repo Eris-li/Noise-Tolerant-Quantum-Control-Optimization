@@ -38,20 +38,16 @@
 当前优化器里使用的闭系统哈密顿量写成
 
 ```math
-H(t) = H_0 + u_1(t) H_1 + u_2(t) H_2
+H(t) = H_0
+      + \Omega_1\bigl[\cos \phi(t)\,H_{1x} + \sin \phi(t)\,H_{1y}\bigr]
+      + \Omega_2\bigl[\cos \phi_{\mathrm{ref}}\,H_{2x} + \sin \phi_{\mathrm{ref}}\,H_{2y}\bigr]
 ```
 
 这里：
 
-- `H_0` 是固定漂移项，包含中间态失谐、双光子失谐、有限 blockade 和固定实耦合
-- `u_1(t)` 是 lower-leg 激光的 phase-rate control
-- `u_2(t)` 是 upper-leg 激光的 phase-rate control
-
-两条实际输出的 phase sequence 由积分得到：
-
-```math
-\phi_1(t) = \int_0^t u_1(t')\,dt', \qquad \phi_2(t) = \int_0^t u_2(t')\,dt'
-```
+- `H_0` 是固定漂移项，只包含中间态失谐、双光子失谐和有限 blockade
+- `\phi(t)` 是 lower-leg 光场相位，也是当前唯一直接优化的 phase sequence
+- `\phi_{\mathrm{ref}}` 是 upper-leg 固定参考相位，当前代码默认取 `0`
 
 ### 3.1 漂移项矩阵 `H_0`
 
@@ -60,15 +56,15 @@ H(t) = H_0 + u_1(t) H_1 + u_2(t) H_2
 ```math
 H_0 =
 \begin{pmatrix}
-0 & \Omega_1/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\Omega_1/2 & -\Delta_e & \Omega_2/2 & 0 & 0 & 0 & 0 & 0 & 0 \\
-0 & \Omega_2/2 & -\delta_{01} & 0 & 0 & 0 & 0 & 0 & 0 \\
-0 & 0 & 0 & 0 & \Omega_1/\sqrt{2} & 0 & 0 & 0 & 0 \\
-0 & 0 & 0 & \Omega_1/\sqrt{2} & -\Delta_e & \Omega_1/\sqrt{2} & \Omega_2/2 & 0 & 0 \\
-0 & 0 & 0 & 0 & \Omega_1/\sqrt{2} & -2\Delta_e & 0 & \Omega_2/\sqrt{2} & 0 \\
-0 & 0 & 0 & 0 & \Omega_2/2 & 0 & -\delta_{11} & \Omega_1/2 & 0 \\
-0 & 0 & 0 & 0 & 0 & \Omega_2/\sqrt{2} & \Omega_1/2 & -(\Delta_e + \delta_{11}) & \Omega_2/\sqrt{2} \\
-0 & 0 & 0 & 0 & 0 & 0 & 0 & \Omega_2/\sqrt{2} & V_{rr} - 2\delta_{11}
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & -\Delta_e & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & -\delta_{01} & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & -\Delta_e & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & -2\Delta_e & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -\delta_{11} & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & -(\Delta_e + \delta_{11}) & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & V_{rr} - 2\delta_{11}
 \end{pmatrix}
 ```
 
@@ -81,19 +77,73 @@ H_0 =
 - `\delta_{11}` 是双激发对称分支上的双光子残余失谐
 - `V_{rr}` 是有限 blockade shift
 
-### 3.2 控制项矩阵 `H_1, H_2`
+### 3.2 lower-leg 控制矩阵 `H_{1x}, H_{1y}`
 
-当前模型里，优化器并不直接优化耦合相位本身，而是优化相位导数对应的频率偏移，因此控制矩阵是对角的：
+lower-leg 只耦合 `|1> \leftrightarrow |e>`，因此
 
 ```math
-H_1 = \mathrm{diag}(0, 1, 1, 0, 1, 2, 1, 2, 2)
+H_{1x} =
+\begin{pmatrix}
+0 & 1/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+1/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 1/\sqrt{2} & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 1/\sqrt{2} & 0 & 1/\sqrt{2} & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 1/\sqrt{2} & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 1/2 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 1/2 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0
+\end{pmatrix}
 ```
 
 ```math
-H_2 = \mathrm{diag}(0, 0, 1, 0, 0, 0, 1, 1, 2)
+H_{1y} =
+\begin{pmatrix}
+0 & -i/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+i/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & -i/\sqrt{2} & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & i/\sqrt{2} & 0 & -i/\sqrt{2} & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & i/\sqrt{2} & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & -i/2 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & i/2 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0
+\end{pmatrix}
 ```
 
-它们分别对应 lower-leg 和 upper-leg phase-rate 引入的有效对角频移。
+### 3.3 upper-leg 参考矩阵 `H_{2x}, H_{2y}`
+
+upper-leg 只耦合 `|e> \leftrightarrow |r>`，因此
+
+```math
+H_{2x} =
+\begin{pmatrix}
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 1/2 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 1/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 1/2 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 1/\sqrt{2} & 0 \\
+0 & 0 & 0 & 0 & 1/2 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 1/\sqrt{2} & 0 & 0 & 1/\sqrt{2} \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 1/\sqrt{2} & 0
+\end{pmatrix}
+```
+
+```math
+H_{2y} =
+\begin{pmatrix}
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & -i/2 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & i/2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -i/2 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & -i/\sqrt{2} & 0 \\
+0 & 0 & 0 & 0 & i/2 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & i/\sqrt{2} & 0 & 0 & -i/\sqrt{2} \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & i/\sqrt{2} & 0
+\end{pmatrix}
+```
 
 ## 4. 当前参数取值
 
@@ -125,12 +175,10 @@ V_{rr} = 10.0
 - `T` 从 `1.0` 到 `10.0`
 - 粗扫步长 `0.5`
 - `max_iter = 220`
-- `control_bound = 2.0`
 - `smoothness_weight = 0.01`
-- `amplitude_weight = 0.0005`
 - `curvature_weight = 0.02`
 
-这里新增的 `amplitude_weight` 和 `curvature_weight` 是为了压低 phase-rate control 的高频抖动与过大振幅。
+这里的 `smoothness_weight` 和 `curvature_weight` 是为了压低相邻时间片的 phase 跳变与高频弯折。当前只对单条优化 phase `\phi(t)` 施加这些正则。
 
 ## 6. 当前结果的解释
 

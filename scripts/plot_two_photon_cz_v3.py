@@ -17,9 +17,9 @@ import numpy as np
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.optimization.linear_control_grape import (
-    LinearControlGRAPEOptimizer,
-    LinearControlOptimizationConfig,
+from neutral_yb.optimization.global_phase_grape import (
+    GlobalPhaseOptimizationConfig,
+    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -33,8 +33,9 @@ def main() -> None:
     scan = json.loads((artifacts / "two_photon_cz_v3_coarse_scan.json").read_text(encoding="utf-8"))
     optimal = json.loads((artifacts / "two_photon_cz_v3_best.json").read_text(encoding="utf-8"))
 
-    controls = np.asarray(optimal["controls"], dtype=np.float64)
-    phases = np.asarray(optimal["integrated_phases"], dtype=np.float64)
+    phases = np.asarray(optimal["phases"], dtype=np.float64)
+    if phases.ndim == 1:
+        phases = phases[None, :]
 
     model = TwoPhotonCZ9DModel(
         species=idealised_yb171(),
@@ -45,20 +46,18 @@ def main() -> None:
         two_photon_detuning_01=0.01,
         two_photon_detuning_11=0.01,
     )
-    optimizer = LinearControlGRAPEOptimizer(
+    optimizer = PaperGlobalPhaseOptimizer(
         model=model,
-        config=LinearControlOptimizationConfig(
-            num_tslots=controls.shape[1],
+        config=GlobalPhaseOptimizationConfig(
+            num_tslots=phases.shape[1],
             evo_time=float(optimal["evo_time"]),
             max_iter=220,
-            control_bound=2.0,
             smoothness_weight=0.01,
-            amplitude_weight=0.0005,
             curvature_weight=0.02,
             num_restarts=4,
         ),
     )
-    times, states = optimizer.trajectory(controls)
+    times, states = optimizer.trajectory(phases)
     array = np.stack(states, axis=0)
 
     intermediate_total = np.abs(array[:, 1]) ** 2 + np.abs(array[:, 4]) ** 2 + np.abs(array[:, 5]) ** 2
@@ -77,19 +76,18 @@ def main() -> None:
     ax.legend()
 
     ax = axes[0, 1]
-    ax.plot(np.arange(phases.shape[1]), centered_phase(phases[0]), color="#1f78b4", label="lower-leg phase")
-    ax.plot(np.arange(phases.shape[1]), centered_phase(phases[1]), color="#e31a1c", label="upper-leg phase")
+    ax.plot(np.arange(phases.shape[1]), centered_phase(phases[0]), color="#1f78b4", label="optimized lower-leg phase")
     ax.set_xlabel("Time slice")
-    ax.set_ylabel("Integrated phase [rad]")
-    ax.set_title("Optimized two-beam phase sequences")
+    ax.set_ylabel("Phase [rad]")
+    ax.set_title("Optimized single phase sequence")
     ax.legend()
 
     ax = axes[1, 0]
-    ax.plot(np.arange(controls.shape[1]), controls[0], color="#1f78b4", label="lower-leg control")
-    ax.plot(np.arange(controls.shape[1]), controls[1], color="#e31a1c", label="upper-leg control")
+    phase_jumps = np.diff(np.unwrap(phases, axis=1), axis=1)
+    ax.plot(np.arange(phase_jumps.shape[1]), phase_jumps[0], color="#1f78b4", label="adjacent phase jump")
     ax.set_xlabel("Time slice")
-    ax.set_ylabel("Phase-rate control")
-    ax.set_title("Optimized phase-rate controls")
+    ax.set_ylabel("Adjacent phase change [rad]")
+    ax.set_title("Suppressed slice-to-slice phase jumps")
     ax.legend()
 
     ax = axes[1, 1]
