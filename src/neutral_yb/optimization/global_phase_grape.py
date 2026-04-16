@@ -49,8 +49,13 @@ class GlobalPhaseOptimizationResult:
     smoothness_cost: float
 
     def to_json(self) -> dict[str, float | int | bool | str | list[float]]:
+        serialized_phases = (
+            [[float(entry) for entry in row] for row in self.phases]
+            if np.asarray(self.phases).ndim == 2
+            else [float(x) for x in self.phases]
+        )
         return {
-            "phases": [float(x) for x in self.phases],
+            "phases": serialized_phases,
             "theta": float(self.theta),
             "fidelity": float(self.fidelity),
             "objective": float(self.objective),
@@ -82,20 +87,33 @@ class TimeOptimalScanResult:
 
 
 class PaperGlobalPhaseOptimizer:
-    """Paper-style optimizer for the ideal global CZ problem."""
+    """Paper-style optimizer for phase-gate control problems.
+
+    The optimizer supports one or more phase-modulated control channels.
+    A single channel corresponds to the original global-phase idealization:
+    H(t) = H_d + Omega * [cos(phi) H_x + sin(phi) H_y].
+
+    Multi-channel models can expose several phase-modulated beams, such as a
+    two-photon ladder with independent lower- and upper-leg phases.
+    """
 
     def __init__(self, model: PhaseGateModel, config: GlobalPhaseOptimizationConfig):
         self.model = model
         self.config = config
         self.h_d = model.drift_hamiltonian().full()
-        self.h_x, self.h_y = [operator.full() for operator in model.control_hamiltonians()]
         self.initial_state = model.initial_state().full().ravel()
         self.dimension = self.initial_state.shape[0]
-        self.omega_max = model.species.omega_max
+        self.control_groups = self._extract_control_groups()
+        self.num_controls = len(self.control_groups)
+        self.control_amplitudes = self._extract_control_amplitudes()
 
     def initial_phases(self) -> np.ndarray:
         rng = np.random.default_rng(self.config.phase_seed)
-        phases = rng.normal(0.0, self.config.init_phase_spread, size=self.config.num_tslots)
+        phases = rng.normal(
+            0.0,
+            self.config.init_phase_spread,
+            size=(self.num_controls, self.config.num_tslots),
+        )
         return np.mod(phases, 2.0 * np.pi)
 
     def optimize(
@@ -104,11 +122,17 @@ class PaperGlobalPhaseOptimizer:
         initial_theta: float = 0.0,
     ) -> GlobalPhaseOptimizationResult:
         best_result: GlobalPhaseOptimizationResult | None = None
-        base_phases = self.initial_phases() if initial_phases is None else np.asarray(initial_phases, dtype=np.float64)
+        base_phases = (
+            self.initial_phases()
+            if initial_phases is None
+            else self._coerce_phase_matrix(initial_phases)
+        )
 
         for restart in range(self.config.num_restarts):
             phases0 = base_phases if restart == 0 else self._jittered_initial_phases(base_phases, restart)
-            variables0 = np.concatenate([np.asarray(phases0, dtype=np.float64), np.array([initial_theta])])
+            variables0 = np.concatenate(
+                [np.asarray(phases0, dtype=np.float64).ravel(), np.array([initial_theta])]
+            )
             result = minimize(
                 fun=self.objective_and_gradient,
                 x0=variables0,
@@ -118,14 +142,17 @@ class PaperGlobalPhaseOptimizer:
                 options={"maxiter": self.config.max_iter},
             )
 
-            phases = np.mod(result.x[:-1], 2.0 * np.pi)
+            phases = np.mod(
+                result.x[:-1].reshape(self.num_controls, self.config.num_tslots),
+                2.0 * np.pi,
+            )
             theta = float(np.mod(result.x[-1], 2.0 * np.pi))
             final_state = self.final_state(phases)
             fidelity = self.model.phase_gate_fidelity(final_state, theta)
             smoothness_cost = self._smoothness_cost(phases)
 
             candidate = GlobalPhaseOptimizationResult(
-                phases=phases,
+                phases=self._phase_output(phases),
                 theta=theta,
                 fidelity=float(fidelity),
                 objective=float(1.0 - fidelity + self.config.smoothness_weight * smoothness_cost),
@@ -147,7 +174,7 @@ class PaperGlobalPhaseOptimizer:
         durations: list[float],
         initial_phases: np.ndarray | None = None,
     ) -> tuple[TimeOptimalScanResult, list[GlobalPhaseOptimizationResult]]:
-        phases = self.initial_phases() if initial_phases is None else np.asarray(initial_phases, dtype=np.float64)
+        phases = self.initial_phases() if initial_phases is None else self._coerce_phase_matrix(initial_phases)
         theta = 0.0
         results: list[GlobalPhaseOptimizationResult] = []
         fidelities: list[float] = []
@@ -195,26 +222,31 @@ class PaperGlobalPhaseOptimizer:
         destination.write_text(json.dumps(result.to_json(), indent=2), encoding="utf-8")
 
     def final_state(self, phases: np.ndarray) -> np.ndarray:
+        phase_matrix = self._coerce_phase_matrix(phases)
         state = np.array(self.initial_state, copy=True)
         dt = self.config.dt
-        for phase in phases:
-            u_k = expm(-1j * dt * self._hamiltonian_from_phase(float(phase)))
+        for slot_index in range(self.config.num_tslots):
+            u_k = expm(-1j * dt * self._hamiltonian_from_phases(phase_matrix[:, slot_index]))
             state = u_k @ state
         return state
 
     def trajectory(self, phases: np.ndarray) -> tuple[np.ndarray, list[np.ndarray]]:
+        phase_matrix = self._coerce_phase_matrix(phases)
         state = np.array(self.initial_state, copy=True)
         states = [state]
-        times = np.linspace(0.0, self.config.evo_time, len(phases) + 1)
+        times = np.linspace(0.0, self.config.evo_time, self.config.num_tslots + 1)
         dt = self.config.dt
-        for phase in phases:
-            u_k = expm(-1j * dt * self._hamiltonian_from_phase(float(phase)))
+        for slot_index in range(self.config.num_tslots):
+            u_k = expm(-1j * dt * self._hamiltonian_from_phases(phase_matrix[:, slot_index]))
             state = u_k @ state
             states.append(state)
         return times, states
 
     def objective_and_gradient(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
-        phases = np.asarray(variables[:-1], dtype=np.float64)
+        phases = np.asarray(variables[:-1], dtype=np.float64).reshape(
+            self.num_controls,
+            self.config.num_tslots,
+        )
         theta = float(variables[-1])
         dt = self.config.dt
 
@@ -222,8 +254,8 @@ class PaperGlobalPhaseOptimizer:
         state_prefix: list[np.ndarray] = [self.initial_state]
         current_state = np.array(self.initial_state, copy=True)
 
-        for phase in phases:
-            h_k = self._hamiltonian_from_phase(float(phase))
+        for slot_index in range(self.config.num_tslots):
+            h_k = self._hamiltonian_from_phases(phases[:, slot_index])
             u_k = expm(-1j * dt * h_k)
             slice_unitaries.append(u_k)
             current_state = u_k @ current_state
@@ -238,47 +270,61 @@ class PaperGlobalPhaseOptimizer:
         smoothness_cost = self._smoothness_cost(phases)
         objective = 1.0 - fidelity + self.config.smoothness_weight * smoothness_cost
 
-        suffix_unitaries: list[np.ndarray] = [np.eye(self.dimension, dtype=np.complex128)] * len(phases)
+        suffix_unitaries: list[np.ndarray] = [
+            np.eye(self.dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)
+        ]
         current_suffix = np.eye(self.dimension, dtype=np.complex128)
-        for index in range(len(phases) - 1, -1, -1):
+        for index in range(self.config.num_tslots - 1, -1, -1):
             suffix_unitaries[index] = current_suffix
             current_suffix = current_suffix @ slice_unitaries[index]
 
-        gradient = np.zeros_like(variables)
+        phase_gradient = np.zeros_like(phases)
 
-        for index, phase in enumerate(phases):
-            h_k = self._hamiltonian_from_phase(float(phase))
-            dh_k = self._phase_derivative_hamiltonian(float(phase))
-            du_k = expm_frechet(-1j * dt * h_k, -1j * dt * dh_k, compute_expm=False)
-            d_state = suffix_unitaries[index] @ du_k @ state_prefix[index]
+        for slot_index in range(self.config.num_tslots):
+            h_k = self._hamiltonian_from_phases(phases[:, slot_index])
+            for control_index in range(self.num_controls):
+                dh_k = self._phase_derivative_hamiltonian(
+                    control_index,
+                    float(phases[control_index, slot_index]),
+                )
+                du_k = expm_frechet(-1j * dt * h_k, -1j * dt * dh_k, compute_expm=False)
+                d_state = suffix_unitaries[slot_index] @ du_k @ state_prefix[slot_index]
 
-            d_alpha = d_state[0]
-            d_beta = d_state[2]
-            d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
-            d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
-            d_fidelity = (2.0 * np.real(np.conj(s) * d_s) + d_pop) / 20.0
-            gradient[index] = -d_fidelity
+                d_alpha = d_state[0]
+                d_beta = d_state[2]
+                d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
+                d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
+                d_fidelity = (2.0 * np.real(np.conj(s) * d_s) + d_pop) / 20.0
+                phase_gradient[control_index, slot_index] = -d_fidelity
 
         d_s_theta = -2j * np.exp(-1j * theta) * alpha + 2j * np.exp(-2j * theta) * beta
         d_fidelity_theta = 2.0 * np.real(np.conj(s) * d_s_theta) / 20.0
-        gradient[-1] = -d_fidelity_theta
 
         if self.config.smoothness_weight > 0.0:
-            gradient[:-1] += self.config.smoothness_weight * self._smoothness_gradient(phases)
+            phase_gradient += self.config.smoothness_weight * self._smoothness_gradient(phases)
+
+        gradient = np.concatenate([phase_gradient.ravel(), np.array([-d_fidelity_theta])])
 
         return float(objective), gradient
 
-    def _hamiltonian_from_phase(self, phase: float) -> np.ndarray:
-        return self.h_d + self.omega_max * (
-            np.cos(phase) * self.h_x + np.sin(phase) * self.h_y
-        )
+    def _hamiltonian_from_phases(self, phases: np.ndarray) -> np.ndarray:
+        hamiltonian = np.array(self.h_d, copy=True)
+        for control_index, phase in enumerate(phases):
+            h_x, h_y = self.control_groups[control_index]
+            amplitude = self.control_amplitudes[control_index]
+            hamiltonian += amplitude * (
+                np.cos(float(phase)) * h_x + np.sin(float(phase)) * h_y
+            )
+        return hamiltonian
 
-    def _phase_derivative_hamiltonian(self, phase: float) -> np.ndarray:
-        return self.omega_max * (-np.sin(phase) * self.h_x + np.cos(phase) * self.h_y)
+    def _phase_derivative_hamiltonian(self, control_index: int, phase: float) -> np.ndarray:
+        h_x, h_y = self.control_groups[control_index]
+        amplitude = self.control_amplitudes[control_index]
+        return amplitude * (-np.sin(phase) * h_x + np.cos(phase) * h_y)
 
     def _jittered_initial_phases(self, base_phases: np.ndarray, restart: int) -> np.ndarray:
         rng = np.random.default_rng(self.config.phase_seed + 1000 * restart)
-        jitter = rng.normal(0.0, self.config.init_phase_spread * 0.35, size=base_phases.shape[0])
+        jitter = rng.normal(0.0, self.config.init_phase_spread * 0.35, size=base_phases.shape)
         return np.mod(base_phases + jitter, 2.0 * np.pi)
 
     @staticmethod
@@ -291,20 +337,53 @@ class PaperGlobalPhaseOptimizer:
 
     @staticmethod
     def _smoothness_cost(phases: np.ndarray) -> float:
-        if len(phases) < 2:
+        phase_matrix = phases if np.asarray(phases).ndim == 2 else np.asarray(phases)[None, :]
+        if phase_matrix.shape[1] < 2:
             return 0.0
-        delta = phases[1:] - phases[:-1]
+        delta = phase_matrix[:, 1:] - phase_matrix[:, :-1]
         return float(np.mean(1.0 - np.cos(delta)))
 
     @staticmethod
     def _smoothness_gradient(phases: np.ndarray) -> np.ndarray:
-        grad = np.zeros_like(phases)
-        if len(phases) < 2:
+        phase_matrix = phases if np.asarray(phases).ndim == 2 else np.asarray(phases)[None, :]
+        grad = np.zeros_like(phase_matrix)
+        if phase_matrix.shape[1] < 2:
             return grad
-        scale = 1.0 / (len(phases) - 1)
-        delta = phases[1:] - phases[:-1]
-        grad[0] = -np.sin(delta[0]) * scale
-        grad[-1] = np.sin(delta[-1]) * scale
-        if len(phases) > 2:
-            grad[1:-1] = (np.sin(delta[:-1]) - np.sin(delta[1:])) * scale
+        scale = 1.0 / (phase_matrix.shape[1] - 1)
+        delta = phase_matrix[:, 1:] - phase_matrix[:, :-1]
+        grad[:, 0] = -np.sin(delta[:, 0]) * scale
+        grad[:, -1] = np.sin(delta[:, -1]) * scale
+        if phase_matrix.shape[1] > 2:
+            grad[:, 1:-1] = (np.sin(delta[:, :-1]) - np.sin(delta[:, 1:])) * scale
         return grad
+
+    def _extract_control_groups(self) -> list[tuple[np.ndarray, np.ndarray]]:
+        if hasattr(self.model, "phase_control_hamiltonians"):
+            groups = getattr(self.model, "phase_control_hamiltonians")()
+        else:
+            groups = (self.model.control_hamiltonians(),)
+        return [
+            (np.asarray(h_x.full(), dtype=np.complex128), np.asarray(h_y.full(), dtype=np.complex128))
+            for h_x, h_y in groups
+        ]
+
+    def _extract_control_amplitudes(self) -> list[float]:
+        if hasattr(self.model, "phase_control_amplitudes"):
+            amplitudes = tuple(float(value) for value in getattr(self.model, "phase_control_amplitudes")())
+            if len(amplitudes) != self.num_controls:
+                raise ValueError("phase_control_amplitudes must match the number of control groups")
+            return list(amplitudes)
+        return [float(self.model.species.omega_max)] * self.num_controls
+
+    def _coerce_phase_matrix(self, phases: np.ndarray) -> np.ndarray:
+        array = np.asarray(phases, dtype=np.float64)
+        if array.ndim == 1:
+            if self.num_controls != 1 or array.shape[0] != self.config.num_tslots:
+                raise ValueError("Expected a 2D phase array for multi-control optimization")
+            return array.reshape(1, self.config.num_tslots)
+        if array.shape != (self.num_controls, self.config.num_tslots):
+            raise ValueError("Phase array shape does not match optimizer configuration")
+        return array
+
+    def _phase_output(self, phases: np.ndarray) -> np.ndarray:
+        return phases[0].copy() if self.num_controls == 1 else phases.copy()

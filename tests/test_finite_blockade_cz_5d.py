@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 import sys
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -41,8 +43,8 @@ class FiniteBlockadeCZ5DTest(unittest.TestCase):
             model,
             GlobalPhaseOptimizationConfig(num_tslots=6, evo_time=2.0, max_iter=1),
         )
-        variables = list(optimizer.initial_phases()) + [0.0]
-        objective, gradient = optimizer.objective_and_gradient(variables)
+        variables = list(np.asarray(optimizer.initial_phases()).ravel()) + [0.0]
+        objective, gradient = optimizer.objective_and_gradient(np.asarray(variables, dtype=float))
         self.assertGreaterEqual(objective, 0.0)
         self.assertEqual(gradient.shape, (7,))
 
