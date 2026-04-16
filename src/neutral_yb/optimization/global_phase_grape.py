@@ -3,12 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+from typing import Protocol
 
 import numpy as np
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize
 
-from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
+
+class PhaseGateModel(Protocol):
+    species: object
+
+    def drift_hamiltonian(self): ...
+    def control_hamiltonians(self): ...
+    def initial_state(self): ...
+    def phase_gate_fidelity(self, state: np.ndarray, theta: float) -> float: ...
 
 
 @dataclass(frozen=True)
@@ -19,6 +27,8 @@ class GlobalPhaseOptimizationConfig:
     phase_seed: int = 11
     init_phase_spread: float = 0.8
     fidelity_target: float = 0.999
+    smoothness_weight: float = 0.0
+    num_restarts: int = 1
 
     @property
     def dt(self) -> float:
@@ -36,6 +46,7 @@ class GlobalPhaseOptimizationResult:
     message: str
     evo_time: float
     num_tslots: int
+    smoothness_cost: float
 
     def to_json(self) -> dict[str, float | int | bool | str | list[float]]:
         return {
@@ -48,6 +59,7 @@ class GlobalPhaseOptimizationResult:
             "message": self.message,
             "evo_time": float(self.evo_time),
             "num_tslots": int(self.num_tslots),
+            "smoothness_cost": float(self.smoothness_cost),
         }
 
 
@@ -72,12 +84,13 @@ class TimeOptimalScanResult:
 class PaperGlobalPhaseOptimizer:
     """Paper-style optimizer for the ideal global CZ problem."""
 
-    def __init__(self, model: GlobalCZ4DModel, config: GlobalPhaseOptimizationConfig):
+    def __init__(self, model: PhaseGateModel, config: GlobalPhaseOptimizationConfig):
         self.model = model
         self.config = config
         self.h_d = model.drift_hamiltonian().full()
         self.h_x, self.h_y = [operator.full() for operator in model.control_hamiltonians()]
         self.initial_state = model.initial_state().full().ravel()
+        self.dimension = self.initial_state.shape[0]
         self.omega_max = model.species.omega_max
 
     def initial_phases(self) -> np.ndarray:
@@ -90,35 +103,44 @@ class PaperGlobalPhaseOptimizer:
         initial_phases: np.ndarray | None = None,
         initial_theta: float = 0.0,
     ) -> GlobalPhaseOptimizationResult:
-        if initial_phases is None:
-            initial_phases = self.initial_phases()
+        best_result: GlobalPhaseOptimizationResult | None = None
+        base_phases = self.initial_phases() if initial_phases is None else np.asarray(initial_phases, dtype=np.float64)
 
-        variables0 = np.concatenate([np.asarray(initial_phases, dtype=np.float64), np.array([initial_theta])])
-        result = minimize(
-            fun=self.objective_and_gradient,
-            x0=variables0,
-            jac=True,
-            method="L-BFGS-B",
-            bounds=[(0.0, 2.0 * np.pi)] * len(variables0),
-            options={"maxiter": self.config.max_iter},
-        )
+        for restart in range(self.config.num_restarts):
+            phases0 = base_phases if restart == 0 else self._jittered_initial_phases(base_phases, restart)
+            variables0 = np.concatenate([np.asarray(phases0, dtype=np.float64), np.array([initial_theta])])
+            result = minimize(
+                fun=self.objective_and_gradient,
+                x0=variables0,
+                jac=True,
+                method="L-BFGS-B",
+                bounds=[(0.0, 2.0 * np.pi)] * len(variables0),
+                options={"maxiter": self.config.max_iter},
+            )
 
-        phases = np.mod(result.x[:-1], 2.0 * np.pi)
-        theta = float(np.mod(result.x[-1], 2.0 * np.pi))
-        final_state = self.final_state(phases)
-        fidelity = self.model.phase_gate_fidelity(final_state, theta)
+            phases = np.mod(result.x[:-1], 2.0 * np.pi)
+            theta = float(np.mod(result.x[-1], 2.0 * np.pi))
+            final_state = self.final_state(phases)
+            fidelity = self.model.phase_gate_fidelity(final_state, theta)
+            smoothness_cost = self._smoothness_cost(phases)
 
-        return GlobalPhaseOptimizationResult(
-            phases=phases,
-            theta=theta,
-            fidelity=float(fidelity),
-            objective=float(1.0 - fidelity),
-            iterations=int(result.nit),
-            success=bool(result.success),
-            message=str(result.message),
-            evo_time=float(self.config.evo_time),
-            num_tslots=int(self.config.num_tslots),
-        )
+            candidate = GlobalPhaseOptimizationResult(
+                phases=phases,
+                theta=theta,
+                fidelity=float(fidelity),
+                objective=float(1.0 - fidelity + self.config.smoothness_weight * smoothness_cost),
+                iterations=int(result.nit),
+                success=bool(result.success),
+                message=str(result.message),
+                evo_time=float(self.config.evo_time),
+                num_tslots=int(self.config.num_tslots),
+                smoothness_cost=float(smoothness_cost),
+            )
+            if best_result is None or self._is_better(candidate, best_result):
+                best_result = candidate
+
+        assert best_result is not None
+        return best_result
 
     def scan_durations(
         self,
@@ -140,6 +162,8 @@ class PaperGlobalPhaseOptimizer:
                     phase_seed=self.config.phase_seed,
                     init_phase_spread=self.config.init_phase_spread,
                     fidelity_target=self.config.fidelity_target,
+                    smoothness_weight=self.config.smoothness_weight,
+                    num_restarts=self.config.num_restarts,
                 ),
             )
             result = optimizer.optimize(phases, theta)
@@ -211,10 +235,11 @@ class PaperGlobalPhaseOptimizer:
         s = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
 
         fidelity = self.model.phase_gate_fidelity(final_state, theta)
-        objective = 1.0 - fidelity
+        smoothness_cost = self._smoothness_cost(phases)
+        objective = 1.0 - fidelity + self.config.smoothness_weight * smoothness_cost
 
-        suffix_unitaries: list[np.ndarray] = [np.eye(4, dtype=np.complex128)] * len(phases)
-        current_suffix = np.eye(4, dtype=np.complex128)
+        suffix_unitaries: list[np.ndarray] = [np.eye(self.dimension, dtype=np.complex128)] * len(phases)
+        current_suffix = np.eye(self.dimension, dtype=np.complex128)
         for index in range(len(phases) - 1, -1, -1):
             suffix_unitaries[index] = current_suffix
             current_suffix = current_suffix @ slice_unitaries[index]
@@ -238,6 +263,9 @@ class PaperGlobalPhaseOptimizer:
         d_fidelity_theta = 2.0 * np.real(np.conj(s) * d_s_theta) / 20.0
         gradient[-1] = -d_fidelity_theta
 
+        if self.config.smoothness_weight > 0.0:
+            gradient[:-1] += self.config.smoothness_weight * self._smoothness_gradient(phases)
+
         return float(objective), gradient
 
     def _hamiltonian_from_phase(self, phase: float) -> np.ndarray:
@@ -247,3 +275,36 @@ class PaperGlobalPhaseOptimizer:
 
     def _phase_derivative_hamiltonian(self, phase: float) -> np.ndarray:
         return self.omega_max * (-np.sin(phase) * self.h_x + np.cos(phase) * self.h_y)
+
+    def _jittered_initial_phases(self, base_phases: np.ndarray, restart: int) -> np.ndarray:
+        rng = np.random.default_rng(self.config.phase_seed + 1000 * restart)
+        jitter = rng.normal(0.0, self.config.init_phase_spread * 0.35, size=base_phases.shape[0])
+        return np.mod(base_phases + jitter, 2.0 * np.pi)
+
+    @staticmethod
+    def _is_better(left: GlobalPhaseOptimizationResult, right: GlobalPhaseOptimizationResult) -> bool:
+        if left.fidelity > right.fidelity + 1e-8:
+            return True
+        if abs(left.fidelity - right.fidelity) <= 1e-8 and left.smoothness_cost < right.smoothness_cost:
+            return True
+        return False
+
+    @staticmethod
+    def _smoothness_cost(phases: np.ndarray) -> float:
+        if len(phases) < 2:
+            return 0.0
+        delta = phases[1:] - phases[:-1]
+        return float(np.mean(1.0 - np.cos(delta)))
+
+    @staticmethod
+    def _smoothness_gradient(phases: np.ndarray) -> np.ndarray:
+        grad = np.zeros_like(phases)
+        if len(phases) < 2:
+            return grad
+        scale = 1.0 / (len(phases) - 1)
+        delta = phases[1:] - phases[:-1]
+        grad[0] = -np.sin(delta[0]) * scale
+        grad[-1] = np.sin(delta[-1]) * scale
+        if len(phases) > 2:
+            grad[1:-1] = (np.sin(delta[:-1]) - np.sin(delta[1:])) * scale
+        return grad

@@ -1,25 +1,62 @@
 # Noise-Tolerant-Quantum-Control-Optimization
 
-面向中性原子 $^{171}\mathrm{Yb}$ 量子计算的噪声建模、控制仿真与鲁棒优化项目。
+面向中性原子 `^171Yb` 量子计算的两比特及以上量子门控制优化项目。
 
-当前项目聚焦：
+## 当前范围
 
-- 中性 $^{171}\mathrm{Yb}$ 核自旋/clock/metastable/Rydberg 相关编码与门模型
-- 单比特门、双比特门与并行门的脉冲级仿真
-- 真实噪声源建模，包括激光噪声、失谐、原子运动、有限 blockade、散射与泄漏
-- 面向高 fidelity 和抗噪声的控制优化
+当前项目**不实现单比特门**，主线聚焦：
 
-数值实现上优先采用 `QuTiP` 提供的现成量子动力学与控制工具，而不是从零重写求解器与 GRAPE。
+- `^171Yb` 中性原子的两比特及以上 Rydberg 门
+- 先复现理想情形下的 time-optimal global `CZ`
+- 再逐步加入真实噪声、开放系统效应和更高维门模型
 
-项目的第一版架构设计与文献综述见：
+## 当前冻结参考
 
-- [docs/neutral-yb-architecture.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/neutral-yb-architecture.md)
+当前已经冻结的 `v1` 参考实现是：
 
-## Environment Setup
+- 基于 `arXiv:2202.00903` 思路的 global `CZ`
+- 使用对称性约化后的 4 维模型
+- 以 phase-gate fidelity 为目标函数
+- 对 `T \Omega_{\max}` 做粗扫、细扫与近阈值拟合
 
-### Local venv
+当前冻结参考链路：
 
-本项目预留了本地虚拟环境脚本：
+- 参考实验：[freeze_v1_global_cz_reference.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/freeze_v1_global_cz_reference.py)
+- 汇总作图：[plot_freeze_v1_global_cz.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/scripts/plot_freeze_v1_global_cz.py)
+- 4 维模型：[global_cz_4d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/global_cz_4d.py)
+- 优化器：[global_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/global_phase_grape.py)
+
+冻结结果文件：
+
+- [freeze_v1_global_cz_coarse_scan.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_coarse_scan.json)
+- [freeze_v1_global_cz_fine_scan.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_fine_scan.json)
+- [freeze_v1_global_cz_optimal.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_optimal.json)
+- [freeze_v1_global_cz_fit.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_fit.json)
+- [freeze_v1_global_cz_summary.png](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_summary.png)
+
+## 下一阶段
+
+下一阶段不是继续改理想 `CZ`，而是从这个冻结参考出发，加入更真实的门误差来源。
+
+当前建议的优先顺序：
+
+1. 有限 blockade
+2. 失谐误差与激光相位/频率噪声
+3. Rabi 幅度误差与空间不均匀
+4. Rydberg 态衰减、黑体跃迁、dephasing
+5. 原子运动导致的 Doppler 和相互作用涨落
+6. 扩展到非对称两比特门与三比特门
+
+## 数值栈
+
+- `QuTiP` / `qutip-qtrl`
+- `numpy`
+- `scipy`
+- `matplotlib`
+
+## 环境
+
+本地：
 
 ```powershell
 .\scripts\create_venv.ps1
@@ -27,32 +64,13 @@
 pip install -r requirements.txt
 ```
 
-当前仓库中的 `.gitignore` 已忽略 `.venv/`。
-
-### Docker
-
-项目已提供基础容器化文件：
-
-- [Dockerfile](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/Dockerfile)
-- [docker-compose.yml](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docker-compose.yml)
-
-构建与运行：
+容器：
 
 ```powershell
 docker compose up --build
 ```
 
-默认容器命令当前是一个最小占位服务，后续可以替换为 GRAPE 仿真入口或 notebook 服务。
+## 文档
 
-## Numerical Stack
-
-当前建议的技术栈：
-
-- `QuTiP`：时间演化、开放系统、量子对象与控制优化接口
-- `numpy` / `scipy`：基础线性代数、优化与数值工具
-- `matplotlib`：结果可视化
-
-这套组合比较适合当前目标：
-
-- 先复现理想情况下的 `^171Yb` time-optimal CZ gate pulse
-- 再逐步扩展到 dephasing、decay、leakage 和其他开放系统噪声
+- 项目框架：[docs/neutral-yb-architecture.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/neutral-yb-architecture.md)
+- 噪声与修正哈密顿量建议：[docs/yb-noise-and-corrected-hamiltonian.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/yb-noise-and-corrected-hamiltonian.md)
