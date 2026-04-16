@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neutral-yb-control"
+version = "0.1.0"
+description = "Neutral 171Yb quantum control simulations and reference experiments."
+requires-python = ">=3.12"
+dependencies = [
+  "numpy>=1.26,<3",
+  "scipy>=1.13,<2",
+  "matplotlib>=3.8,<4",
+  "qutip>=5.1,<6",
+  "qutip-qtrl>=0.1.5,<1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
