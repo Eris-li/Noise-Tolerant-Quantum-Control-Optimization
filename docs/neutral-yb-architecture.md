@@ -111,9 +111,9 @@
 
 如果是第一次接手这个仓库，建议按这个顺序读：
 
-1. [README.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/README.md)
-2. [project-map.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/project-map.md)
-3. [version-history.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/version-history.md)
-4. [references.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/references.md)
-5. [two-photon-cz-v3-model.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v3-model.md)
-6. [two-photon-cz-v4-open-system.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v4-open-system.md)
+1. [README.md](../README.md)
+2. [project-map.md](project-map.md)
+3. [version-history.md](version-history.md)
+4. [references.md](references.md)
+5. [two-photon-cz-v3-model.md](two-photon-cz-v3-model.md)
+6. [two-photon-cz-v4-open-system.md](two-photon-cz-v4-open-system.md)

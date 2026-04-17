@@ -62,7 +62,7 @@ H_0^{\mathrm{diag}} = \mathrm{diag}(0,\,-\Delta_e,\,-\delta_{01},\,0,\,-\Delta_e
 ### lower-leg
 
 `H_{1x}, H_{1y}` 只耦合 `|1\rangle \leftrightarrow |e\rangle` 这一条腿，对应代码：
-- [two_photon_cz_9d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_9d.py)
+- [two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
 
 ### upper-leg
 
@@ -84,11 +84,11 @@ H_0^{\mathrm{diag}} = \mathrm{diag}(0,\,-\Delta_e,\,-\delta_{01},\,0,\,-\Delta_e
 
 ## 7. 代码对应关系
 
-- 模型：[two_photon_cz_9d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_9d.py)
-- 优化器：[amplitude_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/amplitude_phase_grape.py)
-- coarse scan：[coarse_scan_two_photon_cz_v3.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/coarse_scan_two_photon_cz_v3.py)
-- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
-- 出图：[plot_two_photon_cz_v3.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/scripts/plot_two_photon_cz_v3.py)
+- 模型：[two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
+- 优化器：[amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
+- coarse scan：[coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
+- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](../experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
+- 出图：[plot_two_photon_cz_v3.py](../scripts/plot_two_photon_cz_v3.py)
 
 ## 8. 这版解决了什么问题
 

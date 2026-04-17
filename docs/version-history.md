@@ -19,9 +19,9 @@
 
 ### 对应文件
 
-- 模型：[global_cz_4d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/global_cz_4d.py)
-- 优化器：[global_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/global_phase_grape.py)
-- 实验：[freeze_v1_global_cz_reference.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/freeze_v1_global_cz_reference.py)
+- 模型：[global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
+- 优化器：[global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
+- 实验：[freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
 
 ### 状态
 
@@ -43,9 +43,9 @@
 
 ### 对应文件
 
-- 模型：[finite_blockade_cz_5d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/finite_blockade_cz_5d.py)
-- 实验：[two_stage_scan_closed_system_cz_v2.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/two_stage_scan_closed_system_cz_v2.py)
-- 出图：[plot_closed_system_cz_v2_two_stage.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/scripts/plot_closed_system_cz_v2_two_stage.py)
+- 模型：[finite_blockade_cz_5d.py](../src/neutral_yb/models/finite_blockade_cz_5d.py)
+- 实验：[two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
+- 出图：[plot_closed_system_cz_v2_two_stage.py](../scripts/plot_closed_system_cz_v2_two_stage.py)
 
 ### 状态
 
@@ -68,10 +68,10 @@
 
 ### 对应文件
 
-- 模型：[two_photon_cz_9d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_9d.py)
-- 优化器：[amplitude_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/amplitude_phase_grape.py)
-- coarse scan：[coarse_scan_two_photon_cz_v3.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/coarse_scan_two_photon_cz_v3.py)
-- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
+- 模型：[two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
+- 优化器：[amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
+- coarse scan：[coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
+- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](../experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
 
 ### 状态
 
@@ -97,10 +97,10 @@
 
 ### 对应文件
 
-- 模型：[two_photon_cz_open_10d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_open_10d.py)
-- 优化器：[open_system_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/open_system_grape.py)
-- smoke run：[run_two_photon_cz_v4_open_system_smoke.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/run_two_photon_cz_v4_open_system_smoke.py)
-- benchmark：[benchmark_v4_open_system_vs_v3_closed.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/benchmark_v4_open_system_vs_v3_closed.py)
+- 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
+- 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- smoke run：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
+- benchmark：[benchmark_v4_open_system_vs_v3_closed.py](../experiments/benchmark_v4_open_system_vs_v3_closed.py)
 
 ### 当前状态
 

@@ -1,12 +1,13 @@
 $ErrorActionPreference = "Stop"
 
-if (Test-Path ".venv") {
-    Write-Host ".venv already exists."
+$venvPath = ".venv.win"
+
+if (Test-Path $venvPath) {
+    Write-Host "$venvPath already exists."
     exit 0
 }
 
-python -m venv .venv
+python -m venv $venvPath
 
-Write-Host "Created virtual environment at .venv"
-Write-Host "Activate with: .\\.venv\\Scripts\\Activate.ps1"
-
+Write-Host "Created virtual environment at $venvPath"
+Write-Host "Activate with: .\\$venvPath\\Scripts\\Activate.ps1"

@@ -11,7 +11,7 @@
 - `v3` 的双光子闭系统模型
 
 它不是 `v4` 的开放系统文档。`v4` 的完整开放系统说明在：
-- [two-photon-cz-v4-open-system.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v4-open-system.md)
+- [two-photon-cz-v4-open-system.md](two-photon-cz-v4-open-system.md)
 
 ## 2. 为什么先做闭系统修正
 
@@ -102,15 +102,15 @@ H(t)=
 
 ### `v2`
 
-- 模型：[finite_blockade_cz_5d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/finite_blockade_cz_5d.py)
-- 实验：[two_stage_scan_closed_system_cz_v2.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/two_stage_scan_closed_system_cz_v2.py)
+- 模型：[finite_blockade_cz_5d.py](../src/neutral_yb/models/finite_blockade_cz_5d.py)
+- 实验：[two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
 
 ### `v3`
 
 `v3` 不是简单复用 5 维模型，而是进一步显式保留双光子中间态：
 
-- 模型：[two_photon_cz_9d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_9d.py)
-- 优化器：[amplitude_phase_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/amplitude_phase_grape.py)
+- 模型：[two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
+- 优化器：[amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
 
 ## 8. 文献依据
 

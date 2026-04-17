@@ -140,9 +140,9 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 
 对应代码：
 
-- 模型：[two_photon_cz_open_10d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_open_10d.py)
-- 优化器：[open_system_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/open_system_grape.py)
-- smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/run_two_photon_cz_v4_open_system_smoke.py)
+- 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
+- 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
 
 ## 8. 当前目标保真度
 
@@ -165,7 +165,7 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 - 评估时不再只是传播单个初态，而是要传播多个 probe states
 
 本地 benchmark 结果已经落盘在：
-- [benchmark_v4_open_system_vs_v3_closed.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/benchmark_v4_open_system_vs_v3_closed.json)
+- [benchmark_v4_open_system_vs_v3_closed.json](../artifacts/benchmark_v4_open_system_vs_v3_closed.json)
 
 它表明当前 `v4` 的开放系统优化，代价比 `v3` 的闭系统优化高了两个到三个数量级。
 

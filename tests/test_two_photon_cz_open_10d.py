@@ -4,6 +4,8 @@ import unittest
 
 import numpy as np
 
+from tests import _bootstrap  # noqa: F401
+
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonCZOpen10DModel,
@@ -50,4 +52,3 @@ class TwoPhotonCZOpen10DTest(unittest.TestCase):
         self.assertLessEqual(theta, 2.0 * np.pi)
         self.assertGreaterEqual(fidelity, 0.0)
         self.assertLessEqual(fidelity, 1.0)
-

@@ -1,12 +1,24 @@
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    working_dir: /app
-    volumes:
-      - ./:/app
-    command: python -m http.server 8000
-    ports:
-      - "8000:8000"
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  working_dir: /workspace
+  environment:
+    MPLCONFIGDIR: /tmp/matplotlib
+  volumes:
+    - ./:/workspace
 
+services:
+  test:
+    <<: *app
+    command: python -m unittest discover -s tests -v
+
+  smoke-v4:
+    <<: *app
+    command: python experiments/run_two_photon_cz_v4_open_system_smoke.py
+
+  dev:
+    <<: *app
+    command: bash
+    stdin_open: true
+    tty: true

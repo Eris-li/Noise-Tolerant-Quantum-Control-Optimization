@@ -1,15 +1,24 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /tmp/matplotlib
 
-COPY . .
+COPY requirements.txt pyproject.toml README.md ./
+COPY src ./src
+COPY tests ./tests
+COPY experiments ./experiments
+COPY scripts ./scripts
+COPY docs ./docs
+COPY artifacts ./artifacts
 
-CMD ["python", "-m", "http.server", "8000"]
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
+    python -m pip install --no-cache-dir -e .
 
+CMD ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]

@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
-import sys
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+from tests import _bootstrap  # noqa: F401
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel

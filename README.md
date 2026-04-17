@@ -19,60 +19,99 @@
 
 如果你刚接手这个仓库，建议先看：
 
-1. [docs/project-map.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/project-map.md)
-2. [docs/version-history.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/version-history.md)
-3. [docs/references.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/references.md)
+1. [docs/project-map.md](docs/project-map.md)
+2. [docs/version-history.md](docs/version-history.md)
+3. [docs/references.md](docs/references.md)
 
-## 快速上手
+## 平台说明
+
+- `venv` 不是跨操作系统可复用的。
+- 建议 `WSL/Linux` 使用 `.venv`。
+- 建议 `Windows PowerShell` 使用 `.venv.win`。
+- 如果你只想要一套跨平台运行方式，直接用 Docker。
+
+## 快速开始
 
 ### Windows PowerShell
 
 ```powershell
 .\scripts\create_venv.ps1
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+.\.venv.win\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 ### WSL / Linux
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+./.venv/bin/python -m ensurepip --upgrade
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python -m pip install -e .
 ```
 
 ### 容器
 
 ```bash
-docker compose up --build
+docker compose build
+docker compose run --rm test
 ```
+
+常用容器入口：
+
+- 开发 shell：`docker compose run --rm dev`
+- 全量测试：`docker compose run --rm test`
+- `v4` 开放系统 smoke：`docker compose run --rm smoke-v4`
+
+## 快速验证
+
+### 本地 Python 环境
+
+```bash
+./.venv/bin/python -m unittest discover -s tests -v
+```
+
+Windows:
+
+```powershell
+.\scripts\run_python.ps1 -m unittest discover -s tests -v
+```
+
+### Docker
+
+```bash
+docker compose run --rm test
+```
+
+如果 Docker 在当前机器上报 `permission denied` 访问 `docker.sock`，先修复宿主机 Docker 权限，再重新执行容器命令。
 
 ## 典型入口
 
 ### 冻结参考 `v1`
 
-- 实验脚本：[freeze_v1_global_cz_reference.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/freeze_v1_global_cz_reference.py)
-- 出图脚本：[plot_freeze_v1_global_cz.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/scripts/plot_freeze_v1_global_cz.py)
+- 实验脚本：[freeze_v1_global_cz_reference.py](experiments/freeze_v1_global_cz_reference.py)
+- 出图脚本：[plot_freeze_v1_global_cz.py](scripts/plot_freeze_v1_global_cz.py)
 - 结果文件：
-  - [freeze_v1_global_cz_coarse_scan.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_coarse_scan.json)
-  - [freeze_v1_global_cz_fine_scan.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_fine_scan.json)
-  - [freeze_v1_global_cz_optimal.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_optimal.json)
-  - [freeze_v1_global_cz_fit.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_fit.json)
-  - [freeze_v1_global_cz_summary.png](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/freeze_v1_global_cz_summary.png)
+  - [freeze_v1_global_cz_coarse_scan.json](artifacts/freeze_v1_global_cz_coarse_scan.json)
+  - [freeze_v1_global_cz_fine_scan.json](artifacts/freeze_v1_global_cz_fine_scan.json)
+  - [freeze_v1_global_cz_optimal.json](artifacts/freeze_v1_global_cz_optimal.json)
+  - [freeze_v1_global_cz_fit.json](artifacts/freeze_v1_global_cz_fit.json)
+  - [freeze_v1_global_cz_summary.png](artifacts/freeze_v1_global_cz_summary.png)
 
 ### `v3` 双光子闭系统
 
-- 主实验：[coarse_scan_two_photon_cz_v3.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/coarse_scan_two_photon_cz_v3.py)
-- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
-- 出图脚本：[plot_two_photon_cz_v3.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/scripts/plot_two_photon_cz_v3.py)
+- 主实验：[coarse_scan_two_photon_cz_v3.py](experiments/coarse_scan_two_photon_cz_v3.py)
+- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
+- 出图脚本：[plot_two_photon_cz_v3.py](scripts/plot_two_photon_cz_v3.py)
 
 ### `v4` 双光子开放系统
 
-- 单点 smoke：[run_two_photon_cz_v4_open_system_smoke.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/run_two_photon_cz_v4_open_system_smoke.py)
-- 闭开系统 benchmark：[benchmark_v4_open_system_vs_v3_closed.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/benchmark_v4_open_system_vs_v3_closed.py)
+- 单点 smoke：[run_two_photon_cz_v4_open_system_smoke.py](experiments/run_two_photon_cz_v4_open_system_smoke.py)
+- 闭开系统 benchmark：[benchmark_v4_open_system_vs_v3_closed.py](experiments/benchmark_v4_open_system_vs_v3_closed.py)
 - 结果文件：
-  - [two_photon_cz_v4_open_system_smoke.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/two_photon_cz_v4_open_system_smoke.json)
-  - [benchmark_v4_open_system_vs_v3_closed.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/benchmark_v4_open_system_vs_v3_closed.json)
+  - [two_photon_cz_v4_open_system_smoke.json](artifacts/two_photon_cz_v4_open_system_smoke.json)
+  - [benchmark_v4_open_system_vs_v3_closed.json](artifacts/benchmark_v4_open_system_vs_v3_closed.json)
 
 ## 当前技术结论
 
@@ -80,12 +119,18 @@ docker compose up --build
 - `v4` 开始显式进入开放系统，因此传播层改用 `QuTiP mesolve`，优化层改用 `qutip-qtrl` 的 Liouvillian GRAPE。
 - 本地 benchmark 表明，开放系统优化的主要瓶颈是 Liouvillian propagator、Frechet 梯度和多 probe 的主方程传播，而不是 Python 胶水代码。
 
+## 当前已知状态
+
+- WSL 环境下，依赖安装和主测试入口已可运行。
+- 测试导入链路已经统一，不再依赖测试执行顺序。
+- 当前仍有 1 个已知测试问题：`tests/test_two_photon_cz_9d.py` 中对 `theta` 的断言过于刚性，可能把等价最优相位误判为失败。
+
 ## 文档索引
 
-- 架构总览：[docs/neutral-yb-architecture.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/neutral-yb-architecture.md)
-- 项目地图：[docs/project-map.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/project-map.md)
-- 版本历史：[docs/version-history.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/version-history.md)
-- 文献索引：[docs/references.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/references.md)
-- 闭系统噪声与修正哈密顿量：[docs/yb-noise-and-corrected-hamiltonian.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/yb-noise-and-corrected-hamiltonian.md)
-- `v3` 双光子闭系统模型：[docs/two-photon-cz-v3-model.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v3-model.md)
-- `v4` 双光子开放系统模型：[docs/two-photon-cz-v4-open-system.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v4-open-system.md)
+- 架构总览：[docs/neutral-yb-architecture.md](docs/neutral-yb-architecture.md)
+- 项目地图：[docs/project-map.md](docs/project-map.md)
+- 版本历史：[docs/version-history.md](docs/version-history.md)
+- 文献索引：[docs/references.md](docs/references.md)
+- 闭系统噪声与修正哈密顿量：[docs/yb-noise-and-corrected-hamiltonian.md](docs/yb-noise-and-corrected-hamiltonian.md)
+- `v3` 双光子闭系统模型：[docs/two-photon-cz-v3-model.md](docs/two-photon-cz-v3-model.md)
+- `v4` 双光子开放系统模型：[docs/two-photon-cz-v4-open-system.md](docs/two-photon-cz-v4-open-system.md)
