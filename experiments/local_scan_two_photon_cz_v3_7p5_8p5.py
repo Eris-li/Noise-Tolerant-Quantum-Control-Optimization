@@ -10,9 +10,9 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.optimization.spline_phase_grape import (
-    SplinePhaseOptimizationConfig,
-    SplinePhaseOptimizer,
+from neutral_yb.optimization.amplitude_phase_grape import (
+    AmplitudePhaseOptimizationConfig,
+    AmplitudePhaseOptimizer,
 )
 
 
@@ -39,41 +39,39 @@ def build_model() -> TwoPhotonCZ9DModel:
 
 def main() -> None:
     threshold = 0.9999
-    durations = list(reversed(frange(1.0, 10.0, 0.5)))
-    optimizer = SplinePhaseOptimizer(
+    durations = list(reversed(frange(7.5, 8.5, 0.2)))
+    optimizer = AmplitudePhaseOptimizer(
         model=build_model(),
-        config=SplinePhaseOptimizationConfig(
-            num_tslots=120,
-            num_nodes=16,
+        config=AmplitudePhaseOptimizationConfig(
+            num_tslots=100,
             evo_time=durations[0],
-            max_iter=250,
-            phase_seed=31,
-            init_phase_spread=0.4,
+            max_iter=320,
+            seed=17,
+            init_phase_spread=0.35,
+            init_amplitude_scale=0.75,
             fidelity_target=threshold,
-            smoothness_weight=0.01,
-            curvature_weight=0.02,
-            node_curvature_weight=0.01,
-            num_restarts=4,
+            phase_smoothness_weight=0.01,
+            phase_curvature_weight=0.02,
+            amplitude_smoothness_weight=0.01,
+            amplitude_curvature_weight=0.01,
+            num_restarts=8,
             show_progress=True,
         ),
     )
+
     scan, results = optimizer.scan_durations(durations)
 
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    optimizer.save_scan(scan, artifacts / "two_photon_cz_v4_spline_coarse_scan.json")
+    optimizer.save_scan(scan, artifacts / "two_photon_cz_v3_local_scan_7p5_8p5.json")
 
-    qualifying = [res for res in results if res.fidelity >= threshold]
-    if qualifying:
-        best = min(qualifying, key=lambda res: res.evo_time)
-    else:
+    if results:
         best = max(results, key=lambda res: res.fidelity)
-    optimizer.save_result(best, artifacts / "two_photon_cz_v4_spline_best.json")
+        optimizer.save_result(best, artifacts / "two_photon_cz_v3_local_scan_7p5_8p5_best.json")
 
-    print("Two-photon CZ v4 spline coarse scan completed")
-    print(f"Best scanned point = {best.evo_time}")
-    print(f"Best fidelity = {best.fidelity}")
-    print(f"Threshold reached = {scan.target_reached}")
+    print("Two-photon CZ v3 local scan completed")
+    print(f"Best fidelity in local scan = {scan.best_fidelity}")
+    print(f"Earliest local threshold point = {scan.best_duration}")
 
 
 if __name__ == "__main__":

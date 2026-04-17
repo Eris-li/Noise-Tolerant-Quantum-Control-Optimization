@@ -1,0 +1,23 @@
+{
+  "closed_system": {
+    "num_tslots": 40,
+    "evo_time": 8.5,
+    "final_state_avg_s": 0.006915230001322925,
+    "objective_and_gradient_avg_s": 0.030897779995575546,
+    "optimize_wall_s": 0.18417119997320697,
+    "optimize_fidelity": 0.7643243195380203
+  },
+  "open_system": {
+    "num_tslots": 40,
+    "evo_time": 8.5,
+    "probe_evolution_avg_s": 1.6552094999933615,
+    "optimize_wall_s": 100.73570630000904,
+    "optimize_probe_fidelity": 0.9526366982222001,
+    "optimize_fid_err": 0.7685378178325726
+  },
+  "ratios": {
+    "probe_over_closed_final": 239.3571146117642,
+    "probe_over_closed_objective_and_gradient": 53.57049924720746,
+    "optimize_over_closed_optimize": 546.9677469368933
+  }
+}
