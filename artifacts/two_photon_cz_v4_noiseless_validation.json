@@ -1,0 +1,14 @@
+{
+  "evo_time": 8.0,
+  "num_tslots": 100,
+  "drift_max_abs_error": 0.0,
+  "lower_x_max_abs_error": 0.0,
+  "lower_y_max_abs_error": 0.0,
+  "max_density_frobenius_error": 3.754166207911915e-15,
+  "max_loss_population": 0.0,
+  "min_purity": 0.9999999999999991,
+  "theta_v3_limit": 1.6728191223265534,
+  "theta_v4_noiseless": 1.6728190974791461,
+  "probe_fidelity_v3_limit": 0.7574778402194701,
+  "probe_fidelity_v4_noiseless": 0.7574778402194708
+}
