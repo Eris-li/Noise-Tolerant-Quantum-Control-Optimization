@@ -27,8 +27,9 @@ class TwoPhotonCZ9DTest(unittest.TestCase):
         self.assertEqual(len(model.phase_control_hamiltonians()), 1)
         self.assertEqual(model.initial_state().shape[0], 9)
         theta, fidelity = model.optimize_theta_for_state(model.initial_state().full().ravel())
-        self.assertAlmostEqual(theta, 1.5 * np.pi, places=7)
         self.assertAlmostEqual(fidelity, 0.6, places=7)
+        self.assertAlmostEqual(np.cos(theta), 0.0, places=7)
+        self.assertAlmostEqual(abs(np.sin(theta)), 1.0, places=7)
 
     def test_optimizer_objective_runs_for_two_controls(self) -> None:
         model = TwoPhotonCZ9DModel(

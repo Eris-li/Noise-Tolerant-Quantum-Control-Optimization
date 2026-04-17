@@ -15,6 +15,7 @@ from neutral_yb.optimization.linear_control_grape import (
 from neutral_yb.optimization.open_system_grape import (
     OpenSystemGRAPEConfig,
     OpenSystemGRAPEResult,
+    OpenSystemScanResult,
     OpenSystemGRAPEOptimizer,
 )
 from neutral_yb.optimization.amplitude_phase_grape import (
@@ -38,6 +39,7 @@ __all__ = [
     "OpenSystemGRAPEConfig",
     "OpenSystemGRAPEResult",
     "OpenSystemGRAPEOptimizer",
+    "OpenSystemScanResult",
     "PaperGlobalPhaseOptimizer",
     "TimeOptimalScanResult",
 ]

@@ -13,7 +13,19 @@ from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonCZOpen10DModel,
     TwoPhotonOpenNoiseConfig,
 )
-from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+from neutral_yb.optimization.open_system_grape import (
+    OpenSystemGRAPEConfig,
+    OpenSystemGRAPEOptimizer,
+)
+
+
+def frange(start: float, stop: float, step: float) -> list[float]:
+    values: list[float] = []
+    current = start
+    while current <= stop + 1e-12:
+        values.append(round(current, 10))
+        current += step
+    return values
 
 
 def build_model() -> TwoPhotonCZOpen10DModel:
@@ -45,34 +57,46 @@ def build_model() -> TwoPhotonCZOpen10DModel:
 
 
 def main() -> None:
+    threshold = 0.995
+    durations = list(reversed(frange(1.0, 10.0, 1.0)))
     optimizer = OpenSystemGRAPEOptimizer(
         model=build_model(),
         config=OpenSystemGRAPEConfig(
             num_tslots=8,
-            evo_time=8.5,
-            max_iter=8,
+            evo_time=durations[0],
+            max_iter=5,
             num_restarts=1,
             seed=17,
             init_pulse_type="SINE",
             init_control_scale=0.08,
             control_smoothness_weight=1e-3,
             control_curvature_weight=2e-3,
+            fidelity_target=threshold,
             show_progress=True,
         ),
     )
-    result = optimizer.optimize()
+    scan, results = optimizer.scan_durations(durations)
 
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    destination = artifacts / "two_photon_cz_v4_open_system_smoke.json"
-    optimizer.save_result(result, destination)
+    optimizer.save_scan(scan, artifacts / "two_photon_cz_v4_open_system_coarse.json")
 
-    print("Two-photon CZ v4 open-system smoke run completed")
-    print(f"Probe fidelity = {result.probe_fidelity}")
-    print(f"Objective = {result.objective}")
-    print(f"Fid err = {result.fid_err}")
-    print(f"Optimized theta = {result.optimized_theta}")
-    print(f"Saved to {destination}")
+    best = max(results, key=lambda result: result.probe_fidelity)
+    optimizer.save_result(best, artifacts / "two_photon_cz_v4_open_system_best.json")
+
+    qualifying = [result for result in results if result.probe_fidelity >= threshold]
+    if qualifying:
+        optimal = min(qualifying, key=lambda result: result.evo_time)
+        optimizer.save_result(optimal, artifacts / "two_photon_cz_v4_open_system_optimal.json")
+        print(f"Earliest threshold point = {optimal.evo_time}")
+        print(f"Threshold fidelity = {optimal.probe_fidelity}")
+    else:
+        print("No coarse-scan point reached the fidelity threshold")
+
+    print("Two-photon CZ v4 open-system coarse scan completed")
+    print(f"Best coarse T*Omega_max = {best.evo_time}")
+    print(f"Best coarse probe fidelity = {best.probe_fidelity}")
+    print(f"Best coarse theta = {best.optimized_theta}")
 
 
 if __name__ == "__main__":

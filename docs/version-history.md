@@ -99,22 +99,24 @@
 
 - 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
 - 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
 - smoke run：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
 - benchmark：[benchmark_v4_open_system_vs_v3_closed.py](../experiments/benchmark_v4_open_system_vs_v3_closed.py)
 
 ### 当前状态
 
-`v4` 已经能：
+`v4` 现在已经能：
 
 - 做开放系统传播
-- 在 Liouvillian 上跑 GRAPE
+- 直接针对 probe-based CZ fidelity 在 Liouvillian 上跑 GRAPE
+- 产出按 `T` 顺序推进的 coarse scan
 - 产出单点 smoke 结果
 - 给出和 `v3` 的资源对比
 
 但它还不是最终高保真版本。当前的限制主要是：
 
-- 优化目标还是 probe-based surrogate fidelity，不是最严格的 noisy process fidelity
-- 开放系统优化比闭系统慢很多，需要更节制的时间扫描策略
+- 优化目标仍然是 probe-based surrogate fidelity，不是最严格的 noisy process fidelity
+- 开放系统优化比闭系统慢很多，因此当前主线先采用粗扫描，再决定是否进入更细的局部扫描
 
 ## 如何理解这些版本
 

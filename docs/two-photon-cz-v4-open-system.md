@@ -133,15 +133,16 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 
 `v4` 采用两层结构：
 
-- 传播层：`QuTiP mesolve`
-  用于 Lindblad 主方程的真实时序演化
-- 优化层：`qutip-qtrl`
-  在 Liouvillian 上直接做 `GEN_MAT` GRAPE
+- 模型层：`QuTiP`
+  用于生成 Hamiltonian、collapse operators 和 Liouvillian
+- 优化层：仓库内 `open_system_grape.py`
+  在 piecewise-constant Liouvillian 上直接对 probe-based fidelity 做 GRAPE，并用 Frechet 导数计算梯度
 
 对应代码：
 
 - 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
 - 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
 - smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
 
 ## 8. 当前目标保真度

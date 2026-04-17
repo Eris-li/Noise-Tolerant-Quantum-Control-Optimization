@@ -107,17 +107,22 @@ docker compose run --rm test
 
 ### `v4` 双光子开放系统
 
+- 粗扫描：[coarse_scan_two_photon_cz_v4_open_system.py](experiments/coarse_scan_two_photon_cz_v4_open_system.py)
 - 单点 smoke：[run_two_photon_cz_v4_open_system_smoke.py](experiments/run_two_photon_cz_v4_open_system_smoke.py)
 - 闭开系统 benchmark：[benchmark_v4_open_system_vs_v3_closed.py](experiments/benchmark_v4_open_system_vs_v3_closed.py)
 - 结果文件：
+  - [two_photon_cz_v4_open_system_coarse.json](artifacts/two_photon_cz_v4_open_system_coarse.json)
+  - [two_photon_cz_v4_open_system_best.json](artifacts/two_photon_cz_v4_open_system_best.json)
+  - [two_photon_cz_v4_open_system_optimal.json](artifacts/two_photon_cz_v4_open_system_optimal.json)
   - [two_photon_cz_v4_open_system_smoke.json](artifacts/two_photon_cz_v4_open_system_smoke.json)
   - [benchmark_v4_open_system_vs_v3_closed.json](artifacts/benchmark_v4_open_system_vs_v3_closed.json)
 
 ## 当前技术结论
 
 - `v3` 之前的主线优化基本是我们自己写的 `SciPy expm/expm_frechet` 闭系统 GRAPE。
-- `v4` 开始显式进入开放系统，因此传播层改用 `QuTiP mesolve`，优化层改用 `qutip-qtrl` 的 Liouvillian GRAPE。
-- 本地 benchmark 表明，开放系统优化的主要瓶颈是 Liouvillian propagator、Frechet 梯度和多 probe 的主方程传播，而不是 Python 胶水代码。
+- `v4` 现在直接在 Lindblad Liouvillian 上做 piecewise-constant 开放系统 GRAPE，目标函数与仓库汇报的 probe-based CZ fidelity 保持一致。
+- 实现上继续使用 `QuTiP` 生成开放系统模型与 Liouvillian，但优化与扫描逻辑由仓库内的 `open_system_grape.py` 控制。
+- 本地 benchmark 表明，开放系统优化的主要瓶颈仍是 Liouvillian propagator 与 Frechet 梯度，而不是 Python 胶水代码。
 
 ## 当前已知状态
 

@@ -78,12 +78,12 @@ def build_open_optimizer() -> OpenSystemGRAPEOptimizer:
     return OpenSystemGRAPEOptimizer(
         model=model,
         config=OpenSystemGRAPEConfig(
-            num_tslots=40,
+            num_tslots=8,
             evo_time=8.5,
-            max_iter=3,
-            max_wall_time=180.0,
+            max_iter=2,
             num_restarts=1,
             seed=17,
+            init_control_scale=0.08,
         ),
     )
 
