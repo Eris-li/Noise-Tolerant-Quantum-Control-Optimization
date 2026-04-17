@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import sys
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -11,6 +12,37 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+
+
+def evaluate_zero_baseline() -> dict[str, float | str | bool]:
+    optimizer = OpenSystemGRAPEOptimizer(
+        model=build_yb171_v4_calibrated_model(),
+        config=OpenSystemGRAPEConfig(
+            num_tslots=100,
+            evo_time=10.0,
+            max_iter=0,
+            num_restarts=1,
+            init_pulse_type="ZERO",
+            init_control_scale=0.0,
+            control_smoothness_weight=0.0,
+            control_curvature_weight=0.0,
+            show_progress=False,
+        ),
+    )
+    ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+    ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+    final_state = optimizer.final_phase_state(ctrl_x, ctrl_y)
+    theta, fidelity = optimizer.model.optimize_theta_for_ket(final_state)
+    return {
+        "stage_name": "zero_baseline",
+        "probe_fidelity": float(fidelity),
+        "fid_err": float(1.0 - fidelity),
+        "optimized_theta": float(theta),
+        "num_tslots": int(optimizer.config.num_tslots),
+        "max_iter": 0,
+        "num_restarts": 1,
+        "success": True,
+    }
 
 
 def run_stage(
@@ -22,6 +54,10 @@ def run_stage(
     num_tslots: int,
     max_iter: int,
     num_restarts: int,
+    init_pulse_type: str,
+    init_control_scale: float,
+    control_smoothness_weight: float,
+    control_curvature_weight: float,
 ) -> dict[str, object]:
     optimizer = OpenSystemGRAPEOptimizer(
         model=build_yb171_v4_calibrated_model(),
@@ -31,10 +67,10 @@ def run_stage(
             max_iter=max_iter,
             num_restarts=num_restarts,
             seed=17,
-            init_pulse_type="SINE",
-            init_control_scale=0.08,
-            control_smoothness_weight=1e-3,
-            control_curvature_weight=2e-3,
+            init_pulse_type=init_pulse_type,
+            init_control_scale=init_control_scale,
+            control_smoothness_weight=control_smoothness_weight,
+            control_curvature_weight=control_curvature_weight,
             fidelity_target=0.999,
             show_progress=True,
         ),
@@ -62,35 +98,87 @@ def run_stage(
 
 def main() -> None:
     stages = [
-        ("warmup", 100, 1, 1),
-        ("medium", 100, 3, 3),
-        ("heavy", 100, 5, 10),
+        {
+            "stage_name": "sine_large_search",
+            "num_tslots": 100,
+            "max_iter": 80,
+            "num_restarts": 8,
+            "init_pulse_type": "SINE",
+            "init_control_scale": 0.75,
+            "control_smoothness_weight": 0.0,
+            "control_curvature_weight": 0.0,
+            "warm_start": False,
+        },
+        {
+            "stage_name": "random_large_search",
+            "num_tslots": 100,
+            "max_iter": 80,
+            "num_restarts": 8,
+            "init_pulse_type": "RANDOM",
+            "init_control_scale": 0.75,
+            "control_smoothness_weight": 0.0,
+            "control_curvature_weight": 0.0,
+            "warm_start": False,
+        },
+        {
+            "stage_name": "refine_best",
+            "num_tslots": 100,
+            "max_iter": 150,
+            "num_restarts": 3,
+            "init_pulse_type": "SINE",
+            "init_control_scale": 0.75,
+            "control_smoothness_weight": 0.0,
+            "control_curvature_weight": 0.0,
+            "warm_start": True,
+        },
     ]
 
     stage_records: list[dict[str, object]] = []
     best_result = None
-    ctrl_x = None
-    ctrl_y = None
-    theta = None
+    best_ctrl_x = None
+    best_ctrl_y = None
+    best_theta = None
 
     artifacts = ROOT / "artifacts"
     interrupted = False
 
     try:
-        for stage_name, num_tslots, max_iter, num_restarts in stages:
+        baseline = evaluate_zero_baseline()
+        stage_records.append(baseline)
+        print(
+            f"[t10-fine] baseline zero-control F={baseline['probe_fidelity']:.6f} "
+            f"theta={baseline['optimized_theta']:.6f}",
+            flush=True,
+        )
+
+        for stage in stages:
+            stage_name = stage["stage_name"]
+            num_tslots = stage["num_tslots"]
+            max_iter = stage["max_iter"]
+            num_restarts = stage["num_restarts"]
+            init_pulse_type = stage["init_pulse_type"]
+            init_control_scale = stage["init_control_scale"]
+            control_smoothness_weight = stage["control_smoothness_weight"]
+            control_curvature_weight = stage["control_curvature_weight"]
+            warm_start = bool(stage["warm_start"])
             print(
                 f"[t10-fine] stage={stage_name} slots={num_tslots} "
-                f"max_iter={max_iter} restarts={num_restarts}",
+                f"max_iter={max_iter} restarts={num_restarts} "
+                f"init={init_pulse_type} scale={init_control_scale}",
                 flush=True,
             )
             record = run_stage(
                 stage_name=stage_name,
-                initial_ctrl_x=ctrl_x,
-                initial_ctrl_y=ctrl_y,
-                initial_theta=theta,
+                initial_ctrl_x=best_ctrl_x if warm_start else None,
+                initial_ctrl_y=best_ctrl_y if warm_start else None,
+                initial_theta=best_theta if warm_start else (np.pi / 2.0),
                 num_tslots=num_tslots,
                 max_iter=max_iter,
                 num_restarts=num_restarts,
+                init_pulse_type=init_pulse_type,
+                init_control_scale=init_control_scale,
+                control_smoothness_weight=control_smoothness_weight,
+                control_curvature_weight=control_curvature_weight,
             )
             result = record["result"]
             stage_records.append(
@@ -99,6 +187,11 @@ def main() -> None:
                     "num_tslots": num_tslots,
                     "max_iter": max_iter,
                     "num_restarts": num_restarts,
+                    "init_pulse_type": init_pulse_type,
+                    "init_control_scale": init_control_scale,
+                    "control_smoothness_weight": control_smoothness_weight,
+                    "control_curvature_weight": control_curvature_weight,
+                    "warm_start": warm_start,
                     "probe_fidelity": result.probe_fidelity,
                     "fid_err": result.fid_err,
                     "wall_time": result.wall_time,
@@ -109,7 +202,7 @@ def main() -> None:
             )
             if best_result is None or result.probe_fidelity > best_result.probe_fidelity:
                 best_result = result
-            ctrl_x, ctrl_y, theta = result.ctrl_x, result.ctrl_y, result.optimized_theta
+                best_ctrl_x, best_ctrl_y, best_theta = result.ctrl_x, result.ctrl_y, result.optimized_theta
 
             print(
                 f"[t10-fine] completed stage={stage_name} "

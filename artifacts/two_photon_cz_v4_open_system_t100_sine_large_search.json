@@ -1,0 +1,17 @@
+{
+  "stage_name": "sine_large_search",
+  "num_tslots": 100,
+  "max_iter": 80,
+  "num_restarts": 8,
+  "init_pulse_type": "SINE",
+  "init_control_scale": 0.75,
+  "control_smoothness_weight": 0.0,
+  "control_curvature_weight": 0.0,
+  "warm_start": false,
+  "probe_fidelity": 0.8597524404567128,
+  "fid_err": 0.14024755954328716,
+  "wall_time": 2.938012176000484,
+  "num_iter": 80,
+  "num_fid_func_calls": 94,
+  "optimized_theta": 0.8603214143688072
+}

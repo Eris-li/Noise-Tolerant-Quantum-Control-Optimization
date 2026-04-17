@@ -1,5 +1,5 @@
 {
-  "target_evo_time": 10.0,
+  "target_evo_time": 20.0,
   "threshold": 0.999,
   "stages": [
     {
@@ -22,12 +22,12 @@
       "control_smoothness_weight": 0.0,
       "control_curvature_weight": 0.0,
       "warm_start": false,
-      "probe_fidelity": 0.9299211738535085,
-      "fid_err": 0.07007882614649152,
-      "wall_time": 2.4279993320005815,
+      "probe_fidelity": 0.9671440210139959,
+      "fid_err": 0.03285597898600412,
+      "wall_time": 2.723945628000365,
       "num_iter": 80,
-      "num_fid_func_calls": 87,
-      "optimized_theta": 0.0
+      "num_fid_func_calls": 94,
+      "optimized_theta": 0.7709592166232835
     },
     {
       "stage_name": "random_large_search",
@@ -39,12 +39,12 @@
       "control_smoothness_weight": 0.0,
       "control_curvature_weight": 0.0,
       "warm_start": false,
-      "probe_fidelity": 0.6286371117164868,
-      "fid_err": 0.37136288828351316,
-      "wall_time": 2.9927336909995574,
+      "probe_fidelity": 0.934198003943502,
+      "fid_err": 0.06580199605649795,
+      "wall_time": 3.0416127640000923,
       "num_iter": 80,
-      "num_fid_func_calls": 100,
-      "optimized_theta": 0.24689167537846413
+      "num_fid_func_calls": 101,
+      "optimized_theta": 2.02062174061618
     },
     {
       "stage_name": "refine_best",
@@ -56,17 +56,17 @@
       "control_smoothness_weight": 0.0,
       "control_curvature_weight": 0.0,
       "warm_start": true,
-      "probe_fidelity": 0.9374185219746953,
-      "fid_err": 0.06258147802530467,
-      "wall_time": 1.4763744879992373,
-      "num_iter": 47,
-      "num_fid_func_calls": 50,
-      "optimized_theta": 0.0
+      "probe_fidelity": 0.9699009395098821,
+      "fid_err": 0.0300990604901179,
+      "wall_time": 4.896391862999735,
+      "num_iter": 150,
+      "num_fid_func_calls": 166,
+      "optimized_theta": 0.2610696235790264
     }
   ],
-  "best_probe_fidelity": 0.9374185219746953,
-  "best_fid_err": 0.06258147802530467,
-  "best_optimized_theta": 0.0,
+  "best_probe_fidelity": 0.9699009395098821,
+  "best_fid_err": 0.0300990604901179,
+  "best_optimized_theta": 0.2610696235790264,
   "threshold_reached": false,
   "interrupted": false
 }
