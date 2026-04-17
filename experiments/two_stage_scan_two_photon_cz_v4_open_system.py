@@ -12,11 +12,7 @@ if str(SRC) not in sys.path:
 import numpy as np
 from scipy.optimize import curve_fit
 
-from neutral_yb.config.species import idealised_yb171
-from neutral_yb.models.two_photon_cz_open_10d import (
-    TwoPhotonCZOpen10DModel,
-    TwoPhotonOpenNoiseConfig,
-)
+from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
 from neutral_yb.optimization.open_system_grape import (
     OpenSystemGRAPEConfig,
     OpenSystemGRAPEOptimizer,
@@ -30,34 +26,6 @@ def frange(start: float, stop: float, step: float) -> list[float]:
         values.append(round(current, 10))
         current += step
     return values
-
-
-def build_model() -> TwoPhotonCZOpen10DModel:
-    return TwoPhotonCZOpen10DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-        noise=TwoPhotonOpenNoiseConfig(
-            intermediate_detuning_offset=0.01,
-            common_two_photon_detuning=0.004,
-            differential_two_photon_detuning=0.003,
-            doppler_detuning_01=0.002,
-            doppler_detuning_11=0.004,
-            lower_amplitude_scale=0.99,
-            upper_amplitude_scale=0.99,
-            intermediate_decay_rate=0.025,
-            rydberg_decay_rate=0.015,
-            intermediate_dephasing_rate=0.004,
-            rydberg_dephasing_rate=0.01,
-            extra_rydberg_leakage_rate=0.003,
-            intermediate_branch_to_qubit=0.45,
-            rydberg_branch_to_qubit=0.05,
-        ),
-    )
 
 
 def fit_time_optimal(durations: list[float], fidelities: list[float]) -> dict[str, float]:
@@ -88,7 +56,7 @@ def main() -> None:
     threshold = 0.999
     coarse_durations = list(reversed(frange(0.5, 10.0, 0.5)))
     coarse_optimizer = OpenSystemGRAPEOptimizer(
-        model=build_model(),
+        model=build_yb171_v4_calibrated_model(),
         config=OpenSystemGRAPEConfig(
             num_tslots=32,
             evo_time=coarse_durations[0],
@@ -117,7 +85,7 @@ def main() -> None:
     fine_durations = list(reversed(frange(7.5, coarse_threshold_point.evo_time, 0.025)))
 
     fine_optimizer = OpenSystemGRAPEOptimizer(
-        model=build_model(),
+        model=build_yb171_v4_calibrated_model(),
         config=OpenSystemGRAPEConfig(
             num_tslots=100,
             evo_time=fine_durations[0],

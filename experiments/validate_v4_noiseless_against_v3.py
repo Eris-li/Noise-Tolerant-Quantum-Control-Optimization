@@ -13,12 +13,11 @@ import numpy as np
 from scipy.linalg import expm
 import qutip
 
-from neutral_yb.config.species import idealised_yb171
-from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.models.two_photon_cz_open_10d import (
-    TwoPhotonCZOpen10DModel,
-    TwoPhotonOpenNoiseConfig,
+from neutral_yb.config.yb171_calibration import (
+    build_yb171_v3_calibrated_model,
+    build_yb171_v4_calibrated_model,
 )
+from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
     AmplitudePhaseOptimizationConfig,
     AmplitudePhaseOptimizer,
@@ -27,44 +26,11 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 
 
 def build_v3_model() -> TwoPhotonCZ9DModel:
-    return TwoPhotonCZ9DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-    )
+    return build_yb171_v3_calibrated_model()
 
 
-def build_v4_noiseless_model() -> TwoPhotonCZOpen10DModel:
-    return TwoPhotonCZOpen10DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-        noise=TwoPhotonOpenNoiseConfig(
-            intermediate_detuning_offset=0.0,
-            common_two_photon_detuning=0.0,
-            differential_two_photon_detuning=0.0,
-            doppler_detuning_01=0.0,
-            doppler_detuning_11=0.0,
-            blockade_shift_offset=0.0,
-            lower_amplitude_scale=1.0,
-            upper_amplitude_scale=1.0,
-            intermediate_decay_rate=0.0,
-            rydberg_decay_rate=0.0,
-            intermediate_dephasing_rate=0.0,
-            rydberg_dephasing_rate=0.0,
-            extra_rydberg_leakage_rate=0.0,
-            intermediate_branch_to_qubit=1.0,
-            rydberg_branch_to_qubit=1.0,
-        ),
-    )
+def build_v4_noiseless_model():
+    return build_yb171_v4_calibrated_model(include_noise=False)
 
 
 def propagate_v3_probe(

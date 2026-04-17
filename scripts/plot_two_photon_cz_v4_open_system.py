@@ -16,46 +16,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import qutip
 
-from neutral_yb.config.species import idealised_yb171
-from neutral_yb.models.two_photon_cz_open_10d import (
-    TwoPhotonCZOpen10DModel,
-    TwoPhotonOpenNoiseConfig,
-)
+from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
 def centered_phase(phases: np.ndarray) -> np.ndarray:
     wrapped = (phases + np.pi) % (2.0 * np.pi) - np.pi
     return np.unwrap(wrapped)
-
-
-def build_model() -> TwoPhotonCZOpen10DModel:
-    return TwoPhotonCZOpen10DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-        noise=TwoPhotonOpenNoiseConfig(
-            intermediate_detuning_offset=0.01,
-            common_two_photon_detuning=0.004,
-            differential_two_photon_detuning=0.003,
-            doppler_detuning_01=0.002,
-            doppler_detuning_11=0.004,
-            lower_amplitude_scale=0.99,
-            upper_amplitude_scale=0.99,
-            intermediate_decay_rate=0.025,
-            rydberg_decay_rate=0.015,
-            intermediate_dephasing_rate=0.004,
-            rydberg_dephasing_rate=0.01,
-            extra_rydberg_leakage_rate=0.003,
-            intermediate_branch_to_qubit=0.45,
-            rydberg_branch_to_qubit=0.05,
-        ),
-    )
-
 
 def main() -> None:
     artifacts = ROOT / "artifacts"
@@ -70,7 +37,7 @@ def main() -> None:
     phases = np.asarray(optimal["phases"], dtype=np.float64)
 
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_model(),
+        model=build_yb171_v4_calibrated_model(),
         config=OpenSystemGRAPEConfig(
             num_tslots=len(ctrl_x),
             evo_time=float(optimal["evo_time"]),

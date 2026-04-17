@@ -170,10 +170,51 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 
 它表明当前 `v4` 的开放系统优化，代价比 `v3` 的闭系统优化高了两个到三个数量级。
 
-## 10. 文献依据
+## 10. 当前 `^171Yb` 校准
+
+从 `2026-04` 开始，`v4` 的实验脚本默认不再使用之前那组偏“占位”的噪声参数，而是统一改用：
+
+- 校准模块：[yb171_calibration.py](../src/neutral_yb/config/yb171_calibration.py)
+- `v4` 构造函数：`build_yb171_v4_calibrated_model()`
+- `v3` 对照构造函数：`build_yb171_v3_calibrated_model()`
+
+这套参数的目标不是把当前双光子 ladder 模型伪装成“完全真实”的 `^171Yb` 门，而是在**保留现有模型结构**的前提下，尽量贴近近年 `^171Yb` 高保真量子计算实验的主量级。
+
+当前采用的主要实验锚点是：
+
+- 参考有效门尺度：`Omega_ref / 2π = 4.6 MHz`
+- 中间态 detuning：`Δ / 2π = 7.8 GHz`
+- 有限 blockade：`V / 2π = 160 MHz`
+- Rydberg lifetime：`56 μs`
+- Rydberg `T2*`：`3.4 μs`
+- UV pulse-area 误差：`0.4%`
+- 额外 `m_F` leakage 误差：每门约 `4.8e-4`
+
+映射到当前无量纲代码后，大致对应：
+
+- `lower_rabi = upper_rabi ≈ 58.23`
+- `intermediate_detuning ≈ 1695.65`
+- `blockade_shift ≈ 34.78`
+- `rydberg_decay_rate ≈ 6.18e-4`
+- `rydberg_dephasing_rate ≈ 1.02e-2`
+- `lower_amplitude_scale = upper_amplitude_scale = 0.996`
+- `extra_rydberg_leakage_rate ≈ 6.0e-5`
+
+另外，当前校准特意做了两个取舍：
+
+- **显式 intermediate decay / dephasing 设为 0**
+  因为最新高保真 `^171Yb` 门本质上是 clock-to-Rydberg 的单光子门，当前 `v4` 里的 intermediate 态只是为了兼容现有双光子模型而保留的 surrogate level。
+- **残余 detuning 只保留 kHz 量级的小静态偏移**
+  文献通常直接给出误差预算或 `T2*`，而不是逐项给出 `|01>`、`|11>` 分支的固定失谐，所以这里采用的是保守的小偏移，而把更大的相位噪声主效应收进 `rydberg_dephasing_rate`。
+
+因此，当前 `v4` 已经比旧参数更接近真实 `^171Yb` 实验，但它仍然不是“最终物理模型”。如果后续要继续往实验对齐，最自然的下一步是把 `v4` 从双光子显式中间态重写成单光子 clock-to-Rydberg 开放系统。
+
+## 11. 文献依据
 
 - Evered et al.，双光子门和主要误差源：  
   https://www.nature.com/articles/s41586-023-06481-y
+- Muniz et al.，`^171Yb` 高保真通用门、Rydberg lifetime 和 `T2*`：  
+  https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.6.020334
 - Day et al.，频率噪声和强度噪声映射：  
   https://www.nature.com/articles/s41534-022-00586-4
 - Jiang et al.，相位噪声与强度噪声：  

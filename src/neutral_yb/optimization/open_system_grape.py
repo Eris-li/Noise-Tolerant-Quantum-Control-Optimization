@@ -227,6 +227,12 @@ class OpenSystemGRAPEOptimizer:
 
         for index, duration in enumerate(durations, start=1):
             started_at = time.perf_counter()
+            if self.config.show_progress:
+                print(
+                    f"[scan] starting {index}/{len(durations)} "
+                    f"T={duration:.3f} slots={self.config.num_tslots}",
+                    flush=True,
+                )
             optimizer = OpenSystemGRAPEOptimizer(
                 self.model,
                 OpenSystemGRAPEConfig(
@@ -244,7 +250,7 @@ class OpenSystemGRAPEOptimizer:
                     control_curvature_weight=self.config.control_curvature_weight,
                     target_theta=self.config.target_theta,
                     fidelity_target=self.config.fidelity_target,
-                    show_progress=False,
+                    show_progress=self.config.show_progress,
                 ),
             )
             result = optimizer.optimize(

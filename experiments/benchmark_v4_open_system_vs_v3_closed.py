@@ -12,12 +12,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neutral_yb.config.species import idealised_yb171
-from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
-from neutral_yb.models.two_photon_cz_open_10d import (
-    TwoPhotonCZOpen10DModel,
-    TwoPhotonOpenNoiseConfig,
+from neutral_yb.config.yb171_calibration import (
+    build_yb171_v3_calibrated_model,
+    build_yb171_v4_calibrated_model,
 )
+from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
     AmplitudePhaseOptimizationConfig,
     AmplitudePhaseOptimizer,
@@ -26,15 +25,7 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 
 
 def build_closed_optimizer() -> AmplitudePhaseOptimizer:
-    model = TwoPhotonCZ9DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-    )
+    model = build_yb171_v3_calibrated_model()
     return AmplitudePhaseOptimizer(
         model=model,
         config=AmplitudePhaseOptimizationConfig(
@@ -50,31 +41,7 @@ def build_closed_optimizer() -> AmplitudePhaseOptimizer:
 
 
 def build_open_optimizer() -> OpenSystemGRAPEOptimizer:
-    model = TwoPhotonCZOpen10DModel(
-        species=idealised_yb171(),
-        lower_rabi=4.0,
-        upper_rabi=4.0,
-        intermediate_detuning=8.0,
-        blockade_shift=10.0,
-        two_photon_detuning_01=0.01,
-        two_photon_detuning_11=0.01,
-        noise=TwoPhotonOpenNoiseConfig(
-            intermediate_detuning_offset=0.01,
-            common_two_photon_detuning=0.004,
-            differential_two_photon_detuning=0.003,
-            doppler_detuning_01=0.002,
-            doppler_detuning_11=0.004,
-            lower_amplitude_scale=0.99,
-            upper_amplitude_scale=0.99,
-            intermediate_decay_rate=0.025,
-            rydberg_decay_rate=0.015,
-            intermediate_dephasing_rate=0.004,
-            rydberg_dephasing_rate=0.01,
-            extra_rydberg_leakage_rate=0.003,
-            intermediate_branch_to_qubit=0.45,
-            rydberg_branch_to_qubit=0.05,
-        ),
-    )
+    model = build_yb171_v4_calibrated_model()
     return OpenSystemGRAPEOptimizer(
         model=model,
         config=OpenSystemGRAPEConfig(
