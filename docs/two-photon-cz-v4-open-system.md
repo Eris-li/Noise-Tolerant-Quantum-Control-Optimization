@@ -1,31 +1,20 @@
 # 双光子 `CZ` v4 开放系统模型
 
-## 1. 目标
+## 1. 版本定位
 
-`v4` 的目标是从 `v3` 的闭系统双光子 `CZ` 控制，升级到显式开放系统版本。它直接考虑：
+`v4` 是当前仓库里真正进入开放系统的版本。它的目标是把 `v3` 的双光子闭系统模型升级成显式 Lindblad 版本，并开始研究含 decay、dephasing 和 loss 的 `CZ` 控制优化。
+
+## 2. 这版新增了什么
+
+相对 `v3`，`v4` 新增了：
+
+- 显式 `|loss>` sink
 - 中间态散射
-- Rydberg 态衰减
-- 中间态和 Rydberg 态退相干
-- 各类静态 detuning 偏移
-- Doppler 型有效 detuning
-- 有限 blockade
-- 激光振幅标定误差
+- Rydberg 衰减
+- intermediate / Rydberg dephasing
+- common / differential / Doppler detuning
+- lower / upper 振幅标定误差
 - 额外的 Rydberg leakage 通道
-
-这版开始不再把所有误差都塞进闭系统哈密顿量，而是显式求解 Lindblad 主方程。
-
-## 2. 文献依据
-
-`^171Yb` 和中性原子两光子门最重要的误差源，文献上比较一致：
-- Evered et al. 指出两光子门的主要误差包括中间态散射、Rydberg 衰减、Rydberg dephasing / `T2*`、激光噪声和温度效应，并明确把第一条腿的振幅和相位当作主要控制自由度。  
-  来源: https://www.nature.com/articles/s41586-023-06481-y
-- 该文还说明详细建模使用了多能级原子模型和实验测得的退相干率。  
-  来源同上。
-- Day et al. 与 Jiang et al. 给出频率噪声、相位噪声和强度噪声如何分别映射到 detuning noise、dephasing 和振幅噪声，从而限制门保真度。  
-  来源: https://www.nature.com/articles/s41534-022-00586-4  
-  来源: https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.042611
-- Peper et al. 在 `^171Yb` 上给出了高保真 `CZ` 的误差预算，主导项包括有限 Rydberg 寿命、Doppler shifts、有限 blockade、幅度起伏和快激光相位噪声。  
-  来源: https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009
 
 ## 3. Hilbert 空间
 
@@ -35,29 +24,33 @@
 \{|01\rangle, |0e\rangle, |0r\rangle, |11\rangle, |W_e\rangle, |ee\rangle, |W_r\rangle, |E_{er}\rangle, |rr\rangle, |loss\rangle\}
 ```
 
-前 9 个态与 `v3` 相同，新增的 `|loss\rangle` 是统一的耗散 sink，用来吸收离开建模子空间的散射或 leakage。
+前 9 个态与 `v3` 相同，新加的 `|loss\rangle` 用于吸收离开建模子空间的散射和 leakage。
 
 ## 4. 哈密顿量
 
-开放系统的哈密顿量仍写成
+`v4` 的哈密顿量写成
 
 ```math
 H(t)=H_0 + u_x(t) H_{1x} + u_y(t) H_{1y}
 ```
 
 其中：
-- `H_0` 包含 nominal detuning、有限 blockade、upper-leg 固定耦合
-- `u_x, u_y` 是 lower-leg 的两个正交控制分量
-- 振幅和相位通过
+- `H_0` 含 nominal detuning、finite blockade 和 upper-leg 固定耦合
+- `u_x(t), u_y(t)` 是 lower-leg 的两个正交控制分量
+
+控制和极坐标形式的对应关系是：
 
 ```math
-\Omega_1(t)=\sqrt{u_x(t)^2 + u_y(t)^2}, \qquad
+\Omega_1(t)=\sqrt{u_x(t)^2 + u_y(t)^2}
+```
+
+```math
 \phi(t)=\mathrm{atan2}(u_y(t), u_x(t))
 ```
 
-恢复
+也就是说，`v4` 实际优化的是 lower-leg 的两个 quadratures，之后再还原成振幅和相位。
 
-## 5. detuning 项
+## 5. detuning 参数化
 
 当前实现里：
 
@@ -77,20 +70,20 @@ H(t)=H_0 + u_x(t) H_{1x} + u_y(t) H_{1y}
 V_{\mathrm{eff}} = V_{rr} + \Delta V_{rr}
 ```
 
-也就是把：
+这使得：
 - 中间态 detuning 偏移
-- 两光子 common detuning
-- 01/11 支路差分 detuning
-- Doppler 型 detuning
+- common two-photon detuning
+- 01/11 差分 detuning
+- Doppler detuning
 - blockade shift 偏移
 
-都作为显式参数保留。
+都成为显式可调参数。
 
-## 6. Lindblad 项
+## 6. Lindblad 通道
 
-### 6.1 中间态散射
+### 中间态散射
 
-中间态散射由 `gamma_e` 控制，并允许一部分按 branching ratio 回到 qubit 子空间，剩余部分流入 `|loss\rangle`。
+中间态散射由 `gamma_e` 控制，一部分按 branching ratio 回到建模子空间，其余流入 `|loss\rangle`。
 
 例如：
 
@@ -102,11 +95,9 @@ L_{0e \to 01} = \sqrt{\gamma_e \beta_e}\, |01\rangle\langle 0e|
 L_{0e \to loss} = \sqrt{\gamma_e (1-\beta_e)}\, |loss\rangle\langle 0e|
 ```
 
-其余 `|W_e\rangle, |ee\rangle, |E_{er}\rangle` 也按同样思路加入。
+### Rydberg 衰减
 
-### 6.2 Rydberg 衰减
-
-Rydberg 衰减由 `gamma_r` 控制，也允许一部分按 branching ratio 返回到建模子空间，其余流入 `|loss\rangle`。
+Rydberg 衰减由 `gamma_r` 控制，也允许一部分按 branching ratio 返回建模子空间。
 
 例如：
 
@@ -118,11 +109,9 @@ L_{0r \to 01} = \sqrt{\gamma_r \beta_r}\, |01\rangle\langle 0r|
 L_{0r \to loss} = \sqrt{\gamma_r (1-\beta_r)}\, |loss\rangle\langle 0r|
 ```
 
-`|W_r\rangle, |E_{er}\rangle, |rr\rangle` 也加入了相应的级联衰减。
+### 退相干
 
-### 6.3 退相干
-
-中间态和 Rydberg 态的纯退相干通过占据数算符实现：
+中间态和 Rydberg 态的纯退相干分别写成：
 
 ```math
 L_{e,\phi} = \sqrt{\gamma_{e,\phi}}\, n_e
@@ -132,48 +121,61 @@ L_{e,\phi} = \sqrt{\gamma_{e,\phi}}\, n_e
 L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 ```
 
-它们有效吸收了：
-- 快相位噪声
-- 激光光移起伏
-- 有限温度导致的慢 detuning 漂移
+### 额外 leakage
 
-在门时长范围内引起的相干性损失。
-
-### 6.4 额外 leakage
-
-还保留了一个额外的 `gamma_leak` 通道，用于粗粒化地描述：
+额外的 `gamma_leak` 用于粗粒化地描述：
 - 相邻 `m_J / m_F` 子能级耦合
 - 未建模的 Rydberg pair-state leakage
 
 这些人口统一流入 `|loss\rangle`。
 
-## 7. 求解与优化
+## 7. 求解和优化
 
-`v4` 分成两层：
+`v4` 采用两层结构：
 
-- 传播层: `QuTiP mesolve`
-  用于对 probe density matrices 做真实 Lindblad 演化
-- 优化层: `qutip-qtrl` 的 Liouvillian GRAPE
-  直接在一般生成元 `GEN_MAT` 上，对 `u_x(t), u_y(t)` 做 piecewise-constant 优化
+- 传播层：`QuTiP mesolve`
+  用于 Lindblad 主方程的真实时序演化
+- 优化层：`qutip-qtrl`
+  在 Liouvillian 上直接做 `GEN_MAT` GRAPE
 
-这比继续用 `v3` 的纯态 `expm/expm_frechet` 更适合开放系统，因为：
-- 现在的动力学不再是单纯 unitary
-- 真正优化的是 Liouvillian superoperator
-- 可以直接用现成的 Frechet-based GRAPE
+对应代码：
 
-## 8. 资源消耗
+- 模型：[two_photon_cz_open_10d.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/models/two_photon_cz_open_10d.py)
+- 优化器：[open_system_grape.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/src/neutral_yb/optimization/open_system_grape.py)
+- smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/experiments/run_two_photon_cz_v4_open_system_smoke.py)
 
-开放系统后，主要资源开销会从以下几部分上升：
+## 8. 当前目标保真度
 
-- 状态从 ket 变成 density matrix  
-  维数从 `d` 变成 `d^2`
-- 优化对象从 Hamiltonian propagator 变成 Liouvillian propagator  
-  对 `d=10` 的 Hilbert 空间，对应 Liouville 空间是 `100`
-- 如果做过程保真度评估，通常还要传播多个 probe states，而不只是单个初态
+当前 `v4` 的评估指标还不是最严格的 noisy process fidelity，而是 probe-based surrogate fidelity。
 
-因此，`v4` 相比 `v3` 的主要慢点通常不是 Python 逻辑，而是：
-- Liouvillian propagator
-- Frechet 梯度
-- 多 probe 的 master-equation 演化
+也就是：
+- 选取几组代表性 probe states
+- 在开放系统下把它们演化到最终态
+- 和理想 `CZ` 作用后的目标态做比较
+- 再把这些比较结果平均起来
 
-这也是为什么 `v4` 默认会比 `v3` 少一些 timeslots，并优先采用更物理的控制参数化。
+这比单一初态更可靠，但还不是完整量子信道的 process fidelity。后续继续升级 `v4` 时，最值得推进的方向之一就是把这个 surrogate fidelity 换成更严格的 noisy process fidelity。
+
+## 9. 资源消耗
+
+开放系统后，主要开销来自：
+
+- ket 变成 density matrix，维度从 `d` 变成 `d^2`
+- 优化对象从 Hamiltonian propagator 变成 Liouvillian propagator
+- 评估时不再只是传播单个初态，而是要传播多个 probe states
+
+本地 benchmark 结果已经落盘在：
+- [benchmark_v4_open_system_vs_v3_closed.json](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/artifacts/benchmark_v4_open_system_vs_v3_closed.json)
+
+它表明当前 `v4` 的开放系统优化，代价比 `v3` 的闭系统优化高了两个到三个数量级。
+
+## 10. 文献依据
+
+- Evered et al.，双光子门和主要误差源：  
+  https://www.nature.com/articles/s41586-023-06481-y
+- Day et al.，频率噪声和强度噪声映射：  
+  https://www.nature.com/articles/s41534-022-00586-4
+- Jiang et al.，相位噪声与强度噪声：  
+  https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.042611
+- Peper et al.，`^171Yb` 高保真双比特门误差预算：  
+  https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009

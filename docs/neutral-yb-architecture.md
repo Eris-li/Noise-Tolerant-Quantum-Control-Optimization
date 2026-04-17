@@ -1,91 +1,119 @@
-# Neutral `^171Yb` 项目框架
+# 中性 `^171Yb` 项目架构
 
-## 1. 当前定位
+## 1. 项目定位
 
-本项目当前只做**两比特及以上量子门**，不做单比特门。
+这个项目的目标不是做完整通用量子编译器，而是面向中性原子 `^171Yb` 的多比特量子门控制优化。
 
-原因很直接：
+当前明确不做单比特门，原因很简单：
 
-- 当前最清晰、最容易冻结成参考版本的是 two-qubit global `CZ`
-- 单比特门和读出当然重要，但不是当前控制优化主线
-- 后续我们更关心的是 `CZ`、`CNOT`、并行门、三比特门，以及这些门在真实噪声下的鲁棒优化
+- 当前最清晰、最适合冻结成参考基准的是两比特 `CZ`
+- 后续真正关心的是 `CZ`、`CNOT`、并行门和三比特门
+- 这些门在真实噪声下的鲁棒优化，才是这个仓库的主问题
 
-## 2. 当前冻结参考
+## 2. 分层结构
 
-已经冻结的 `v1` 是：
+建议把仓库理解成四层。
 
-- 论文：`arXiv:2202.00903`
-- 对象：ideal global `CZ`
-- 模型：4 维对称约化
-- 目标：phase-gate fidelity
-- 输出：粗扫、细扫、近阈值拟合、time-optimal phase sequence
+### Reference Layer
 
-这条链路的意义是：
+用于保存已经冻结的参考实验。
 
-- 给后续所有更复杂模型提供一个无噪声基准
-- 保证以后加噪声、加非对称项、加开放系统项时，有一个不会漂移的对照
+当前代表：
+- `v1` 的 ideal global `CZ`
 
-## 3. 后续框架
+这层的作用是：
+- 做论文对照
+- 做回归基准
+- 防止后续主线演进时失去最初的参照物
 
-建议后续分成三层。
+### Model Layer
 
-### 3.1 Reference Layer
+用于保存物理模型。
 
-保存已经冻结的参考实验。
-
-当前只有：
-
-- `freeze_v1_global_cz_reference.py`
-
-后续可以新增：
-
-- `freeze_v2_noisy_cz_reference.py`
-- `freeze_v3_cnot_reference.py`
-
-但每一版一旦冻结，就不应再被随意改写。
-
-### 3.2 Model Layer
-
-保存物理模型。
-
-当前：
-
+当前代表：
 - `GlobalCZ4DModel`
-
-后续建议新增：
-
 - `FiniteBlockadeCZ5DModel`
-- `NoisyGlobalCZModel`
-- `AsymmetricCNOTModel`
-- `ThreeQubitGateModel`
+- `TwoPhotonCZ9DModel`
+- `TwoPhotonCZOpen10DModel`
 
-### 3.3 Optimization Layer
+这层只负责回答“系统是什么”，不负责回答“怎么优化”。
 
-保存控制优化问题，而不是只保存某个特定 gate。
+### Optimization Layer
 
-当前：
+用于保存控制优化器。
 
+当前代表：
 - `PaperGlobalPhaseOptimizer`
+- `AmplitudePhaseOptimizer`
+- `OpenSystemGRAPEOptimizer`
 
-后续建议新增：
+这层负责回答“控制怎么找”，不负责定义物种和模型本身。
 
-- 带失谐和幅度误差鲁棒目标的优化器
-- 带 Lindblad 项的开放系统优化器
-- 多目标优化器：同时最小化 `1-F`、leakage、loss、gate time
+### Experiment Layer
 
-## 4. 下一步最值得做的事
+用于把模型和优化器拼成实际实验。
 
-从当前项目状态看，最合理的推进顺序是：
+当前代表：
+- 冻结参考
+- coarse scan
+- local scan
+- open-system smoke
+- benchmark
 
-1. 从 ideal 4D global `CZ` 升级到“有限 blockade + 失谐 + 衰减”的修正模型
-2. 在这个模型上重新优化 `CZ`
-3. 提取误差预算
-4. 再扩展到 `CNOT`
-5. 最后再做三比特门
+这层的作用是把“一个可复现的问题”固定下来，而不是堆业务逻辑。
 
-## 5. 设计原则
+## 3. 为什么要这样分层
 
-- 优先冻结参考，不优先堆功能
-- 优先做两比特及以上门，不优先做单比特门
-- 噪声和开放系统项要从一开始预留接口
-- ideal、noisy、open-system 三个层次不要混写在一个脚本里
+因为这个项目会同时存在：
+
+- ideal 模型
+- noisy 闭系统模型
+- open-system 模型
+- 未来的 `CNOT`
+- 未来的三比特门
+
+如果不分层，后续很容易出现：
+- 一个脚本同时塞满模型、优化器、扫描逻辑、出图逻辑
+- 无法判断某个结果到底对应哪个版本
+- 迁移环境后不知道该从哪里继续
+
+## 4. 当前主线与冻结参考
+
+### 冻结参考
+
+`v1` 是冻结参考，不应该被继续升级。
+
+### 当前闭系统主线
+
+`v3` 是当前最成熟的双光子闭系统主线。
+
+### 当前开放系统主线
+
+`v4` 是当前最重要的新主线，它第一次把：
+- decay
+- dephasing
+- loss
+- Liouvillian GRAPE
+
+都真正放进代码里。
+
+## 5. 后续演进建议
+
+从现在往后，最合理的推进顺序是：
+
+1. 继续把 `v4` 的目标保真度从 probe surrogate 升级到更严格的 noisy process fidelity
+2. 做更节制的 `T` 扫描和局部扫描
+3. 把 `CZ` 的开放系统主线稳定下来
+4. 再扩展到非对称门，例如 `CNOT`
+5. 最后再扩展到三比特门
+
+## 6. 文档阅读顺序
+
+如果是第一次接手这个仓库，建议按这个顺序读：
+
+1. [README.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/README.md)
+2. [project-map.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/project-map.md)
+3. [version-history.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/version-history.md)
+4. [references.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/references.md)
+5. [two-photon-cz-v3-model.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v3-model.md)
+6. [two-photon-cz-v4-open-system.md](/D:/Projects/Noise-Tolerant-Quantum-Control-Optimization/docs/two-photon-cz-v4-open-system.md)
