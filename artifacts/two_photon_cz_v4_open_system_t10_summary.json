@@ -1,0 +1,47 @@
+{
+  "target_evo_time": 10.0,
+  "threshold": 0.999,
+  "stages": [
+    {
+      "stage_name": "warmup",
+      "num_tslots": 100,
+      "max_iter": 1,
+      "num_restarts": 1,
+      "probe_fidelity": 0.3924576945850206,
+      "fid_err": 0.6075423054149793,
+      "wall_time": 0.06318738700065296,
+      "num_iter": 1,
+      "num_fid_func_calls": 2,
+      "optimized_theta": 0.0011874923833905167
+    },
+    {
+      "stage_name": "medium",
+      "num_tslots": 100,
+      "max_iter": 3,
+      "num_restarts": 3,
+      "probe_fidelity": 0.5821654708573769,
+      "fid_err": 0.4178345291426231,
+      "wall_time": 0.2382521680001446,
+      "num_iter": 3,
+      "num_fid_func_calls": 8,
+      "optimized_theta": 1.4271862717151635
+    },
+    {
+      "stage_name": "heavy",
+      "num_tslots": 100,
+      "max_iter": 5,
+      "num_restarts": 10,
+      "probe_fidelity": 0.5523259605427208,
+      "fid_err": 0.44767403945727924,
+      "wall_time": 0.18864919199950236,
+      "num_iter": 5,
+      "num_fid_func_calls": 6,
+      "optimized_theta": 1.927100623905434
+    }
+  ],
+  "best_probe_fidelity": 0.5821654708573769,
+  "best_fid_err": 0.4178345291426231,
+  "best_optimized_theta": 1.4271862717151635,
+  "threshold_reached": false,
+  "interrupted": false
+}

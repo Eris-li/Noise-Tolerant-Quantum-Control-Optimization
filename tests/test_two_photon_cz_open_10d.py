@@ -38,7 +38,7 @@ class TwoPhotonCZOpen10DTest(unittest.TestCase):
         self.assertGreater(len(model.collapse_operators()), 0)
         self.assertEqual(model.drift_liouvillian().shape, (100, 100))
 
-    def test_probe_fidelity_bounds(self) -> None:
+    def test_phase_gate_fidelity_bounds(self) -> None:
         model = self.build_model()
         optimizer = OpenSystemGRAPEOptimizer(
             model=model,
@@ -46,8 +46,8 @@ class TwoPhotonCZOpen10DTest(unittest.TestCase):
         )
         ctrl_x = np.zeros(8, dtype=np.float64)
         ctrl_y = np.zeros(8, dtype=np.float64)
-        states = optimizer.evolve_probe_states(ctrl_x, ctrl_y)
-        theta, fidelity = model.optimize_theta_for_probe_states(states)
+        state = optimizer.final_phase_state(ctrl_x, ctrl_y)
+        theta, fidelity = model.optimize_theta_for_ket(state)
         self.assertGreaterEqual(theta, 0.0)
         self.assertLessEqual(theta, 2.0 * np.pi)
         self.assertGreaterEqual(fidelity, 0.0)

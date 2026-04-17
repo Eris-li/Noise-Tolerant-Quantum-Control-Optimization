@@ -97,13 +97,21 @@ class OpenSystemScanResult:
 
 
 class OpenSystemGRAPEOptimizer:
-    """Liouvillian GRAPE on the probe-state surrogate fidelity used by v4.
+    r"""Open-system GRAPE aligned with the CZ fidelity from arXiv:2202.00903.
 
-    Unlike the earlier implementation, this optimizer directly maximizes the
-    same probe-based CZ fidelity that we report externally. The open-system
-    dynamics are still propagated exactly with piecewise-constant Liouvillians,
-    but the objective is aligned with the gate metric rather than a full-space
-    superoperator distance on the 10D model.
+    The optimization objective uses the two-qubit phase-gate fidelity for the
+    reduced |01>, |11> active manifold:
+
+        F = (|1 + 2 a01 + a11|^2 + 1 + 2|a01|^2 + |a11|^2) / 20
+
+    with a01 = exp(-i theta) <01|psi(T)> and
+         a11 = -exp(-2 i theta) <11|psi(T)>.
+
+    In the open-system setting we propagate the left coherence amplitudes
+    against an ideal spectator branch using an effective non-Hermitian
+    generator G = -i H - 1/2 sum_k C_k^\dagger C_k. This preserves the phase
+    information required by the fidelity while remaining compatible with the
+    Lindblad model used elsewhere for density-matrix analysis.
     """
 
     def __init__(self, model, config: OpenSystemGRAPEConfig):
@@ -113,11 +121,25 @@ class OpenSystemGRAPEOptimizer:
         self.vector_dimension = self.dimension * self.dimension
         self.active_indices = tuple(int(index) for index in model.active_gate_indices())
         self.amp_bound = float(self.model.control_amplitude_bound())
+        self.h_d = np.asarray(model.drift_hamiltonian().full(), dtype=np.complex128)
+        self.h_x, self.h_y = [
+            np.asarray(operator.full(), dtype=np.complex128) for operator in model.lower_leg_control_hamiltonians()
+        ]
+        decay_matrix = np.zeros((self.dimension, self.dimension), dtype=np.complex128)
+        for operator in model.collapse_operators():
+            c_matrix = np.asarray(operator.full(), dtype=np.complex128)
+            decay_matrix += c_matrix.conj().T @ c_matrix
+        self.g_d = -1j * self.h_d - 0.5 * decay_matrix
+        self.g_x = -1j * self.h_x
+        self.g_y = -1j * self.h_y
         self.l_d = np.asarray(model.drift_liouvillian().full(), dtype=np.complex128)
         self.l_x, self.l_y = [
             np.asarray(operator.full(), dtype=np.complex128) for operator in model.control_liouvillians()
         ]
-        self.initial_probe_vectors = self._initial_probe_vectors()
+        self.initial_phase_state = np.asarray(
+            model.special_phase_gate_state().full(),
+            dtype=np.complex128,
+        ).ravel()
 
     def initial_guess(self) -> tuple[np.ndarray, np.ndarray]:
         rng = np.random.default_rng(self.config.seed)
@@ -317,10 +339,10 @@ class OpenSystemGRAPEOptimizer:
         return times, states
 
     def benchmark_probe_evolution(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, repeats: int = 3) -> float:
-        self.evolve_probe_states(ctrl_x, ctrl_y)
+        self.final_phase_state(ctrl_x, ctrl_y)
         started_at = time.perf_counter()
         for _ in range(repeats):
-            self.evolve_probe_states(ctrl_x, ctrl_y)
+            self.final_phase_state(ctrl_x, ctrl_y)
         return (time.perf_counter() - started_at) / repeats
 
     def save_result(self, result: OpenSystemGRAPEResult, destination: Path) -> None:
@@ -334,21 +356,19 @@ class OpenSystemGRAPEOptimizer:
     def objective_and_gradient(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
         ctrl_x, ctrl_y, theta = self._unpack(variables)
         dt = self.config.dt
-        num_probes = self.initial_probe_vectors.shape[1]
-
         slice_propags: list[np.ndarray] = []
-        state_prefix: list[np.ndarray] = [self.initial_probe_vectors]
-        current_state = np.array(self.initial_probe_vectors, copy=True)
+        state_prefix: list[np.ndarray] = [self.initial_phase_state]
+        current_state = np.array(self.initial_phase_state, copy=True)
 
         for x_value, y_value in zip(ctrl_x, ctrl_y):
-            l_k = self._liouvillian(float(x_value), float(y_value))
-            u_k = expm(dt * l_k)
+            g_k = self._effective_generator(float(x_value), float(y_value))
+            u_k = expm(dt * g_k)
             slice_propags.append(u_k)
             current_state = u_k @ current_state
             state_prefix.append(current_state)
 
-        final_vectors = state_prefix[-1]
-        fidelity, fidelity_theta_grad = self._probe_fidelity_and_theta_gradient(final_vectors, theta)
+        final_state = state_prefix[-1]
+        fidelity, fidelity_theta_grad = self._phase_gate_fidelity_and_theta_gradient(final_state, theta)
         smoothness_cost = self._control_smoothness_cost(ctrl_x, ctrl_y)
         curvature_cost = self._control_curvature_cost(ctrl_x, ctrl_y)
         objective = (
@@ -357,10 +377,8 @@ class OpenSystemGRAPEOptimizer:
             + self.config.control_curvature_weight * curvature_cost
         )
 
-        suffix_propags: list[np.ndarray] = [
-            np.eye(self.vector_dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)
-        ]
-        current_suffix = np.eye(self.vector_dimension, dtype=np.complex128)
+        suffix_propags: list[np.ndarray] = [np.eye(self.dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)]
+        current_suffix = np.eye(self.dimension, dtype=np.complex128)
         for index in range(self.config.num_tslots - 1, -1, -1):
             suffix_propags[index] = current_suffix
             current_suffix = current_suffix @ slice_propags[index]
@@ -368,13 +386,13 @@ class OpenSystemGRAPEOptimizer:
         ctrl_x_grad = np.zeros_like(ctrl_x)
         ctrl_y_grad = np.zeros_like(ctrl_y)
         for index, (x_value, y_value) in enumerate(zip(ctrl_x, ctrl_y)):
-            l_k = self._liouvillian(float(x_value), float(y_value))
-            du_x = expm_frechet(dt * l_k, dt * self.l_x, compute_expm=False)
-            du_y = expm_frechet(dt * l_k, dt * self.l_y, compute_expm=False)
+            g_k = self._effective_generator(float(x_value), float(y_value))
+            du_x = expm_frechet(dt * g_k, dt * self.g_x, compute_expm=False)
+            du_y = expm_frechet(dt * g_k, dt * self.g_y, compute_expm=False)
             d_state_x = suffix_propags[index] @ du_x @ state_prefix[index]
             d_state_y = suffix_propags[index] @ du_y @ state_prefix[index]
-            ctrl_x_grad[index] = -self._probe_fidelity_state_gradient(d_state_x, theta)
-            ctrl_y_grad[index] = -self._probe_fidelity_state_gradient(d_state_y, theta)
+            ctrl_x_grad[index] = -self._phase_gate_fidelity_state_gradient(final_state, d_state_x, theta)
+            ctrl_y_grad[index] = -self._phase_gate_fidelity_state_gradient(final_state, d_state_y, theta)
 
         if self.config.control_smoothness_weight > 0.0:
             ctrl_x_grad += self.config.control_smoothness_weight * self._smoothness_gradient(ctrl_x)
@@ -397,8 +415,8 @@ class OpenSystemGRAPEOptimizer:
     ) -> OpenSystemGRAPEResult:
         ctrl_x, ctrl_y, theta = self._unpack(variables)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
-        final_vectors = self._final_probe_vectors(ctrl_x, ctrl_y)
-        probe_fidelity, _ = self._probe_fidelity_and_theta_gradient(final_vectors, theta)
+        final_state = self.final_phase_state(ctrl_x, ctrl_y)
+        probe_fidelity, _ = self._phase_gate_fidelity_and_theta_gradient(final_state, theta)
         objective = (
             1.0
             - probe_fidelity
@@ -426,67 +444,47 @@ class OpenSystemGRAPEOptimizer:
             success=bool(success),
         )
 
-    def _probe_fidelity_and_theta_gradient(
-        self,
-        final_vectors: np.ndarray,
-        theta: float,
-    ) -> tuple[float, float]:
-        total_fidelity = 0.0
-        total_theta_grad = 0.0
-        target_vectors, target_derivatives = self._target_probe_vectors(theta)
-        for probe_index in range(final_vectors.shape[1]):
-            rho = self._vec_to_matrix(final_vectors[:, probe_index])
-            rho_active = rho[np.ix_(self.active_indices, self.active_indices)]
-            target = target_vectors[probe_index]
-            target_derivative = target_derivatives[probe_index]
-            total_fidelity += float(np.real(np.vdot(target, rho_active @ target)))
-            total_theta_grad += float(
-                np.real(np.vdot(target_derivative, rho_active @ target) + np.vdot(target, rho_active @ target_derivative))
-            )
-        scale = 1.0 / final_vectors.shape[1]
-        return total_fidelity * scale, total_theta_grad * scale
-
-    def _probe_fidelity_state_gradient(self, d_state_vectors: np.ndarray, theta: float) -> float:
-        total = 0.0
-        target_vectors, _ = self._target_probe_vectors(theta)
-        for probe_index in range(d_state_vectors.shape[1]):
-            d_rho = self._vec_to_matrix(d_state_vectors[:, probe_index])
-            d_rho_active = d_rho[np.ix_(self.active_indices, self.active_indices)]
-            target = target_vectors[probe_index]
-            total += float(np.real(np.vdot(target, d_rho_active @ target)))
-        return total / d_state_vectors.shape[1]
-
-    def _final_probe_vectors(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> np.ndarray:
-        current_state = np.array(self.initial_probe_vectors, copy=True)
+    def final_phase_state(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> np.ndarray:
+        current_state = np.array(self.initial_phase_state, copy=True)
         for x_value, y_value in zip(ctrl_x, ctrl_y):
-            current_state = expm(self.config.dt * self._liouvillian(float(x_value), float(y_value))) @ current_state
+            current_state = expm(self.config.dt * self._effective_generator(float(x_value), float(y_value))) @ current_state
         return current_state
 
-    def _initial_probe_vectors(self) -> np.ndarray:
-        vectors: list[np.ndarray] = []
-        for probe_ket, _ in self.model.probe_kets(theta=0.0):
-            density = qutip.ket2dm(probe_ket).full()
-            vectors.append(np.asarray(density, dtype=np.complex128).reshape(-1, order="F"))
-        return np.stack(vectors, axis=1)
+    def _phase_gate_fidelity_and_theta_gradient(self, final_state: np.ndarray, theta: float) -> tuple[float, float]:
+        alpha = complex(final_state[self.active_indices[0]])
+        beta = complex(final_state[self.active_indices[1]])
+        phase_01 = np.exp(-1j * theta)
+        phase_11 = np.exp(-2j * theta)
+        phased_sum = 1.0 + 2.0 * phase_01 * alpha - phase_11 * beta
+        population_sum = 1.0 + 2.0 * abs(alpha) ** 2 + abs(beta) ** 2
+        fidelity = (abs(phased_sum) ** 2 + population_sum) / 20.0
+        phased_sum_derivative = -2j * phase_01 * alpha + 2j * phase_11 * beta
+        theta_gradient = np.real(np.conj(phased_sum) * phased_sum_derivative) / 10.0
+        return float(fidelity), float(theta_gradient)
 
-    def _target_probe_vectors(self, theta: float) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        target_vectors: list[np.ndarray] = []
-        target_derivatives: list[np.ndarray] = []
-        base_vectors = [
-            np.array([1.0, 0.0], dtype=np.complex128),
-            np.array([0.0, 1.0], dtype=np.complex128),
-            np.array([1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)], dtype=np.complex128),
-            np.array([1.0 / np.sqrt(2.0), 1j / np.sqrt(2.0)], dtype=np.complex128),
-        ]
-        phases = np.array([np.exp(1j * theta), -np.exp(2j * theta)], dtype=np.complex128)
-        phase_derivatives = np.array([1j * np.exp(1j * theta), -2j * np.exp(2j * theta)], dtype=np.complex128)
-        for base in base_vectors:
-            target_vectors.append(phases * base)
-            target_derivatives.append(phase_derivatives * base)
-        return target_vectors, target_derivatives
+    def _phase_gate_fidelity_state_gradient(
+        self,
+        final_state: np.ndarray,
+        d_state: np.ndarray,
+        theta: float,
+    ) -> float:
+        alpha = complex(final_state[self.active_indices[0]])
+        beta = complex(final_state[self.active_indices[1]])
+        d_alpha = complex(d_state[self.active_indices[0]])
+        d_beta = complex(d_state[self.active_indices[1]])
+        phase_01 = np.exp(-1j * theta)
+        phase_11 = np.exp(-2j * theta)
+        phased_sum = 1.0 + 2.0 * phase_01 * alpha - phase_11 * beta
+        delta_phased_sum = 2.0 * phase_01 * d_alpha - phase_11 * d_beta
+        delta_population = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
+        delta_fidelity = (2.0 * np.real(np.conj(phased_sum) * delta_phased_sum) + delta_population) / 20.0
+        return float(delta_fidelity)
 
     def _liouvillian(self, ctrl_x: float, ctrl_y: float) -> np.ndarray:
         return self.l_d + ctrl_x * self.l_x + ctrl_y * self.l_y
+
+    def _effective_generator(self, ctrl_x: float, ctrl_y: float) -> np.ndarray:
+        return self.g_d + ctrl_x * self.g_x + ctrl_y * self.g_y
 
     def _unpack(self, variables: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
         ctrl_x = np.asarray(variables[: self.config.num_tslots], dtype=np.float64)

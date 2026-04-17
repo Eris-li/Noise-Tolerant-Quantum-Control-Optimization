@@ -75,6 +75,16 @@ class OpenSystemGRAPETest(unittest.TestCase):
         self.assertGreaterEqual(result.probe_fidelity, 0.0)
         self.assertLessEqual(result.probe_fidelity, 1.0)
 
+    def test_special_state_formula_matches_model_method(self) -> None:
+        optimizer = self.build_optimizer()
+        ctrl_x = np.array([0.01, -0.02, 0.03, -0.01], dtype=np.float64)
+        ctrl_y = np.array([-0.03, 0.02, -0.01, 0.04], dtype=np.float64)
+        theta = 0.35
+        final_state = optimizer.final_phase_state(ctrl_x, ctrl_y)
+        fidelity_from_optimizer, _ = optimizer._phase_gate_fidelity_and_theta_gradient(final_state, theta)
+        fidelity_from_model = optimizer.model.phase_gate_fidelity_from_ket(final_state, theta)
+        self.assertAlmostEqual(fidelity_from_optimizer, fidelity_from_model, places=10)
+
 
 if __name__ == "__main__":
     unittest.main()

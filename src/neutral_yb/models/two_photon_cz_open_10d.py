@@ -183,6 +183,29 @@ class TwoPhotonCZOpen10DModel:
     def target_superoperator(self, theta: float = 0.0) -> qutip.Qobj:
         return qutip.to_super(self.target_unitary(theta))
 
+    def special_phase_gate_state(self) -> qutip.Qobj:
+        vector = np.zeros((self.dimension(), 1), dtype=np.complex128)
+        vector[self.active_gate_indices()[0], 0] = 1.0
+        vector[self.active_gate_indices()[1], 0] = 1.0
+        return qutip.Qobj(vector)
+
+    def phase_gate_fidelity_from_ket(self, state: np.ndarray, theta: float) -> float:
+        alpha = complex(state[self.active_gate_indices()[0]])
+        beta = complex(state[self.active_gate_indices()[1]])
+        phased_sum = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
+        population_sum = 1.0 + 2.0 * abs(alpha) ** 2 + abs(beta) ** 2
+        return float((abs(phased_sum) ** 2 + population_sum) / 20.0)
+
+    def optimize_theta_for_ket(self, state: np.ndarray) -> tuple[float, float]:
+        result = minimize_scalar(
+            lambda theta: -self.phase_gate_fidelity_from_ket(state, theta),
+            bounds=(0.0, 2.0 * np.pi),
+            method="bounded",
+            options={"xatol": 1e-10},
+        )
+        theta = float(np.mod(result.x, 2.0 * np.pi))
+        return theta, self.phase_gate_fidelity_from_ket(state, theta)
+
     def probe_kets(self, theta: float) -> list[tuple[qutip.Qobj, qutip.Qobj]]:
         ket_01 = self._ket([1.0, 0.0])
         ket_11 = self._ket([0.0, 1.0])

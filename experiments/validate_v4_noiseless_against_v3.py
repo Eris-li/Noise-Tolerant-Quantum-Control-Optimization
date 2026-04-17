@@ -124,14 +124,20 @@ def main() -> None:
         loss_populations.append(float(np.real(v4_final.full()[9, 9])))
         purities.append(float((v4_final * v4_final).tr().real))
 
-    v3_as_v4_densities = []
-    for density in v3_final_states:
-        embedded = np.zeros((10, 10), dtype=np.complex128)
-        embedded[:9, :9] = np.asarray(density.full(), dtype=np.complex128)
-        v3_as_v4_densities.append(qutip.Qobj(embedded))
+    v3_special_initial = np.zeros((9, 1), dtype=np.complex128)
+    v3_special_initial[0, 0] = 1.0
+    v3_special_initial[3, 0] = 1.0
+    v3_special_final = propagate_v3_probe(
+        v3_model,
+        amplitudes,
+        phases,
+        qutip.Qobj(v3_special_initial),
+        evo_time,
+    )
+    theta_v3, fidelity_v3 = v3_model.optimize_theta_for_state(np.asarray(v3_special_final.full(), dtype=np.complex128).ravel())
 
-    theta_v3, fidelity_v3 = v4_model.optimize_theta_for_probe_states(v3_as_v4_densities)
-    theta_v4, fidelity_v4 = v4_model.optimize_theta_for_probe_states(v4_final_states)
+    v4_special_final = v4_optimizer.final_phase_state(ctrl_x, ctrl_y)
+    theta_v4, fidelity_v4 = v4_model.optimize_theta_for_ket(v4_special_final)
 
     summary = {
         "evo_time": evo_time,
@@ -144,8 +150,8 @@ def main() -> None:
         "min_purity": float(min(purities)),
         "theta_v3_limit": float(theta_v3),
         "theta_v4_noiseless": float(theta_v4),
-        "probe_fidelity_v3_limit": float(fidelity_v3),
-        "probe_fidelity_v4_noiseless": float(fidelity_v4),
+        "phase_gate_fidelity_v3_limit": float(fidelity_v3),
+        "phase_gate_fidelity_v4_noiseless": float(fidelity_v4),
     }
 
     artifacts = ROOT / "artifacts"
