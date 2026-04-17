@@ -12,7 +12,13 @@ if str(SRC) not in sys.path:
 import numpy as np
 from scipy.optimize import curve_fit
 
-from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
+from neutral_yb.config.yb171_calibration import (
+    build_yb171_v4_calibrated_model,
+    summarize_yb171_v4_result,
+    yb171_dimensionless_time_to_gate_time_ns,
+    yb171_gate_time_ns_to_dimensionless,
+    yb171_v4_default_omega_max_hz,
+)
 from neutral_yb.optimization.open_system_grape import (
     OpenSystemGRAPEConfig,
     OpenSystemGRAPEOptimizer,
@@ -54,12 +60,17 @@ def fit_time_optimal(durations: list[float], fidelities: list[float]) -> dict[st
 
 def main() -> None:
     threshold = 0.999
-    coarse_durations = list(reversed(frange(0.5, 10.0, 0.5)))
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    coarse_durations_dimensionless = list(reversed(frange(0.5, 10.0, 0.5)))
+    coarse_gate_times_ns = [
+        yb171_dimensionless_time_to_gate_time_ns(value, effective_rabi_hz=omega_max_hz)
+        for value in coarse_durations_dimensionless
+    ]
     coarse_optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(),
+        model=build_yb171_v4_calibrated_model(effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=32,
-            evo_time=coarse_durations[0],
+            evo_time=yb171_gate_time_ns_to_dimensionless(coarse_gate_times_ns[0], effective_rabi_hz=omega_max_hz),
             max_iter=3,
             num_restarts=2,
             seed=17,
@@ -71,24 +82,63 @@ def main() -> None:
             show_progress=True,
         ),
     )
-    coarse_scan, coarse_results = coarse_optimizer.scan_durations(coarse_durations)
+    coarse_scan, coarse_results = coarse_optimizer.scan_durations(
+        [
+            yb171_gate_time_ns_to_dimensionless(value, effective_rabi_hz=omega_max_hz)
+            for value in coarse_gate_times_ns
+        ]
+    )
 
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    coarse_optimizer.save_scan(coarse_scan, artifacts / "two_photon_cz_v4_open_system_coarse.json")
+    (artifacts / "two_photon_cz_v4_open_system_coarse.json").write_text(
+        json.dumps(
+            {
+                "gate_times_ns": coarse_gate_times_ns,
+                "durations_dimensionless": coarse_scan.durations,
+                "fidelities": coarse_scan.fidelities,
+                "best_gate_time_ns": None
+                if coarse_scan.best_duration is None
+                else yb171_dimensionless_time_to_gate_time_ns(
+                    coarse_scan.best_duration,
+                    effective_rabi_hz=omega_max_hz,
+                ),
+                "best_duration_dimensionless": coarse_scan.best_duration,
+                "best_fidelity": coarse_scan.best_fidelity,
+                "target_reached": coarse_scan.target_reached,
+                "omega_max_hz": omega_max_hz,
+                "omega_max_mhz": omega_max_hz / 1e6,
+                "points": [
+                    summarize_yb171_v4_result(
+                        result=result,
+                        gate_time_ns=gate_time_ns,
+                        omega_max_hz=omega_max_hz,
+                        model=coarse_optimizer.model,
+                    )
+                    for gate_time_ns, result in zip(coarse_gate_times_ns, coarse_results)
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     coarse_qualifying = [res for res in coarse_results if res.probe_fidelity >= threshold]
     if not coarse_qualifying:
         raise RuntimeError("No coarse-scan point reached fidelity >= 0.999")
 
     coarse_threshold_point = min(coarse_qualifying, key=lambda res: res.evo_time)
-    fine_durations = list(reversed(frange(7.5, coarse_threshold_point.evo_time, 0.025)))
+    fine_durations_dimensionless = list(reversed(frange(7.5, coarse_threshold_point.evo_time, 0.025)))
+    fine_gate_times_ns = [
+        yb171_dimensionless_time_to_gate_time_ns(value, effective_rabi_hz=omega_max_hz)
+        for value in fine_durations_dimensionless
+    ]
 
     fine_optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(),
+        model=build_yb171_v4_calibrated_model(effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=100,
-            evo_time=fine_durations[0],
+            evo_time=yb171_gate_time_ns_to_dimensionless(fine_gate_times_ns[0], effective_rabi_hz=omega_max_hz),
             max_iter=5,
             num_restarts=10,
             seed=17,
@@ -101,30 +151,91 @@ def main() -> None:
         ),
     )
     fine_scan, fine_results = fine_optimizer.scan_durations(
-        fine_durations,
+        [
+            yb171_gate_time_ns_to_dimensionless(value, effective_rabi_hz=omega_max_hz)
+            for value in fine_gate_times_ns
+        ],
         initial_ctrl_x=coarse_threshold_point.ctrl_x,
         initial_ctrl_y=coarse_threshold_point.ctrl_y,
         initial_theta=coarse_threshold_point.optimized_theta,
     )
-    fine_optimizer.save_scan(fine_scan, artifacts / "two_photon_cz_v4_open_system_fine.json")
+    (artifacts / "two_photon_cz_v4_open_system_fine.json").write_text(
+        json.dumps(
+            {
+                "gate_times_ns": fine_gate_times_ns,
+                "durations_dimensionless": fine_scan.durations,
+                "fidelities": fine_scan.fidelities,
+                "best_gate_time_ns": None
+                if fine_scan.best_duration is None
+                else yb171_dimensionless_time_to_gate_time_ns(
+                    fine_scan.best_duration,
+                    effective_rabi_hz=omega_max_hz,
+                ),
+                "best_duration_dimensionless": fine_scan.best_duration,
+                "best_fidelity": fine_scan.best_fidelity,
+                "target_reached": fine_scan.target_reached,
+                "omega_max_hz": omega_max_hz,
+                "omega_max_mhz": omega_max_hz / 1e6,
+                "points": [
+                    summarize_yb171_v4_result(
+                        result=result,
+                        gate_time_ns=gate_time_ns,
+                        omega_max_hz=omega_max_hz,
+                        model=fine_optimizer.model,
+                    )
+                    for gate_time_ns, result in zip(fine_gate_times_ns, fine_results)
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     fine_qualifying = [res for res in fine_results if res.probe_fidelity >= threshold]
     if not fine_qualifying:
         raise RuntimeError("No fine-scan point reached fidelity >= 0.999")
     optimal = min(fine_qualifying, key=lambda res: res.evo_time)
-    fine_optimizer.save_result(optimal, artifacts / "two_photon_cz_v4_open_system_optimal.json")
+    optimal_gate_time_ns = yb171_dimensionless_time_to_gate_time_ns(optimal.evo_time, effective_rabi_hz=omega_max_hz)
+    (artifacts / "two_photon_cz_v4_open_system_optimal.json").write_text(
+        json.dumps(
+            summarize_yb171_v4_result(
+                result=optimal,
+                gate_time_ns=optimal_gate_time_ns,
+                omega_max_hz=omega_max_hz,
+                model=fine_optimizer.model,
+            ),
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     best = max(fine_results, key=lambda result: result.probe_fidelity)
-    fine_optimizer.save_result(best, artifacts / "two_photon_cz_v4_open_system_best.json")
+    best_gate_time_ns = yb171_dimensionless_time_to_gate_time_ns(best.evo_time, effective_rabi_hz=omega_max_hz)
+    (artifacts / "two_photon_cz_v4_open_system_best.json").write_text(
+        json.dumps(
+            summarize_yb171_v4_result(
+                result=best,
+                gate_time_ns=best_gate_time_ns,
+                omega_max_hz=omega_max_hz,
+                model=fine_optimizer.model,
+            ),
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
-    fit = fit_time_optimal(fine_scan.durations, fine_scan.fidelities)
+    fit = fit_time_optimal(fine_gate_times_ns, fine_scan.fidelities)
+    fit["t_star_dimensionless"] = yb171_gate_time_ns_to_dimensionless(fit["t_star"], effective_rabi_hz=omega_max_hz)
     (artifacts / "two_photon_cz_v4_open_system_fit.json").write_text(json.dumps(fit, indent=2), encoding="utf-8")
 
     print("Two-stage v4 open-system scan completed")
-    print(f"Coarse first threshold point = {coarse_threshold_point.evo_time}")
-    print(f"Fine optimal T*Omega_max = {optimal.evo_time}")
+    print(
+        "Coarse first threshold point = "
+        f"{yb171_dimensionless_time_to_gate_time_ns(coarse_threshold_point.evo_time, effective_rabi_hz=omega_max_hz):.3f} ns"
+    )
+    print(f"Fine optimal gate time = {optimal_gate_time_ns:.3f} ns")
     print(f"Fine optimal fidelity = {optimal.probe_fidelity}")
-    print(f"Fitted T*Omega_max = {fit['t_star']}")
+    print(f"Fitted gate time = {fit['t_star']:.3f} ns")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,21 @@
+{
+  "gate_times_ns": [
+    136.0
+  ],
+  "durations_dimensionless": [
+    12.817698026646356
+  ],
+  "omega_max_hz": 15000000.0,
+  "omega_max_mhz": 15.0,
+  "scan_result": {
+    "durations": [
+      12.817698026646356
+    ],
+    "fidelities": [
+      0.7618146763951152
+    ],
+    "best_duration": null,
+    "best_fidelity": 0.7618146763951152,
+    "target_reached": false
+  }
+}

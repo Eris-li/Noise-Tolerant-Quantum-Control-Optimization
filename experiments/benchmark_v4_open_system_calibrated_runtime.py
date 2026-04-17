@@ -10,22 +10,27 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
+from neutral_yb.config.yb171_calibration import (
+    build_yb171_v4_calibrated_model,
+    yb171_gate_time_ns_to_dimensionless,
+    yb171_v4_default_omega_max_hz,
+)
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
 def run_case(
     *,
-    evo_time: float,
+    gate_time_ns: float,
     num_tslots: int,
     max_iter: int,
     num_restarts: int,
 ) -> dict[str, float | int]:
+    omega_max_hz = yb171_v4_default_omega_max_hz()
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(),
+        model=build_yb171_v4_calibrated_model(effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=num_tslots,
-            evo_time=evo_time,
+            evo_time=yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=omega_max_hz),
             max_iter=max_iter,
             num_restarts=num_restarts,
             seed=17,
@@ -41,7 +46,10 @@ def run_case(
     result = optimizer.optimize()
     wall_total = time.perf_counter() - started_at
     return {
-        "evo_time": evo_time,
+        "gate_time_ns": gate_time_ns,
+        "omega_max_hz": omega_max_hz,
+        "omega_max_mhz": omega_max_hz / 1e6,
+        "dimensionless_gate_time": optimizer.config.evo_time,
         "num_tslots": num_tslots,
         "max_iter": max_iter,
         "num_restarts": num_restarts,
@@ -55,8 +63,8 @@ def run_case(
 
 def main() -> None:
     cases = [
-        run_case(evo_time=8.0, num_tslots=32, max_iter=1, num_restarts=1),
-        run_case(evo_time=8.0, num_tslots=100, max_iter=1, num_restarts=1),
+        run_case(gate_time_ns=136.0, num_tslots=32, max_iter=1, num_restarts=1),
+        run_case(gate_time_ns=136.0, num_tslots=100, max_iter=1, num_restarts=1),
     ]
 
     artifacts = ROOT / "artifacts"

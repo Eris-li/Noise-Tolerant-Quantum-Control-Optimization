@@ -10,16 +10,26 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neutral_yb.config.yb171_calibration import build_yb171_v4_calibrated_model
+from neutral_yb.config.yb171_calibration import (
+    build_yb171_v4_calibrated_model,
+    summarize_yb171_v4_result,
+    yb171_dimensionless_time_to_gate_time_ns,
+    yb171_gate_time_ns_to_dimensionless,
+    yb171_v4_default_omega_max_hz,
+)
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+
+OMEGA_MAX_HZ = yb171_v4_default_omega_max_hz()
+GATE_TIME_NS = yb171_dimensionless_time_to_gate_time_ns(10.0, effective_rabi_hz=OMEGA_MAX_HZ)
+GATE_TIME_DIMENSIONLESS = yb171_gate_time_ns_to_dimensionless(GATE_TIME_NS, effective_rabi_hz=OMEGA_MAX_HZ)
 
 
 def evaluate_zero_baseline() -> dict[str, float | str | bool]:
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(),
+        model=build_yb171_v4_calibrated_model(effective_rabi_hz=OMEGA_MAX_HZ),
         config=OpenSystemGRAPEConfig(
             num_tslots=100,
-            evo_time=10.0,
+            evo_time=GATE_TIME_DIMENSIONLESS,
             max_iter=0,
             num_restarts=1,
             init_pulse_type="ZERO",
@@ -38,6 +48,9 @@ def evaluate_zero_baseline() -> dict[str, float | str | bool]:
         "probe_fidelity": float(fidelity),
         "fid_err": float(1.0 - fidelity),
         "optimized_theta": float(theta),
+        "gate_time_ns": float(GATE_TIME_NS),
+        "omega_max_hz": float(OMEGA_MAX_HZ),
+        "omega_max_mhz": float(OMEGA_MAX_HZ / 1e6),
         "num_tslots": int(optimizer.config.num_tslots),
         "max_iter": 0,
         "num_restarts": 1,
@@ -60,10 +73,10 @@ def run_stage(
     control_curvature_weight: float,
 ) -> dict[str, object]:
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(),
+        model=build_yb171_v4_calibrated_model(effective_rabi_hz=OMEGA_MAX_HZ),
         config=OpenSystemGRAPEConfig(
             num_tslots=num_tslots,
-            evo_time=10.0,
+            evo_time=GATE_TIME_DIMENSIONLESS,
             max_iter=max_iter,
             num_restarts=num_restarts,
             seed=17,
@@ -83,7 +96,18 @@ def run_stage(
 
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    optimizer.save_result(result, artifacts / f"two_photon_cz_v4_open_system_t10_{stage_name}.json")
+    (artifacts / f"two_photon_cz_v4_open_system_t10_{stage_name}.json").write_text(
+        json.dumps(
+            summarize_yb171_v4_result(
+                result=result,
+                gate_time_ns=GATE_TIME_NS,
+                omega_max_hz=OMEGA_MAX_HZ,
+                model=optimizer.model,
+            ),
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     return {
         "stage_name": stage_name,
@@ -146,7 +170,7 @@ def main() -> None:
         baseline = evaluate_zero_baseline()
         stage_records.append(baseline)
         print(
-            f"[t10-fine] baseline zero-control F={baseline['probe_fidelity']:.6f} "
+            f"[t10-fine] baseline zero-control T={GATE_TIME_NS:.3f} ns F={baseline['probe_fidelity']:.6f} "
             f"theta={baseline['optimized_theta']:.6f}",
             flush=True,
         )
@@ -217,7 +241,11 @@ def main() -> None:
         print("[t10-fine] interrupted; saving partial summary", flush=True)
 
     summary = {
-        "target_evo_time": 10.0,
+        "target_gate_time_ns": GATE_TIME_NS,
+        "target_gate_time_us": GATE_TIME_NS / 1000.0,
+        "target_dimensionless_time": GATE_TIME_DIMENSIONLESS,
+        "omega_max_hz": OMEGA_MAX_HZ,
+        "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
         "threshold": 0.999,
         "stages": stage_records,
         "best_probe_fidelity": None if best_result is None else best_result.probe_fidelity,
@@ -231,10 +259,18 @@ def main() -> None:
         encoding="utf-8",
     )
     if best_result is not None:
-        OpenSystemGRAPEOptimizer(
-            model=build_yb171_v4_calibrated_model(),
-            config=OpenSystemGRAPEConfig(num_tslots=100, evo_time=10.0),
-        ).save_result(best_result, artifacts / "two_photon_cz_v4_open_system_t10_best.json")
+        (artifacts / "two_photon_cz_v4_open_system_t10_best.json").write_text(
+            json.dumps(
+                summarize_yb171_v4_result(
+                    result=best_result,
+                    gate_time_ns=GATE_TIME_NS,
+                    omega_max_hz=OMEGA_MAX_HZ,
+                    model=build_yb171_v4_calibrated_model(effective_rabi_hz=OMEGA_MAX_HZ),
+                ),
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     print(json.dumps(summary, indent=2))
 

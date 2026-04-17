@@ -15,6 +15,8 @@ if str(SRC) not in sys.path:
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v3_calibrated_model,
     build_yb171_v4_calibrated_model,
+    yb171_gate_time_ns_to_dimensionless,
+    yb171_v4_default_omega_max_hz,
 )
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
@@ -25,12 +27,14 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 
 
 def build_closed_optimizer() -> AmplitudePhaseOptimizer:
-    model = build_yb171_v3_calibrated_model()
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    gate_time_ns = 136.0
+    model = build_yb171_v3_calibrated_model(effective_rabi_hz=omega_max_hz)
     return AmplitudePhaseOptimizer(
         model=model,
         config=AmplitudePhaseOptimizationConfig(
             num_tslots=40,
-            evo_time=8.5,
+            evo_time=yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=omega_max_hz),
             max_iter=3,
             seed=17,
             init_phase_spread=0.35,
@@ -41,12 +45,14 @@ def build_closed_optimizer() -> AmplitudePhaseOptimizer:
 
 
 def build_open_optimizer() -> OpenSystemGRAPEOptimizer:
-    model = build_yb171_v4_calibrated_model()
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    gate_time_ns = 136.0
+    model = build_yb171_v4_calibrated_model(effective_rabi_hz=omega_max_hz)
     return OpenSystemGRAPEOptimizer(
         model=model,
         config=OpenSystemGRAPEConfig(
             num_tslots=8,
-            evo_time=8.5,
+            evo_time=yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=omega_max_hz),
             max_iter=2,
             num_restarts=1,
             seed=17,
@@ -64,6 +70,8 @@ def average_time(callable_obj, repeats: int) -> float:
 
 
 def main() -> None:
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    gate_time_ns = 136.0
     closed = build_closed_optimizer()
     amplitudes, phases = closed.initial_guess()
     variables = np.concatenate([amplitudes, phases, np.array([0.3])])
@@ -84,9 +92,12 @@ def main() -> None:
     open_opt_wall = time.perf_counter() - open_started_at
 
     summary = {
+        "gate_time_ns": gate_time_ns,
+        "omega_max_hz": omega_max_hz,
+        "omega_max_mhz": omega_max_hz / 1e6,
         "closed_system": {
             "num_tslots": closed.config.num_tslots,
-            "evo_time": closed.config.evo_time,
+            "dimensionless_gate_time": closed.config.evo_time,
             "final_state_avg_s": closed_final_state_avg,
             "objective_and_gradient_avg_s": closed_obj_grad_avg,
             "optimize_wall_s": closed_opt_wall,
@@ -94,7 +105,7 @@ def main() -> None:
         },
         "open_system": {
             "num_tslots": open_system.config.num_tslots,
-            "evo_time": open_system.config.evo_time,
+            "dimensionless_gate_time": open_system.config.evo_time,
             "probe_evolution_avg_s": open_probe_avg,
             "optimize_wall_s": open_opt_wall,
             "optimize_probe_fidelity": open_result.probe_fidelity,

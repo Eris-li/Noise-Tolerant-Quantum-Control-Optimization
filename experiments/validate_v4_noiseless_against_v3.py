@@ -16,6 +16,8 @@ import qutip
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v3_calibrated_model,
     build_yb171_v4_calibrated_model,
+    yb171_gate_time_ns_to_dimensionless,
+    yb171_v4_default_omega_max_hz,
 )
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
@@ -26,11 +28,13 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 
 
 def build_v3_model() -> TwoPhotonCZ9DModel:
-    return build_yb171_v3_calibrated_model()
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    return build_yb171_v3_calibrated_model(effective_rabi_hz=omega_max_hz)
 
 
 def build_v4_noiseless_model():
-    return build_yb171_v4_calibrated_model(include_noise=False)
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    return build_yb171_v4_calibrated_model(include_noise=False, effective_rabi_hz=omega_max_hz)
 
 
 def propagate_v3_probe(
@@ -59,7 +63,9 @@ def embed_probe_into_v3(active_probe: qutip.Qobj) -> qutip.Qobj:
 
 
 def main() -> None:
-    evo_time = 8.0
+    gate_time_ns = 136.0
+    omega_max_hz = yb171_v4_default_omega_max_hz()
+    evo_time = yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=omega_max_hz)
     num_tslots = 100
 
     v3_model = build_v3_model()
@@ -140,7 +146,10 @@ def main() -> None:
     theta_v4, fidelity_v4 = v4_model.optimize_theta_for_ket(v4_special_final)
 
     summary = {
-        "evo_time": evo_time,
+        "gate_time_ns": gate_time_ns,
+        "omega_max_hz": omega_max_hz,
+        "omega_max_mhz": omega_max_hz / 1e6,
+        "dimensionless_gate_time": evo_time,
         "num_tslots": num_tslots,
         "drift_max_abs_error": drift_error,
         "lower_x_max_abs_error": lower_x_error,
