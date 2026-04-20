@@ -30,7 +30,7 @@
 - [amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
   `v3` 当前主线，闭系统 lower-leg 振幅加单相位优化器。
 - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-  `v4` 当前主线，直接优化 probe-based fidelity 的开放系统 Liouvillian GRAPE。
+  `v4` 当前主线，按论文 Eq.(7) 传播未归一化特殊态 `|01> + |11>` 并优化 phase-gate fidelity，同时支持 quasistatic ensemble robust optimization。
 - [linear_control_grape.py](../src/neutral_yb/optimization/linear_control_grape.py)
   历史实验文件，保留作对照，不是当前主线。
 
@@ -48,6 +48,12 @@
   `v4` 的单点开放系统 smoke run。
 - [coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
   `v4` 的开放系统粗扫描主实验。
+- [physical_time_scan_two_photon_cz_v4_open_system.py](../experiments/physical_time_scan_two_photon_cz_v4_open_system.py)
+  `v4` 的真实时间尺度扫描入口，可显式覆盖 `Omega_max`。
+- [two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py](../experiments/two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py)
+  `v4` 的 `0–300 ns` 两阶段高驱动扫描脚本，使用 `Omega_max = 100 MHz` 覆盖值。
+- [validate_v4_dynamics_and_optimization.py](../experiments/validate_v4_dynamics_and_optimization.py)
+  `v4` 的时序演化、reduced channel、梯度和优化链路校验脚本。
 - [benchmark_v4_open_system_vs_v3_closed.py](../experiments/benchmark_v4_open_system_vs_v3_closed.py)
   `v4` 和 `v3` 的本地资源对比。
 

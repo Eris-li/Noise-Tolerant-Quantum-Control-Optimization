@@ -147,7 +147,7 @@ def main() -> None:
         "dimensionless_gate_times": durations_dimless,
         "best_gate_time_ns": float(durations_ns[best_index]),
         "best_probe_fidelity": float(result_summaries[best_index]["probe_fidelity"]),
-        "best_channel_fidelity": float(result_summaries[best_index]["channel_fidelity"]),
+        "best_phase_gate_fidelity": float(result_summaries[best_index]["phase_gate_fidelity"]),
         "fidelity_target": float(args.fidelity_target),
         "target_reached": bool(scan.target_reached),
         "results": result_summaries,

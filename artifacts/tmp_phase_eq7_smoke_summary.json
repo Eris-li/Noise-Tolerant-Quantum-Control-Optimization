@@ -1,0 +1,122 @@
+{
+  "calibration": {
+    "effective_rabi_hz": 4600000.0,
+    "effective_rabi_hz_max": 15000000.0,
+    "intermediate_detuning_hz": 7800000000.0,
+    "blockade_shift_hz": 160000000.0,
+    "rydberg_lifetime_s": 5.6e-05,
+    "rydberg_t2_star_s": 3.4e-06,
+    "uv_pulse_area_fractional_error": 0.004,
+    "residual_common_detuning_hz": 10000.0,
+    "residual_differential_detuning_hz": 5000.0,
+    "doppler_detuning_01_hz": 10000.0,
+    "doppler_detuning_11_hz": 15000.0,
+    "blockade_shift_jitter_hz": 5000000.0,
+    "unwanted_mf_error_per_gate": 0.00048,
+    "leakage_reference_t_omega": 8.0,
+    "resolved_effective_rabi_hz": 15000000.0,
+    "omega_ref_rad_s": 94247779.60769379,
+    "derived_one_photon_rabi_hz": 483735464.897913,
+    "derived_one_photon_rabi_over_omega_ref": 32.2490309931942,
+    "intermediate_detuning_dimensionless": 520.0,
+    "blockade_shift_dimensionless": 10.666666666666666,
+    "rydberg_decay_rate_dimensionless": 0.00018947017034749448,
+    "rydberg_dephasing_rate_dimensionless": 0.0031206851586646146,
+    "residual_common_detuning_dimensionless": 0.0006666666666666666,
+    "residual_differential_detuning_dimensionless": 0.0003333333333333333,
+    "doppler_detuning_01_dimensionless": 0.0006666666666666666,
+    "doppler_detuning_11_dimensionless": 0.001,
+    "extra_rydberg_leakage_rate_dimensionless": 6e-05
+  },
+  "omega_max_hz": 15000000.0,
+  "omega_max_mhz": 15.0,
+  "ensemble_size": 1,
+  "ensemble_seed": 17,
+  "gate_times_ns": [
+    100.0
+  ],
+  "dimensionless_gate_times": [
+    9.42477796076938
+  ],
+  "best_gate_time_ns": 100.0,
+  "best_probe_fidelity": 0.6834048590837074,
+  "best_phase_gate_fidelity": 0.6834048590837074,
+  "fidelity_target": 0.999,
+  "target_reached": false,
+  "results": [
+    {
+      "ctrl_x": [
+        5.188079633435712,
+        21.876404117589885,
+        18.413857175012605,
+        1.740703244803717
+      ],
+      "ctrl_y": [
+        7.830928614580085,
+        21.699265650420383,
+        11.816465951671185,
+        -2.068039744239559
+      ],
+      "amplitudes": [
+        9.393594266813933,
+        30.81290617393331,
+        21.879191110476814,
+        2.703116011240474
+      ],
+      "phases": [
+        0.9856759523283048,
+        0.7813331084621337,
+        0.5705295778861316,
+        5.41205436507633
+      ],
+      "target_theta": 0.0,
+      "optimized_theta": 1.4636136779671025,
+      "fid_err": 0.3165951409162926,
+      "probe_fidelity": 0.6834048590837074,
+      "phase_gate_fidelity": 0.6834048590837074,
+      "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+      "objective": 0.3165951409162926,
+      "num_iter": 1,
+      "num_fid_func_calls": 2,
+      "wall_time": 0.647253583996644,
+      "termination_reason": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+      "evo_time": 9.42477796076938,
+      "num_tslots": 4,
+      "control_smoothness_cost": 350.42115594781524,
+      "control_curvature_cost": 580.3539516556042,
+      "success": false,
+      "gate_time_ns": 100.0,
+      "gate_time_us": 0.1,
+      "slot_duration_ns": 25.0,
+      "slot_midpoints_ns": [
+        12.5,
+        37.5,
+        62.5,
+        87.5
+      ],
+      "omega_max_hz": 15000000.0,
+      "omega_max_mhz": 15.0,
+      "effective_rabi_hz_reference": 15000000.0,
+      "effective_rabi_sequence_hz": [
+        4386792.062210001,
+        14389573.189781629,
+        10217543.909693377,
+        1262350.440580015
+      ],
+      "effective_rabi_sequence_mhz": [
+        4.386792062210001,
+        14.389573189781629,
+        10.217543909693378,
+        1.262350440580015
+      ],
+      "effective_rabi_fraction": [
+        0.29245280414733343,
+        0.9593048793187753,
+        0.6811695939795585,
+        0.08415669603866767
+      ],
+      "dimensionless_gate_time": 9.42477796076938,
+      "physical_time_from_dimensionless_ns": 100.00000000000001
+    }
+  ]
+}

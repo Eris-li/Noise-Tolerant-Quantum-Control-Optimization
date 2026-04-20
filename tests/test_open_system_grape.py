@@ -98,11 +98,11 @@ class OpenSystemGRAPETest(unittest.TestCase):
         self.assertAlmostEqual(objective_nominal, objective_ensemble, places=10)
         self.assertTrue(np.allclose(gradient_nominal, gradient_ensemble, atol=1e-10, rtol=1e-10))
 
-    def test_channel_fidelity_bounds(self) -> None:
+    def test_phase_gate_fidelity_bounds(self) -> None:
         optimizer = self.build_optimizer()
         ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
         ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
-        theta, fidelity = optimizer.optimize_theta_for_channel(ctrl_x, ctrl_y)
+        theta, fidelity = optimizer.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
         self.assertGreaterEqual(theta, 0.0)
         self.assertLessEqual(theta, 2.0 * np.pi)
         self.assertGreaterEqual(fidelity, 0.0)

@@ -15,7 +15,7 @@
 - `v3`
   闭系统、显式中间态的双光子 9 维模型，当前主线是 lower-leg 振幅加单相位控制。
 - `v4`
-  开放系统、显式中间态加 loss sink 的 10 维模型，使用 `QuTiP mesolve` 和 `qutip-qtrl` 的 Liouvillian GRAPE。
+  开放系统、显式中间态加 loss sink 的 10 维模型，使用仓库内自写的逐 slice 传播和 GRAPE，并以 QuTiP 负责算符构造与独立验证。
 
 如果你刚接手这个仓库，建议先看：
 
@@ -120,8 +120,8 @@ docker compose run --rm test
 ## 当前技术结论
 
 - `v3` 之前的主线优化基本是我们自己写的 `SciPy expm/expm_frechet` 闭系统 GRAPE。
-- `v4` 现在直接在 Lindblad Liouvillian 上做 piecewise-constant 开放系统 GRAPE，目标函数与仓库汇报的 probe-based CZ fidelity 保持一致。
-- 实现上继续使用 `QuTiP` 生成开放系统模型与 Liouvillian，但优化与扫描逻辑由仓库内的 `open_system_grape.py` 控制。
+- `v4` 现在按论文 Eq.(7) 传播未归一化特殊态 `|01> + |11>`，并在开放系统下优化对应的 phase-gate fidelity。
+- 实现上继续使用 `QuTiP` 生成开放系统模型与 Liouvillian 并做独立验证，但优化与扫描逻辑由仓库内的 `open_system_grape.py` 控制。
 - 本地 benchmark 表明，开放系统优化的主要瓶颈仍是 Liouvillian propagator 与 Frechet 梯度，而不是 Python 胶水代码。
 
 ## 当前已知状态

@@ -278,8 +278,8 @@ def summarize_yb171_v4_result(
     slot_midpoints_ns = (np.arange(result.num_tslots, dtype=np.float64) + 0.5) * slot_duration_ns
     return {
         **result.to_json(),
-        "channel_fidelity": float(result.probe_fidelity),
-        "fidelity_metric": "active_subspace_lindblad_channel_overlap",
+        "phase_gate_fidelity": float(result.probe_fidelity),
+        "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
         "gate_time_ns": float(gate_time_ns),
         "gate_time_us": float(gate_time_ns / 1000.0),
         "slot_duration_ns": float(slot_duration_ns),

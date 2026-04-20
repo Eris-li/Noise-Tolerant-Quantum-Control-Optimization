@@ -65,8 +65,8 @@ class OpenSystemGRAPEResult:
             "optimized_theta": float(self.optimized_theta),
             "fid_err": float(self.fid_err),
             "probe_fidelity": float(self.probe_fidelity),
-            "channel_fidelity": float(self.probe_fidelity),
-            "fidelity_metric": "active_subspace_lindblad_channel_overlap",
+            "phase_gate_fidelity": float(self.probe_fidelity),
+            "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
             "objective": float(self.objective),
             "num_iter": int(self.num_iter),
             "num_fid_func_calls": int(self.num_fid_func_calls),
@@ -99,21 +99,30 @@ class OpenSystemScanResult:
 
 
 class OpenSystemGRAPEOptimizer:
-    r"""Open-system GRAPE on the exact active-subspace Lindblad channel.
+    r"""Open-system GRAPE using the paper Eq.(7) special-state fidelity.
 
-    The optimizer propagates the four operator basis elements spanning the
-    active {|01>, |11>} manifold under the full Liouvillian. The resulting
-    4x4 reduced superoperator is compared against the target phase-gate
-    superoperator via the Hilbert-Schmidt / Choi overlap
+    The main optimization target follows arXiv:2202.00903 for the active
+    {|01>, |11>} manifold. It propagates the unnormalized state
 
-        F_ch = Re[Tr(S_target^\dagger S_actual)] / d^2
+        |psi(0)> = |01> + |11>
 
-    with d = 2.
+    and evaluates
 
-    When an ensemble of models is provided, the objective is the arithmetic
-    mean of this channel fidelity over the ensemble. This implements robust
-    optimization against quasistatic parameter fluctuations such as detuning,
-    Doppler, and blockade offsets.
+        F = (|1 + 2 a01 + a11|^2 + 1 + 2|a01|^2 + |a11|^2) / 20
+
+    with
+
+        a01 = exp(-i theta) <01|psi(T)>
+        a11 = -exp(-2 i theta) <11|psi(T)>
+
+    For the open-system model, the optimization propagates this state under
+    the effective non-Hermitian generator
+
+        G = -i H - 1/2 sum_k C_k^\dagger C_k
+
+    while keeping exact Liouvillian helpers available for diagnostics. When an
+    ensemble of models is provided, the optimization target is the arithmetic
+    mean of this phase-gate fidelity over the quasistatic ensemble.
     """
 
     def __init__(self, model, config: OpenSystemGRAPEConfig, ensemble_models: list | None = None):
@@ -380,37 +389,35 @@ class OpenSystemGRAPEOptimizer:
 
         for member in self.ensemble_data:
             slice_propags: list[np.ndarray] = []
-            state_prefix: list[np.ndarray] = [self.active_operator_basis]
-            current_batch = np.array(self.active_operator_basis, copy=True)
+            state_prefix: list[np.ndarray] = [self.initial_phase_state]
+            current_state = np.array(self.initial_phase_state, copy=True)
 
             for x_value, y_value in zip(ctrl_x, ctrl_y):
-                l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
-                u_k = expm(dt * l_k)
+                g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
+                u_k = expm(dt * g_k)
                 slice_propags.append(u_k)
-                current_batch = u_k @ current_batch
-                state_prefix.append(current_batch)
+                current_state = u_k @ current_state
+                state_prefix.append(current_state)
 
-            final_batch = state_prefix[-1]
-            member_fidelity, member_theta_grad = self._channel_fidelity_and_theta_gradient(final_batch, theta)
+            final_state = state_prefix[-1]
+            member_fidelity, member_theta_grad = self._phase_gate_fidelity_and_theta_gradient(final_state, theta)
             fidelity += member_fidelity
             fidelity_theta_grad += member_theta_grad
 
-            suffix_propags: list[np.ndarray] = [
-                np.eye(self.vector_dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)
-            ]
-            current_suffix = np.eye(self.vector_dimension, dtype=np.complex128)
+            suffix_propags: list[np.ndarray] = [np.eye(self.dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)]
+            current_suffix = np.eye(self.dimension, dtype=np.complex128)
             for index in range(self.config.num_tslots - 1, -1, -1):
                 suffix_propags[index] = current_suffix
                 current_suffix = current_suffix @ slice_propags[index]
 
             for index, (x_value, y_value) in enumerate(zip(ctrl_x, ctrl_y)):
-                l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
-                du_x = expm_frechet(dt * l_k, dt * member["l_x"], compute_expm=False)
-                du_y = expm_frechet(dt * l_k, dt * member["l_y"], compute_expm=False)
-                d_batch_x = suffix_propags[index] @ du_x @ state_prefix[index]
-                d_batch_y = suffix_propags[index] @ du_y @ state_prefix[index]
-                ctrl_x_grad[index] -= self._channel_fidelity_batch_gradient(d_batch_x, theta)
-                ctrl_y_grad[index] -= self._channel_fidelity_batch_gradient(d_batch_y, theta)
+                g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
+                du_x = expm_frechet(dt * g_k, dt * member["g_x"], compute_expm=False)
+                du_y = expm_frechet(dt * g_k, dt * member["g_y"], compute_expm=False)
+                d_state_x = suffix_propags[index] @ du_x @ state_prefix[index]
+                d_state_y = suffix_propags[index] @ du_y @ state_prefix[index]
+                ctrl_x_grad[index] -= self._phase_gate_fidelity_state_gradient(final_state, d_state_x, theta)
+                ctrl_y_grad[index] -= self._phase_gate_fidelity_state_gradient(final_state, d_state_y, theta)
 
         ensemble_size = float(len(self.ensemble_data))
         fidelity /= ensemble_size
@@ -446,7 +453,7 @@ class OpenSystemGRAPEOptimizer:
     ) -> OpenSystemGRAPEResult:
         ctrl_x, ctrl_y, theta = self._unpack(variables)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
-        probe_fidelity = self.channel_fidelity(ctrl_x, ctrl_y, theta)
+        probe_fidelity = self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
         objective = (
             1.0
             - probe_fidelity
@@ -475,10 +482,35 @@ class OpenSystemGRAPEOptimizer:
         )
 
     def final_phase_state(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> np.ndarray:
+        return self.final_phase_state_member(ctrl_x, ctrl_y, member_index=0)
+
+    def final_phase_state_member(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
+        member = self.ensemble_data[member_index]
         current_state = np.array(self.initial_phase_state, copy=True)
         for x_value, y_value in zip(ctrl_x, ctrl_y):
-            current_state = expm(self.config.dt * self._effective_generator(float(x_value), float(y_value))) @ current_state
+            g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
+            current_state = expm(self.config.dt * g_k) @ current_state
         return current_state
+
+    def phase_gate_fidelity(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, theta: float) -> float:
+        values = [
+            self._phase_gate_fidelity_and_theta_gradient(
+                self.final_phase_state_member(ctrl_x, ctrl_y, member_index=index),
+                theta,
+            )[0]
+            for index in range(len(self.ensemble_data))
+        ]
+        return float(np.mean(values))
+
+    def optimize_theta_for_phase_fidelity(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> tuple[float, float]:
+        result = minimize_scalar(
+            lambda theta: -self.phase_gate_fidelity(ctrl_x, ctrl_y, float(theta)),
+            bounds=(0.0, 2.0 * np.pi),
+            method="bounded",
+            options={"xatol": 1e-10},
+        )
+        theta = float(np.mod(result.x, 2.0 * np.pi))
+        return theta, self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
 
     def channel_superoperator(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
         member = self.ensemble_data[member_index]
@@ -542,8 +574,17 @@ class OpenSystemGRAPEOptimizer:
         return self.g_d + ctrl_x * self.g_x + ctrl_y * self.g_y
 
     def _build_member_data(self, member) -> dict[str, np.ndarray]:
+        h_d = np.asarray(member.drift_hamiltonian().full(), dtype=np.complex128)
+        h_x, h_y = [np.asarray(operator.full(), dtype=np.complex128) for operator in member.lower_leg_control_hamiltonians()]
+        decay_matrix = np.zeros((self.dimension, self.dimension), dtype=np.complex128)
+        for operator in member.collapse_operators():
+            c_matrix = np.asarray(operator.full(), dtype=np.complex128)
+            decay_matrix += c_matrix.conj().T @ c_matrix
         l_x, l_y = [np.asarray(operator.full(), dtype=np.complex128) for operator in member.control_liouvillians()]
         return {
+            "g_d": -1j * h_d - 0.5 * decay_matrix,
+            "g_x": -1j * h_x,
+            "g_y": -1j * h_y,
             "l_d": np.asarray(member.drift_liouvillian().full(), dtype=np.complex128),
             "l_x": l_x,
             "l_y": l_y,

@@ -131,12 +131,21 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 
 ## 7. 求解和优化
 
-`v4` 采用两层结构：
+`v4` 现在采用三层结构：
 
-- 模型层：`QuTiP`
-  用于生成 Hamiltonian、collapse operators 和 Liouvillian
-- 优化层：仓库内 `open_system_grape.py`
-  在 piecewise-constant Liouvillian 上直接对 probe-based fidelity 做 GRAPE，并用 Frechet 导数计算梯度
+- 模型层：`two_photon_cz_open_10d.py`
+  定义 10 维有效空间、drift / control Hamiltonian、collapse operators 和 Liouvillian
+- 传播层：仓库内 `open_system_grape.py`
+  对每个 piecewise-constant time slice 显式构造
+  `L_k = L_d + u_x(k)L_x + u_y(k)L_y`
+  再用矩阵指数 `exp(dt L_k)` 推进 density matrix 的列向量化表示
+- 优化层：同样在 `open_system_grape.py`
+  用 `scipy.optimize.minimize(..., L-BFGS-B)` 做 GRAPE，并用 `expm_frechet` 求解析梯度
+
+这里要特别说明两点：
+
+- 当前主时序演化逻辑是**仓库自己写的逐 slice Liouvillian propagation**
+- `QuTiP` 主要负责构造 Hamiltonian / collapse operators / Liouvillian，以及做独立对照验证；主优化结果不是直接调用 `QuTiP mesolve` 得到的
 
 对应代码：
 
@@ -144,33 +153,79 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 - 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 - coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
 - smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
+- `0–300 ns` 两阶段高驱动扫描：[two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py](../experiments/two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py)
 
 ## 8. 当前目标保真度
 
-当前 `v4` 的评估指标还不是最严格的 noisy process fidelity，而是 probe-based surrogate fidelity。
+当前 `v4` 的主优化目标回到 `arXiv:2202.00903` 的 Eq.(7)。
 
-也就是：
-- 选取几组代表性 probe states
-- 在开放系统下把它们演化到最终态
-- 和理想 `CZ` 作用后的目标态做比较
-- 再把这些比较结果平均起来
+优化器传播未归一化特殊态：
 
-这比单一初态更可靠，但还不是完整量子信道的 process fidelity。后续继续升级 `v4` 时，最值得推进的方向之一就是把这个 surrogate fidelity 换成更严格的 noisy process fidelity。
+```math
+|\psi(0)\rangle = |01\rangle + |11\rangle
+```
 
-## 9. 资源消耗
+然后只取最终态在 active 分支上的两个振幅：
+
+```math
+a_{01}=e^{-i\theta}\langle 01|\psi(T)\rangle
+```
+
+```math
+a_{11}=-e^{-2i\theta}\langle 11|\psi(T)\rangle
+```
+
+并计算
+
+```math
+F = \frac{|1 + 2a_{01} + a_{11}|^2 + 1 + 2|a_{01}|^2 + |a_{11}|^2}{20}
+```
+
+这就是当前仓库里 `v4` 主优化器实际在优化的 `phase_gate_fidelity`。
+
+这里还要区分两层：
+
+- 动力学分析接口仍然可以做完整 Liouvillian 的密度矩阵传播
+- 但主优化器内部为了保留 Eq.(7) 所需的相干振幅，传播的是特殊态在有效非厄米生成元
+  `G = -iH - 1/2 \sum_k C_k^\dagger C_k`
+  下的演化
+
+因此，当前 `v4` 的主目标是**论文 Eq.(7) 的特殊态 phase-gate fidelity**，不是之前那种 4 个算符基的 reduced-channel overlap。
+
+## 9. 当前噪声实现方式
+
+当前 `v4` 的噪声分成两类：
+
+- Markovian 通道：
+  - `intermediate / rydberg decay`
+  - `intermediate / rydberg pure dephasing`
+  - `extra leakage -> |loss>`
+- Quasistatic 参数漂移：
+  - common / differential detuning
+  - Doppler detuning
+  - blockade shift offset
+
+从 `2026-04` 的这轮修正开始，`v4` 的主扫描脚本默认不再只优化一个固定 realization，而是：
+
+- 从 `yb171_calibration.py` 里采样一组 quasistatic ensemble
+- 对 ensemble 平均后的 Eq.(7) phase-gate fidelity 做优化
+
+也就是说，单次门内部这些偏移仍然视为常数，但优化目标已经是 **ensemble-averaged robust objective**，不再是单一静态样本。
+
+## 10. 资源消耗
 
 开放系统后，主要开销来自：
 
 - ket 变成 density matrix，维度从 `d` 变成 `d^2`
 - 优化对象从 Hamiltonian propagator 变成 Liouvillian propagator
-- 评估时不再只是传播单个初态，而是要传播多个 probe states
+- 评估时虽然主优化只传播一个特殊态，但每次迭代仍需反复计算开放系统有效生成元的 propagator 和 Frechet 导数
 
 本地 benchmark 结果已经落盘在：
 - [benchmark_v4_open_system_vs_v3_closed.json](../artifacts/benchmark_v4_open_system_vs_v3_closed.json)
 
 它表明当前 `v4` 的开放系统优化，代价比 `v3` 的闭系统优化高了两个到三个数量级。
 
-## 10. 当前 `^171Yb` 校准
+## 11. 当前 `^171Yb` 校准
 
 从 `2026-04` 开始，`v4` 的实验脚本默认不再使用之前那组偏“占位”的噪声参数，而是统一改用：
 
@@ -209,7 +264,23 @@ L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
 
 因此，当前 `v4` 已经比旧参数更接近真实 `^171Yb` 实验，但它仍然不是“最终物理模型”。如果后续要继续往实验对齐，最自然的下一步是把 `v4` 从双光子显式中间态重写成单光子 clock-to-Rydberg 开放系统。
 
-## 11. 文献依据
+## 12. `100 MHz` 扫描口径
+
+默认 `^171Yb` 校准里，实验上限仍然按 `15 MHz` 保留，因为这是更接近文献量级的硬件上限。
+
+但如果为了做高驱动探索扫描，也可以在脚本层显式覆盖：
+
+```text
+Omega_max / 2π = 100 MHz
+```
+
+这时要注意：
+
+- 这是**扫描覆盖值**，不是当前文献里 `^171Yb` 的保真硬件上限
+- `blockade / Omega_max` 会显著下降，因此结果更应被理解为“高驱动探索”
+- 文档和 artifact 里应显式写出 `omega_max_mhz = 100`
+
+## 13. 文献依据
 
 - Evered et al.，双光子门和主要误差源：  
   https://www.nature.com/articles/s41586-023-06481-y

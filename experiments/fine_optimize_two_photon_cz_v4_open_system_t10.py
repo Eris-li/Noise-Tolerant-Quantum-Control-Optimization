@@ -49,11 +49,11 @@ def evaluate_zero_baseline() -> dict[str, float | str | bool]:
     )
     ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
     ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
-    theta, fidelity = optimizer.optimize_theta_for_channel(ctrl_x, ctrl_y)
+    theta, fidelity = optimizer.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
     return {
         "stage_name": "zero_baseline",
         "probe_fidelity": float(fidelity),
-        "channel_fidelity": float(fidelity),
+        "phase_gate_fidelity": float(fidelity),
         "fid_err": float(1.0 - fidelity),
         "optimized_theta": float(theta),
         "gate_time_ns": float(GATE_TIME_NS),
@@ -232,7 +232,7 @@ def main() -> None:
                     "control_curvature_weight": control_curvature_weight,
                     "warm_start": warm_start,
                     "probe_fidelity": result.probe_fidelity,
-                    "channel_fidelity": result.probe_fidelity,
+                    "phase_gate_fidelity": result.probe_fidelity,
                     "fid_err": result.fid_err,
                     "wall_time": result.wall_time,
                     "num_iter": result.num_iter,
@@ -267,7 +267,7 @@ def main() -> None:
         "threshold": 0.999,
         "stages": stage_records,
         "best_probe_fidelity": None if best_result is None else best_result.probe_fidelity,
-        "best_channel_fidelity": None if best_result is None else best_result.probe_fidelity,
+        "best_phase_gate_fidelity": None if best_result is None else best_result.probe_fidelity,
         "best_fid_err": None if best_result is None else best_result.fid_err,
         "best_optimized_theta": None if best_result is None else best_result.optimized_theta,
         "threshold_reached": False if best_result is None else best_result.probe_fidelity >= 0.999,

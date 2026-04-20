@@ -115,7 +115,7 @@ def main() -> None:
             "probe_evolution_avg_s": open_probe_avg,
             "optimize_wall_s": open_opt_wall,
             "optimize_probe_fidelity": open_result.probe_fidelity,
-            "optimize_channel_fidelity": open_result.probe_fidelity,
+            "optimize_phase_gate_fidelity": open_result.probe_fidelity,
             "optimize_fid_err": open_result.fid_err,
         },
         "ratios": {

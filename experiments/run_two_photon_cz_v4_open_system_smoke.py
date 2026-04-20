@@ -64,7 +64,7 @@ def main() -> None:
     print(f"Gate time = {gate_time_ns:.3f} ns")
     print(f"Omega_max = {omega_max_hz / 1e6:.3f} MHz")
     print(f"Ensemble size = {ensemble_size}")
-    print(f"Channel fidelity = {result.probe_fidelity}")
+    print(f"Phase-gate fidelity = {result.probe_fidelity}")
     print(f"Objective = {result.objective}")
     print(f"Fid err = {result.fid_err}")
     print(f"Optimized theta = {result.optimized_theta}")

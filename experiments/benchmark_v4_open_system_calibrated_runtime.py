@@ -64,7 +64,7 @@ def run_case(
         "ensemble_size": ensemble_size,
         "ensemble_seed": seed,
         "probe_fidelity": result.probe_fidelity,
-        "channel_fidelity": result.probe_fidelity,
+        "phase_gate_fidelity": result.probe_fidelity,
         "optimizer_reported_wall_time": result.wall_time,
         "total_wall_time": wall_total,
         "num_iter": result.num_iter,
