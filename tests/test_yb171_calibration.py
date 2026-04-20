@@ -4,6 +4,7 @@ import unittest
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     yb171_experimental_calibration,
 )
 
@@ -32,6 +33,26 @@ class Yb171CalibrationTests(unittest.TestCase):
         self.assertNotAlmostEqual(default_model.lower_rabi, fast_model.lower_rabi)
         self.assertNotAlmostEqual(default_model.intermediate_detuning, fast_model.intermediate_detuning)
         self.assertNotAlmostEqual(default_model.blockade_shift, fast_model.blockade_shift)
+
+    def test_quasistatic_ensemble_is_reproducible_and_differs_from_nominal(self) -> None:
+        nominal = build_yb171_v4_calibrated_model()
+        ensemble_a = build_yb171_v4_quasistatic_ensemble(ensemble_size=3, seed=123)
+        ensemble_b = build_yb171_v4_quasistatic_ensemble(ensemble_size=3, seed=123)
+
+        self.assertEqual(len(ensemble_a), 3)
+        self.assertEqual(len(ensemble_b), 3)
+        for model_a, model_b in zip(ensemble_a, ensemble_b):
+            self.assertAlmostEqual(model_a.noise.common_two_photon_detuning, model_b.noise.common_two_photon_detuning)
+            self.assertAlmostEqual(model_a.noise.doppler_detuning_11, model_b.noise.doppler_detuning_11)
+            self.assertAlmostEqual(model_a.noise.blockade_shift_offset, model_b.noise.blockade_shift_offset)
+
+        different_from_nominal = any(
+            abs(member.noise.common_two_photon_detuning - nominal.noise.common_two_photon_detuning) > 1e-12
+            or abs(member.noise.doppler_detuning_11 - nominal.noise.doppler_detuning_11) > 1e-12
+            or abs(member.noise.blockade_shift_offset - nominal.noise.blockade_shift_offset) > 1e-12
+            for member in ensemble_a
+        )
+        self.assertTrue(different_from_nominal)
 
 
 if __name__ == "__main__":

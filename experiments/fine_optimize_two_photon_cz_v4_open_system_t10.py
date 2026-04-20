@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     summarize_yb171_v4_result,
     yb171_dimensionless_time_to_gate_time_ns,
     yb171_gate_time_ns_to_dimensionless,
@@ -22,6 +23,8 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 OMEGA_MAX_HZ = yb171_v4_default_omega_max_hz()
 GATE_TIME_NS = yb171_dimensionless_time_to_gate_time_ns(10.0, effective_rabi_hz=OMEGA_MAX_HZ)
 GATE_TIME_DIMENSIONLESS = yb171_gate_time_ns_to_dimensionless(GATE_TIME_NS, effective_rabi_hz=OMEGA_MAX_HZ)
+ENSEMBLE_SIZE = 7
+ENSEMBLE_SEED = 17
 
 
 def evaluate_zero_baseline() -> dict[str, float | str | bool]:
@@ -38,19 +41,26 @@ def evaluate_zero_baseline() -> dict[str, float | str | bool]:
             control_curvature_weight=0.0,
             show_progress=False,
         ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=ENSEMBLE_SIZE,
+            seed=ENSEMBLE_SEED,
+            effective_rabi_hz=OMEGA_MAX_HZ,
+        ),
     )
     ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
     ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
-    final_state = optimizer.final_phase_state(ctrl_x, ctrl_y)
-    theta, fidelity = optimizer.model.optimize_theta_for_ket(final_state)
+    theta, fidelity = optimizer.optimize_theta_for_channel(ctrl_x, ctrl_y)
     return {
         "stage_name": "zero_baseline",
         "probe_fidelity": float(fidelity),
+        "channel_fidelity": float(fidelity),
         "fid_err": float(1.0 - fidelity),
         "optimized_theta": float(theta),
         "gate_time_ns": float(GATE_TIME_NS),
         "omega_max_hz": float(OMEGA_MAX_HZ),
         "omega_max_mhz": float(OMEGA_MAX_HZ / 1e6),
+        "ensemble_size": ENSEMBLE_SIZE,
+        "ensemble_seed": ENSEMBLE_SEED,
         "num_tslots": int(optimizer.config.num_tslots),
         "max_iter": 0,
         "num_restarts": 1,
@@ -86,6 +96,11 @@ def run_stage(
             control_curvature_weight=control_curvature_weight,
             fidelity_target=0.999,
             show_progress=True,
+        ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=ENSEMBLE_SIZE,
+            seed=ENSEMBLE_SEED,
+            effective_rabi_hz=OMEGA_MAX_HZ,
         ),
     )
     result = optimizer.optimize(
@@ -217,6 +232,7 @@ def main() -> None:
                     "control_curvature_weight": control_curvature_weight,
                     "warm_start": warm_start,
                     "probe_fidelity": result.probe_fidelity,
+                    "channel_fidelity": result.probe_fidelity,
                     "fid_err": result.fid_err,
                     "wall_time": result.wall_time,
                     "num_iter": result.num_iter,
@@ -246,9 +262,12 @@ def main() -> None:
         "target_dimensionless_time": GATE_TIME_DIMENSIONLESS,
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
+        "ensemble_size": ENSEMBLE_SIZE,
+        "ensemble_seed": ENSEMBLE_SEED,
         "threshold": 0.999,
         "stages": stage_records,
         "best_probe_fidelity": None if best_result is None else best_result.probe_fidelity,
+        "best_channel_fidelity": None if best_result is None else best_result.probe_fidelity,
         "best_fid_err": None if best_result is None else best_result.fid_err,
         "best_optimized_theta": None if best_result is None else best_result.optimized_theta,
         "threshold_reached": False if best_result is None else best_result.probe_fidelity >= 0.999,

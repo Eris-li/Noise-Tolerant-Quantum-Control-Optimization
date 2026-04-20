@@ -14,6 +14,7 @@ from scipy.optimize import curve_fit
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     summarize_yb171_v4_result,
     yb171_dimensionless_time_to_gate_time_ns,
     yb171_gate_time_ns_to_dimensionless,
@@ -61,6 +62,9 @@ def fit_time_optimal(durations: list[float], fidelities: list[float]) -> dict[st
 def main() -> None:
     threshold = 0.999
     omega_max_hz = yb171_v4_default_omega_max_hz()
+    coarse_ensemble_size = 5
+    fine_ensemble_size = 7
+    seed = 17
     coarse_durations_dimensionless = list(reversed(frange(0.5, 10.0, 0.5)))
     coarse_gate_times_ns = [
         yb171_dimensionless_time_to_gate_time_ns(value, effective_rabi_hz=omega_max_hz)
@@ -80,6 +84,11 @@ def main() -> None:
             control_curvature_weight=2e-3,
             fidelity_target=threshold,
             show_progress=True,
+        ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=coarse_ensemble_size,
+            seed=seed,
+            effective_rabi_hz=omega_max_hz,
         ),
     )
     coarse_scan, coarse_results = coarse_optimizer.scan_durations(
@@ -108,6 +117,8 @@ def main() -> None:
                 "target_reached": coarse_scan.target_reached,
                 "omega_max_hz": omega_max_hz,
                 "omega_max_mhz": omega_max_hz / 1e6,
+                "ensemble_size": coarse_ensemble_size,
+                "ensemble_seed": seed,
                 "points": [
                     summarize_yb171_v4_result(
                         result=result,
@@ -149,6 +160,11 @@ def main() -> None:
             fidelity_target=threshold,
             show_progress=True,
         ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=fine_ensemble_size,
+            seed=seed + 1,
+            effective_rabi_hz=omega_max_hz,
+        ),
     )
     fine_scan, fine_results = fine_optimizer.scan_durations(
         [
@@ -176,6 +192,8 @@ def main() -> None:
                 "target_reached": fine_scan.target_reached,
                 "omega_max_hz": omega_max_hz,
                 "omega_max_mhz": omega_max_hz / 1e6,
+                "ensemble_size": fine_ensemble_size,
+                "ensemble_seed": seed + 1,
                 "points": [
                     summarize_yb171_v4_result(
                         result=result,

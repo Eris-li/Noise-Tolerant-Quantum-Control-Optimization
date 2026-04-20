@@ -14,6 +14,7 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     summarize_yb171_v4_result,
     yb171_v4_default_omega_max_hz,
     yb171_experimental_calibration,
@@ -45,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-tslots", type=int, default=100)
     parser.add_argument("--max-iter", type=int, default=80)
     parser.add_argument("--num-restarts", type=int, default=4)
+    parser.add_argument("--ensemble-size", type=int, default=5)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--init-pulse-type", type=str, default="SINE")
     parser.add_argument("--init-control-scale", type=float, default=0.75)
@@ -72,6 +74,12 @@ def main() -> None:
         include_noise=True,
         effective_rabi_hz=omega_max_hz,
     )
+    ensemble_models = build_yb171_v4_quasistatic_ensemble(
+        ensemble_size=args.ensemble_size,
+        seed=args.seed,
+        include_noise=True,
+        effective_rabi_hz=omega_max_hz,
+    )
     durations_ns = [float(value) for value in args.times_ns]
     durations_dimless = [
         calibration.physical_gate_time_to_dimensionless(value * 1e-9, effective_rabi_hz=omega_max_hz)
@@ -93,6 +101,7 @@ def main() -> None:
             fidelity_target=args.fidelity_target,
             show_progress=True,
         ),
+        ensemble_models=ensemble_models,
     )
 
     scan, raw_results = optimizer.scan_durations(
@@ -104,6 +113,8 @@ def main() -> None:
         "durations_dimensionless": durations_dimless,
         "omega_max_hz": omega_max_hz,
         "omega_max_mhz": omega_max_hz / 1e6,
+        "ensemble_size": int(args.ensemble_size),
+        "ensemble_seed": int(args.seed),
         "scan_result": scan.to_json(),
     }
     (artifacts / f"{args.output_prefix}_raw_scan.json").write_text(
@@ -130,10 +141,13 @@ def main() -> None:
         "calibration": calibration.summary(effective_rabi_hz=omega_max_hz),
         "omega_max_hz": float(omega_max_hz),
         "omega_max_mhz": float(omega_max_hz / 1e6),
+        "ensemble_size": int(args.ensemble_size),
+        "ensemble_seed": int(args.seed),
         "gate_times_ns": durations_ns,
         "dimensionless_gate_times": durations_dimless,
         "best_gate_time_ns": float(durations_ns[best_index]),
         "best_probe_fidelity": float(result_summaries[best_index]["probe_fidelity"]),
+        "best_channel_fidelity": float(result_summaries[best_index]["channel_fidelity"]),
         "fidelity_target": float(args.fidelity_target),
         "target_reached": bool(scan.target_reached),
         "results": result_summaries,

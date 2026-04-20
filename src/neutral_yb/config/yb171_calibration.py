@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import math
 
 import numpy as np
@@ -41,6 +41,7 @@ class Yb171ExperimentalCalibration:
     residual_differential_detuning_hz: float = 5e3
     doppler_detuning_01_hz: float = 10e3
     doppler_detuning_11_hz: float = 15e3
+    blockade_shift_jitter_hz: float = 5e6
     unwanted_mf_error_per_gate: float = 4.8e-4
     leakage_reference_t_omega: float = 8.0
 
@@ -154,6 +155,37 @@ class Yb171ExperimentalCalibration:
             rydberg_branch_to_qubit=0.0,
         )
 
+    def sample_quasistatic_noise(
+        self,
+        *,
+        rng: np.random.Generator,
+        effective_rabi_hz: float | None = None,
+    ) -> TwoPhotonOpenNoiseConfig:
+        nominal = self.open_system_noise(effective_rabi_hz=effective_rabi_hz)
+        return replace(
+            nominal,
+            common_two_photon_detuning=self.dimensionless_hamiltonian_frequency(
+                float(rng.normal(0.0, self.residual_common_detuning_hz)),
+                effective_rabi_hz,
+            ),
+            differential_two_photon_detuning=self.dimensionless_hamiltonian_frequency(
+                float(rng.normal(0.0, self.residual_differential_detuning_hz)),
+                effective_rabi_hz,
+            ),
+            doppler_detuning_01=self.dimensionless_hamiltonian_frequency(
+                float(rng.normal(0.0, self.doppler_detuning_01_hz)),
+                effective_rabi_hz,
+            ),
+            doppler_detuning_11=self.dimensionless_hamiltonian_frequency(
+                float(rng.normal(0.0, self.doppler_detuning_11_hz)),
+                effective_rabi_hz,
+            ),
+            blockade_shift_offset=self.dimensionless_hamiltonian_frequency(
+                float(rng.normal(0.0, self.blockade_shift_jitter_hz)),
+                effective_rabi_hz,
+            ),
+        )
+
     def summary(self, effective_rabi_hz: float | None = None) -> dict[str, object]:
         omega_hz = self.resolve_effective_rabi_hz(effective_rabi_hz)
         one_photon_rabi_hz = self.derived_one_photon_rabi_hz(omega_hz)
@@ -246,6 +278,8 @@ def summarize_yb171_v4_result(
     slot_midpoints_ns = (np.arange(result.num_tslots, dtype=np.float64) + 0.5) * slot_duration_ns
     return {
         **result.to_json(),
+        "channel_fidelity": float(result.probe_fidelity),
+        "fidelity_metric": "active_subspace_lindblad_channel_overlap",
         "gate_time_ns": float(gate_time_ns),
         "gate_time_us": float(gate_time_ns / 1000.0),
         "slot_duration_ns": float(slot_duration_ns),
@@ -288,3 +322,32 @@ def build_yb171_v4_calibrated_model(
         noise=noise,
         **calibration.nominal_two_photon_parameters(effective_rabi_hz=effective_rabi_hz),
     )
+
+
+def build_yb171_v4_quasistatic_ensemble(
+    *,
+    ensemble_size: int,
+    seed: int = 17,
+    include_noise: bool = True,
+    effective_rabi_hz: float | None = None,
+) -> list[TwoPhotonCZOpen10DModel]:
+    calibration = yb171_experimental_calibration()
+    rng = np.random.default_rng(seed)
+    models: list[TwoPhotonCZOpen10DModel] = []
+    for _ in range(int(max(ensemble_size, 1))):
+        noise = (
+            calibration.sample_quasistatic_noise(
+                rng=rng,
+                effective_rabi_hz=effective_rabi_hz,
+            )
+            if include_noise
+            else TwoPhotonOpenNoiseConfig()
+        )
+        models.append(
+            TwoPhotonCZOpen10DModel(
+                species=idealised_yb171(),
+                noise=noise,
+                **calibration.nominal_two_photon_parameters(effective_rabi_hz=effective_rabi_hz),
+            )
+        )
+    return models

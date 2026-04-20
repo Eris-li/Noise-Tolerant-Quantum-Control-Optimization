@@ -11,6 +11,7 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     summarize_yb171_v4_result,
     yb171_dimensionless_time_to_gate_time_ns,
     yb171_gate_time_ns_to_dimensionless,
@@ -34,6 +35,8 @@ def frange(start: float, stop: float, step: float) -> list[float]:
 def main() -> None:
     threshold = 0.995
     omega_max_hz = yb171_v4_default_omega_max_hz()
+    ensemble_size = 5
+    seed = 17
     durations_dimensionless = list(reversed(frange(1.0, 10.0, 1.0)))
     durations_ns = [
         yb171_dimensionless_time_to_gate_time_ns(value, effective_rabi_hz=omega_max_hz)
@@ -53,6 +56,11 @@ def main() -> None:
             control_curvature_weight=2e-3,
             fidelity_target=threshold,
             show_progress=True,
+        ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=ensemble_size,
+            seed=seed,
+            effective_rabi_hz=omega_max_hz,
         ),
     )
     scan, results = optimizer.scan_durations(
@@ -78,6 +86,8 @@ def main() -> None:
                 "target_reached": scan.target_reached,
                 "omega_max_hz": omega_max_hz,
                 "omega_max_mhz": omega_max_hz / 1e6,
+                "ensemble_size": ensemble_size,
+                "ensemble_seed": seed,
                 "points": [
                     summarize_yb171_v4_result(
                         result=result,

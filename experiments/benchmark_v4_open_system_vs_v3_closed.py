@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v3_calibrated_model,
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     yb171_gate_time_ns_to_dimensionless,
     yb171_v4_default_omega_max_hz,
 )
@@ -57,6 +58,11 @@ def build_open_optimizer() -> OpenSystemGRAPEOptimizer:
             num_restarts=1,
             seed=17,
             init_control_scale=0.08,
+        ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=3,
+            seed=17,
+            effective_rabi_hz=omega_max_hz,
         ),
     )
 
@@ -109,6 +115,7 @@ def main() -> None:
             "probe_evolution_avg_s": open_probe_avg,
             "optimize_wall_s": open_opt_wall,
             "optimize_probe_fidelity": open_result.probe_fidelity,
+            "optimize_channel_fidelity": open_result.probe_fidelity,
             "optimize_fid_err": open_result.fid_err,
         },
         "ratios": {

@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
+    build_yb171_v4_quasistatic_ensemble,
     yb171_gate_time_ns_to_dimensionless,
     yb171_v4_default_omega_max_hz,
 )
@@ -26,6 +27,8 @@ def run_case(
     num_restarts: int,
 ) -> dict[str, float | int]:
     omega_max_hz = yb171_v4_default_omega_max_hz()
+    ensemble_size = 3
+    seed = 17
     optimizer = OpenSystemGRAPEOptimizer(
         model=build_yb171_v4_calibrated_model(effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
@@ -41,6 +44,11 @@ def run_case(
             fidelity_target=0.999,
             show_progress=True,
         ),
+        ensemble_models=build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=ensemble_size,
+            seed=seed,
+            effective_rabi_hz=omega_max_hz,
+        ),
     )
     started_at = time.perf_counter()
     result = optimizer.optimize()
@@ -53,7 +61,10 @@ def run_case(
         "num_tslots": num_tslots,
         "max_iter": max_iter,
         "num_restarts": num_restarts,
+        "ensemble_size": ensemble_size,
+        "ensemble_seed": seed,
         "probe_fidelity": result.probe_fidelity,
+        "channel_fidelity": result.probe_fidelity,
         "optimizer_reported_wall_time": result.wall_time,
         "total_wall_time": wall_total,
         "num_iter": result.num_iter,

@@ -85,6 +85,38 @@ class OpenSystemGRAPETest(unittest.TestCase):
         fidelity_from_model = optimizer.model.phase_gate_fidelity_from_ket(final_state, theta)
         self.assertAlmostEqual(fidelity_from_optimizer, fidelity_from_model, places=10)
 
+    def test_single_member_ensemble_matches_nominal_objective(self) -> None:
+        optimizer = self.build_optimizer()
+        ensemble_optimizer = OpenSystemGRAPEOptimizer(
+            model=optimizer.model,
+            config=optimizer.config,
+            ensemble_models=[optimizer.model],
+        )
+        variables = np.array([0.02, -0.01, 0.03, -0.02, -0.01, 0.03, -0.02, 0.01, 0.4], dtype=np.float64)
+        objective_nominal, gradient_nominal = optimizer.objective_and_gradient(variables)
+        objective_ensemble, gradient_ensemble = ensemble_optimizer.objective_and_gradient(variables)
+        self.assertAlmostEqual(objective_nominal, objective_ensemble, places=10)
+        self.assertTrue(np.allclose(gradient_nominal, gradient_ensemble, atol=1e-10, rtol=1e-10))
+
+    def test_channel_fidelity_bounds(self) -> None:
+        optimizer = self.build_optimizer()
+        ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+        ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+        theta, fidelity = optimizer.optimize_theta_for_channel(ctrl_x, ctrl_y)
+        self.assertGreaterEqual(theta, 0.0)
+        self.assertLessEqual(theta, 2.0 * np.pi)
+        self.assertGreaterEqual(fidelity, 0.0)
+        self.assertLessEqual(fidelity, 1.0)
+
+    def test_evolve_probe_states_returns_density_matrices(self) -> None:
+        optimizer = self.build_optimizer()
+        ctrl_x = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+        ctrl_y = np.zeros(optimizer.config.num_tslots, dtype=np.float64)
+        states = optimizer.evolve_probe_states(ctrl_x, ctrl_y)
+        self.assertEqual(len(states), 4)
+        for state in states:
+            self.assertEqual(state.shape, (optimizer.dimension, optimizer.dimension))
+
 
 if __name__ == "__main__":
     unittest.main()
