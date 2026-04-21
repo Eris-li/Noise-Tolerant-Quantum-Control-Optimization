@@ -195,7 +195,7 @@ class OpenSystemGRAPEOptimizer:
         initial_ctrl_y: np.ndarray | None = None,
         initial_theta: float | None = None,
     ) -> OpenSystemGRAPEResult:
-        best: OpenSystemGRAPEResult | None = None
+        best = self._zero_control_baseline_result()
         base_ctrl_x, base_ctrl_y = self.initial_guess()
         if initial_ctrl_x is not None:
             base_ctrl_x = np.asarray(initial_ctrl_x, dtype=np.float64)
@@ -479,6 +479,32 @@ class OpenSystemGRAPEOptimizer:
             control_smoothness_cost=float(self._control_smoothness_cost(ctrl_x, ctrl_y)),
             control_curvature_cost=float(self._control_curvature_cost(ctrl_x, ctrl_y)),
             success=bool(success),
+        )
+
+    def _zero_control_baseline_result(self) -> OpenSystemGRAPEResult:
+        ctrl_x = np.zeros(self.config.num_tslots, dtype=np.float64)
+        ctrl_y = np.zeros(self.config.num_tslots, dtype=np.float64)
+        theta, fidelity = self.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
+        amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
+        return OpenSystemGRAPEResult(
+            ctrl_x=ctrl_x,
+            ctrl_y=ctrl_y,
+            amplitudes=amplitudes,
+            phases=phases,
+            target_theta=float(self.config.target_theta),
+            optimized_theta=float(theta),
+            fid_err=float(1.0 - fidelity),
+            probe_fidelity=float(fidelity),
+            objective=float(1.0 - fidelity),
+            num_iter=0,
+            num_fid_func_calls=1,
+            wall_time=0.0,
+            termination_reason="zero-control baseline",
+            evo_time=float(self.config.evo_time),
+            num_tslots=int(self.config.num_tslots),
+            control_smoothness_cost=0.0,
+            control_curvature_cost=0.0,
+            success=True,
         )
 
     def final_phase_state(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> np.ndarray:

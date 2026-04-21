@@ -25,10 +25,9 @@ class Yb171CalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(reconstructed, gate_time_s, places=15)
 
     def test_model_builder_accepts_effective_rabi_override(self) -> None:
-        calibration = yb171_experimental_calibration()
         default_model = build_yb171_v4_calibrated_model()
         fast_model = build_yb171_v4_calibrated_model(
-            effective_rabi_hz=calibration.effective_rabi_hz_max,
+            effective_rabi_hz=12e6,
         )
         self.assertNotAlmostEqual(default_model.lower_rabi, fast_model.lower_rabi)
         self.assertNotAlmostEqual(default_model.intermediate_detuning, fast_model.intermediate_detuning)
@@ -53,6 +52,12 @@ class Yb171CalibrationTests(unittest.TestCase):
             for member in ensemble_a
         )
         self.assertTrue(different_from_nominal)
+
+    def test_default_v4_noise_matches_current_yb171_assumptions(self) -> None:
+        model = build_yb171_v4_calibrated_model()
+        self.assertEqual(model.noise.intermediate_decay_rate, 0.0)
+        self.assertEqual(model.noise.intermediate_dephasing_rate, 0.0)
+        self.assertEqual(model.noise.rydberg_dephasing_rate, 0.0)
 
 
 if __name__ == "__main__":

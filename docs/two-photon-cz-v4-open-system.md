@@ -1,22 +1,36 @@
-# 双光子 `CZ` v4 开放系统模型
+# `^171Yb` `CZ` v4 开放系统模型
 
 ## 1. 版本定位
 
-`v4` 是当前仓库里真正进入开放系统的版本。它的目标是把 `v3` 的双光子闭系统模型升级成显式 Lindblad 版本，并开始研究含 decay、dephasing 和 loss 的 `CZ` 控制优化。
+`v4` 是仓库里当前的开放系统主线。它保留了 `v3` 的 10 维 ladder 有效模型结构，但默认参数和噪声解释已经改成以 `^171Yb` 的 `PRX 2025` 结果为主，而不再沿用更偏 generic neutral-atom / `Rb` 两光子门的口径。
 
-## 2. 这版新增了什么
+当前默认参考：
 
-相对 `v3`，`v4` 新增了：
+- Peper et al., `Phys. Rev. X 15, 011009 (2025)`  
+  https://doi.org/10.1103/PhysRevX.15.011009
 
-- 显式 `|loss>` sink
-- 中间态散射
-- Rydberg 衰减
-- intermediate / Rydberg dephasing
-- common / differential / Doppler detuning
-- lower / upper 振幅标定误差
-- 额外的 Rydberg leakage 通道
+这份文档只描述**当前源码真实做了什么**，不把仍未实现的物理结构写成“已经有了”。
 
-## 3. Hilbert 空间
+## 2. 先说明一个关键限制
+
+当前 `v4` 还不是完整的单光子 `clock -> Rydberg` `^171Yb` 门模型。
+
+源码里的模型仍然显式保留了一个 intermediate level `|e>`，因此它本质上还是一个 **ladder surrogate**。但在默认 `^171Yb` 标定里，这个 `|e>` 已经不再被解释成“短寿命的碱金属两光子中间态”，而是：
+
+- 一个为了兼容现有 Hamiltonian 结构而保留的 **clock-shelving surrogate**
+
+这直接影响默认噪声设置：
+
+- `intermediate_decay_rate = 0`
+- `intermediate_dephasing_rate = 0`
+
+也就是说，当前 `v4` 的目标不是“逐字复刻 `PRX 2025` 的实验硬件图”，而是：
+
+- 保留现有 ladder 模型
+- 把能和 `PRX 2025` 直接对齐的 `^171Yb` 物理量接进来
+- 把不能直接对齐的部分明确标成 surrogate
+
+## 3. 当前 Hilbert 空间
 
 `v4` 使用 10 维有效空间：
 
@@ -24,35 +38,120 @@
 \{|01\rangle, |0e\rangle, |0r\rangle, |11\rangle, |W_e\rangle, |ee\rangle, |W_r\rangle, |E_{er}\rangle, |rr\rangle, |loss\rangle\}
 ```
 
-前 9 个态与 `v3` 相同，新加的 `|loss\rangle` 用于吸收离开建模子空间的散射和 leakage。
+对应源码：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
 
-## 4. 哈密顿量
+在当前 `^171Yb` 口径下，它们的角色是：
 
-`v4` 的哈密顿量写成
+- `|01>`, `|11>`：门操作真正关心的 active 分支
+- `|r>` 相关态：`^171Yb` 目标 Rydberg manifold 的 surrogate 表示
+- `|e>` 相关态：clock-shelving surrogate，不是 literal short-lived scattering intermediate
+- `|loss>`：未建模散射和 leakage 的吸收态
+
+## 4. 哈密顿量结构
+
+哈密顿量写成
 
 ```math
 H(t)=H_0 + u_x(t) H_{1x} + u_y(t) H_{1y}
 ```
 
 其中：
-- `H_0` 含 nominal detuning、finite blockade 和 upper-leg 固定耦合
-- `u_x(t), u_y(t)` 是 lower-leg 的两个正交控制分量
 
-控制和极坐标形式的对应关系是：
+- `H_0`
+  - 对角项包含 intermediate detuning、two-photon detuning、finite blockade
+  - 还包含 upper leg 的固定耦合
+- `u_x(t), u_y(t)`
+  - 是 lower leg 的两个正交控制分量
+
+当前仓库仍然内部优化 `u_x, u_y`，再通过
 
 ```math
-\Omega_1(t)=\sqrt{u_x(t)^2 + u_y(t)^2}
+\Omega(t)=\sqrt{u_x(t)^2+u_y(t)^2}, \qquad \phi(t)=\mathrm{atan2}(u_y(t),u_x(t))
 ```
 
-```math
-\phi(t)=\mathrm{atan2}(u_y(t), u_x(t))
-```
+恢复成振幅和相位。
 
-也就是说，`v4` 实际优化的是 lower-leg 的两个 quadratures，之后再还原成振幅和相位。
+这意味着“同时调振幅和相位”在当前实现里已经成立，只是数值变量是 Cartesian quadratures，而不是直接用 polar 变量。
 
-## 5. detuning 参数化
+## 5. 当前 `^171Yb` 标定的核心参数
 
-当前实现里：
+默认标定在 [yb171_calibration.py](../src/neutral_yb/config/yb171_calibration.py)。
+
+当前默认值按 `^171Yb` / `PRX 2025` 口径设为：
+
+- `Omega_max / 2π = 10 MHz`
+- `blockade_shift / 2π = 160 MHz`
+- `rydberg_lifetime = 56 μs`
+- `rydberg_t2_star = 3.4 μs`
+- `rydberg_t2_echo = 5.1 μs`
+- `uv_pulse_area_fractional_error = 0.004`
+- `doppler_detuning_01 = 10 kHz`
+- `doppler_detuning_11 = 15 kHz`
+- `blockade_shift_jitter = 0`
+- `markovian_rydberg_dephasing_t2_s = None`
+
+这些值映射到当前默认无量纲模型后，大致是：
+
+- `lower_rabi = upper_rabi ≈ 39.50`
+- `intermediate_detuning ≈ 780`
+- `blockade_shift ≈ 16`
+- `rydberg_decay_rate ≈ 2.84e-4`
+- `rydberg_dephasing_rate = 0`
+- `extra_rydberg_leakage_rate ≈ 6.0e-5`
+
+## 6. 哪些参数现在按 `PRX 2025` 重新解释了
+
+### 6.1 Rydberg manifold
+
+默认文档口径不再把当前 `v4` 说成 generic “任意 Rydberg 态的中性原子门”，而是按 `PRX 2025` 的结论去理解：
+
+- 重点是 `^171Yb` 中更合适的 `S` 态、`F = 1/2` gate-target manifold
+- 当前模型虽然没有把完整多通道 MQDT 势能直接写进来，但默认 `blockade`、误差解释和文档叙述已经切到这个物理背景
+
+### 6.2 Intermediate level
+
+`|e>` 的处理已经改成：
+
+- **保留数值结构**
+- **放弃“短寿命两光子 intermediate”解释**
+
+因此当前默认：
+
+- `intermediate_decay_rate = 0`
+- `intermediate_dephasing_rate = 0`
+
+这是一个建模取舍，不是说 `^171Yb` 里真的没有中间能级，而是说当前 `v4` 的 `|e>` 不是用来代表一个会在门时间内明显散射的物理中间态。
+
+### 6.3 Dephasing
+
+当前默认不再把测得的 `T2*` 直接变成 Lindblad `gamma_phi`。
+
+原因是：
+
+- `PRX 2025` 给出的剩余误差主项是 **Rydberg decay** 和 **Doppler shifts**
+- 当前仓库已经显式包含 quasistatic Doppler / detuning 噪声
+- 如果再把整个 `T2*` 全量映射成 Markovian dephasing，会双重计数
+
+所以现在：
+
+- `rydberg_t2_star_s` 和 `rydberg_t2_echo_s` 作为**实验记录量**保留
+- `rydberg_dephasing_rate` 默认设为 `0`
+- 只有在你显式提供 `markovian_rydberg_dephasing_t2_s` 时，才会开启 Lindblad dephasing
+
+### 6.4 Blockade jitter
+
+默认 `blockade_shift_jitter_hz = 0`。
+
+原因是：
+
+- `PRX 2025` 的重点是 interaction potential 与测量结果吻合，并据此选出更合适的 gate state
+- 当前默认不再额外叠加一个没有直接文献支撑的随机 `blockade jitter`
+
+如果要研究鲁棒性，可以再显式打开这项噪声，但它不再是默认物理模型的一部分。
+
+## 7. detuning 与 Doppler 的实现
+
+当前模型里，effective detuning 写成：
 
 ```math
 \Delta_{\mathrm{eff}} = \Delta + \Delta_{\mathrm{off}}
@@ -67,111 +166,69 @@ H(t)=H_0 + u_x(t) H_{1x} + u_y(t) H_{1y}
 ```
 
 ```math
-V_{\mathrm{eff}} = V_{rr} + \Delta V_{rr}
+V_{\mathrm{eff}} = V + \Delta V
 ```
 
-这使得：
-- 中间态 detuning 偏移
-- common two-photon detuning
-- 01/11 差分 detuning
-- Doppler detuning
-- blockade shift 偏移
+按当前默认 `^171Yb` 标定：
 
-都成为显式可调参数。
+- `common_two_photon_detuning = 0`
+- `differential_two_photon_detuning = 0`
+- `doppler_detuning_01`, `doppler_detuning_11` 保留
+- `blockade_shift_offset = 0`
 
-## 6. Lindblad 通道
+也就是说，当前默认噪声主项里，**Doppler 保留，generic residual detuning 和 blockade jitter 收回到 0**。
 
-### 中间态散射
+## 8. 开放系统通道
 
-中间态散射由 `gamma_e` 控制，一部分按 branching ratio 回到建模子空间，其余流入 `|loss\rangle`。
+当前源码仍支持这些 Lindblad 通道：
 
-例如：
+- intermediate decay
+- Rydberg decay
+- intermediate dephasing
+- Rydberg dephasing
+- extra leakage 到 `|loss>`
 
-```math
-L_{0e \to 01} = \sqrt{\gamma_e \beta_e}\, |01\rangle\langle 0e|
-```
+但按当前默认 `^171Yb` 标定，真正开启的是：
 
-```math
-L_{0e \to loss} = \sqrt{\gamma_e (1-\beta_e)}\, |loss\rangle\langle 0e|
-```
+- `rydberg_decay_rate`
+- `extra_rydberg_leakage_rate`
 
-### Rydberg 衰减
+默认关闭的是：
 
-Rydberg 衰减由 `gamma_r` 控制，也允许一部分按 branching ratio 返回建模子空间。
+- `intermediate_decay_rate`
+- `intermediate_dephasing_rate`
+- `rydberg_dephasing_rate`
 
-例如：
+所以当前默认开放系统并不是“所有通道都开”的最重口径，而是一个更接近 `PRX 2025` 误差排序的版本。
 
-```math
-L_{0r \to 01} = \sqrt{\gamma_r \beta_r}\, |01\rangle\langle 0r|
-```
+## 9. 时序演化和优化
 
-```math
-L_{0r \to loss} = \sqrt{\gamma_r (1-\beta_r)}\, |loss\rangle\langle 0r|
-```
+对应源码：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 
-### 退相干
+### 动力学分析接口
 
-中间态和 Rydberg 态的纯退相干分别写成：
+如果你调用完整密度矩阵传播接口，仓库会：
 
-```math
-L_{e,\phi} = \sqrt{\gamma_{e,\phi}}\, n_e
-```
+- 在每个 time slice 构造 Liouvillian
+  `L_k = L_d + u_x(k) L_x + u_y(k) L_y`
+- 再用 `exp(dt L_k)` 推进 density matrix 的列向量化表示
 
-```math
-L_{r,\phi} = \sqrt{\gamma_{r,\phi}}\, n_r
-```
+这是仓库内自己写的逐 slice propagation，不是直接把 `QuTiP mesolve` 作为主结果。
 
-### 额外 leakage
+### 主优化目标
 
-额外的 `gamma_leak` 用于粗粒化地描述：
-- 相邻 `m_J / m_F` 子能级耦合
-- 未建模的 Rydberg pair-state leakage
+主优化器当前按 `arXiv:2202.00903` 的 Eq.(7) 做 phase-gate fidelity：
 
-这些人口统一流入 `|loss\rangle`。
-
-## 7. 求解和优化
-
-`v4` 现在采用三层结构：
-
-- 模型层：`two_photon_cz_open_10d.py`
-  定义 10 维有效空间、drift / control Hamiltonian、collapse operators 和 Liouvillian
-- 传播层：仓库内 `open_system_grape.py`
-  对每个 piecewise-constant time slice 显式构造
-  `L_k = L_d + u_x(k)L_x + u_y(k)L_y`
-  再用矩阵指数 `exp(dt L_k)` 推进 density matrix 的列向量化表示
-- 优化层：同样在 `open_system_grape.py`
-  用 `scipy.optimize.minimize(..., L-BFGS-B)` 做 GRAPE，并用 `expm_frechet` 求解析梯度
-
-这里要特别说明两点：
-
-- 当前主时序演化逻辑是**仓库自己写的逐 slice Liouvillian propagation**
-- `QuTiP` 主要负责构造 Hamiltonian / collapse operators / Liouvillian，以及做独立对照验证；主优化结果不是直接调用 `QuTiP mesolve` 得到的
-
-对应代码：
-
-- 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
-- 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-- coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
-- smoke 脚本：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
-- `0–300 ns` 两阶段高驱动扫描：[two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py](../experiments/two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py)
-
-## 8. 当前目标保真度
-
-当前 `v4` 的主优化目标回到 `arXiv:2202.00903` 的 Eq.(7)。
-
-优化器传播未归一化特殊态：
+传播未归一化特殊态
 
 ```math
 |\psi(0)\rangle = |01\rangle + |11\rangle
 ```
 
-然后只取最终态在 active 分支上的两个振幅：
+然后取
 
 ```math
-a_{01}=e^{-i\theta}\langle 01|\psi(T)\rangle
-```
-
-```math
+a_{01}=e^{-i\theta}\langle 01|\psi(T)\rangle,\qquad
 a_{11}=-e^{-2i\theta}\langle 11|\psi(T)\rangle
 ```
 
@@ -181,114 +238,60 @@ a_{11}=-e^{-2i\theta}\langle 11|\psi(T)\rangle
 F = \frac{|1 + 2a_{01} + a_{11}|^2 + 1 + 2|a_{01}|^2 + |a_{11}|^2}{20}
 ```
 
-这就是当前仓库里 `v4` 主优化器实际在优化的 `phase_gate_fidelity`。
+这里还要说明：
 
-这里还要区分两层：
-
-- 动力学分析接口仍然可以做完整 Liouvillian 的密度矩阵传播
-- 但主优化器内部为了保留 Eq.(7) 所需的相干振幅，传播的是特殊态在有效非厄米生成元
+- 为了保留 Eq.(7) 需要的相干振幅，主优化器内部传播的是有效非厄米生成元
   `G = -iH - 1/2 \sum_k C_k^\dagger C_k`
-  下的演化
+- 完整 Liouvillian 传播接口仍然保留，用于分析和验证
 
-因此，当前 `v4` 的主目标是**论文 Eq.(7) 的特殊态 phase-gate fidelity**，不是之前那种 4 个算符基的 reduced-channel overlap。
+所以当前 `v4` 是：
 
-## 9. 当前噪声实现方式
+- **分析层**：完整开放系统 Liouvillian
+- **优化层**：Eq.(7) 特殊态 phase-gate fidelity
 
-当前 `v4` 的噪声分成两类：
+## 10. 当前噪声采样方式
 
-- Markovian 通道：
-  - `intermediate / rydberg decay`
-  - `intermediate / rydberg pure dephasing`
-  - `extra leakage -> |loss>`
-- Quasistatic 参数漂移：
-  - common / differential detuning
-  - Doppler detuning
-  - blockade shift offset
+当前默认扫描脚本已经不是“只优化一个固定 realization”，而是：
 
-从 `2026-04` 的这轮修正开始，`v4` 的主扫描脚本默认不再只优化一个固定 realization，而是：
+- 从 `yb171_calibration.py` 生成 quasistatic ensemble
+- 对 ensemble 平均后的 Eq.(7) fidelity 做优化
 
-- 从 `yb171_calibration.py` 里采样一组 quasistatic ensemble
-- 对 ensemble 平均后的 Eq.(7) phase-gate fidelity 做优化
+也就是说：
 
-也就是说，单次门内部这些偏移仍然视为常数，但优化目标已经是 **ensemble-averaged robust objective**，不再是单一静态样本。
+- 单次门内部：这些偏移在该次轨迹里视为常数
+- 跨 shot / 跨样本：通过 ensemble 采样体现
 
-## 10. 资源消耗
+这是当前源码对 `Doppler` 一类慢噪声的默认处理方式。
 
-开放系统后，主要开销来自：
+## 11. 当前 `v4` 能声称什么，不能声称什么
 
-- ket 变成 density matrix，维度从 `d` 变成 `d^2`
-- 优化对象从 Hamiltonian propagator 变成 Liouvillian propagator
-- 评估时虽然主优化只传播一个特殊态，但每次迭代仍需反复计算开放系统有效生成元的 propagator 和 Frechet 导数
+当前 `v4` 能声称的是：
 
-本地 benchmark 结果已经落盘在：
-- [benchmark_v4_open_system_vs_v3_closed.json](../artifacts/benchmark_v4_open_system_vs_v3_closed.json)
+- 默认参数和噪声排序已经按 `^171Yb` `PRX 2025` 重新收紧
+- 文档口径不再把当前模型说成 generic neutral-atom placeholder
+- 默认误差主项已经切成以 **Rydberg decay** 和 **Doppler** 为主
 
-它表明当前 `v4` 的开放系统优化，代价比 `v3` 的闭系统优化高了两个到三个数量级。
+当前 `v4` 不能声称的是：
 
-## 11. 当前 `^171Yb` 校准
+- 这已经是完整的 `clock -> Rydberg` 单光子 `^171Yb` 门模型
+- 当前 explicit `|e>` 就是文献里的物理中间态
+- 当前 blockade 与 Rydberg manifold 的细节已经达到 MQDT 级别精度
 
-从 `2026-04` 开始，`v4` 的实验脚本默认不再使用之前那组偏“占位”的噪声参数，而是统一改用：
+如果后续继续往实验对齐，真正该做的是：
 
-- 校准模块：[yb171_calibration.py](../src/neutral_yb/config/yb171_calibration.py)
-- `v4` 构造函数：`build_yb171_v4_calibrated_model()`
-- `v3` 对照构造函数：`build_yb171_v3_calibrated_model()`
+- 把现有 ladder surrogate 重写成显式 `clock -> Rydberg` 开放系统模型
+- 再把 `PRX 2025` 的 interaction-potential 信息更直接地接进来
 
-这套参数的目标不是把当前双光子 ladder 模型伪装成“完全真实”的 `^171Yb` 门，而是在**保留现有模型结构**的前提下，尽量贴近近年 `^171Yb` 高保真量子计算实验的主量级。
+## 12. 当前相关文件
 
-当前采用的主要实验锚点是：
+- 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
+- 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- `^171Yb` 标定：[yb171_calibration.py](../src/neutral_yb/config/yb171_calibration.py)
+- 校验脚本：[validate_v4_dynamics_and_optimization.py](../experiments/validate_v4_dynamics_and_optimization.py)
 
-- 参考有效门尺度：`Omega_ref / 2π = 4.6 MHz`
-- 中间态 detuning：`Δ / 2π = 7.8 GHz`
-- 有限 blockade：`V / 2π = 160 MHz`
-- Rydberg lifetime：`56 μs`
-- Rydberg `T2*`：`3.4 μs`
-- UV pulse-area 误差：`0.4%`
-- 额外 `m_F` leakage 误差：每门约 `4.8e-4`
+## 13. 主要参考
 
-映射到当前无量纲代码后，大致对应：
-
-- `lower_rabi = upper_rabi ≈ 58.23`
-- `intermediate_detuning ≈ 1695.65`
-- `blockade_shift ≈ 34.78`
-- `rydberg_decay_rate ≈ 6.18e-4`
-- `rydberg_dephasing_rate ≈ 1.02e-2`
-- `lower_amplitude_scale = upper_amplitude_scale = 0.996`
-- `extra_rydberg_leakage_rate ≈ 6.0e-5`
-
-另外，当前校准特意做了两个取舍：
-
-- **显式 intermediate decay / dephasing 设为 0**
-  因为最新高保真 `^171Yb` 门本质上是 clock-to-Rydberg 的单光子门，当前 `v4` 里的 intermediate 态只是为了兼容现有双光子模型而保留的 surrogate level。
-- **残余 detuning 只保留 kHz 量级的小静态偏移**
-  文献通常直接给出误差预算或 `T2*`，而不是逐项给出 `|01>`、`|11>` 分支的固定失谐，所以这里采用的是保守的小偏移，而把更大的相位噪声主效应收进 `rydberg_dephasing_rate`。
-
-因此，当前 `v4` 已经比旧参数更接近真实 `^171Yb` 实验，但它仍然不是“最终物理模型”。如果后续要继续往实验对齐，最自然的下一步是把 `v4` 从双光子显式中间态重写成单光子 clock-to-Rydberg 开放系统。
-
-## 12. `100 MHz` 扫描口径
-
-默认 `^171Yb` 校准里，实验上限仍然按 `15 MHz` 保留，因为这是更接近文献量级的硬件上限。
-
-但如果为了做高驱动探索扫描，也可以在脚本层显式覆盖：
-
-```text
-Omega_max / 2π = 100 MHz
-```
-
-这时要注意：
-
-- 这是**扫描覆盖值**，不是当前文献里 `^171Yb` 的保真硬件上限
-- `blockade / Omega_max` 会显著下降，因此结果更应被理解为“高驱动探索”
-- 文档和 artifact 里应显式写出 `omega_max_mhz = 100`
-
-## 13. 文献依据
-
-- Evered et al.，双光子门和主要误差源：  
-  https://www.nature.com/articles/s41586-023-06481-y
-- Muniz et al.，`^171Yb` 高保真通用门、Rydberg lifetime 和 `T2*`：  
-  https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.6.020334
-- Day et al.，频率噪声和强度噪声映射：  
-  https://www.nature.com/articles/s41534-022-00586-4
-- Jiang et al.，相位噪声与强度噪声：  
-  https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.042611
-- Peper et al.，`^171Yb` 高保真双比特门误差预算：  
-  https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009
+- Peper et al., `Phys. Rev. X 15, 011009 (2025)`  
+  https://doi.org/10.1103/PhysRevX.15.011009
+- Muniz et al., `PRX Quantum 6, 020334 (2025)`  
+  https://doi.org/10.1103/PRXQuantum.6.020334

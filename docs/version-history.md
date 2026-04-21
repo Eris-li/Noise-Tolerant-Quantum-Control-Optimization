@@ -81,16 +81,17 @@
 
 ### 目标
 
-把 `v3` 升级成显式 Lindblad 开放系统版本，开始真正考虑 decay、dephasing 和 loss。
+把 `v3` 升级成显式开放系统版本，并把默认参数和噪声解释切到 `^171Yb` `PRX 2025` 口径。
 
 ### 物理假设
 
 - 10 维有效空间
 - 显式 `|loss>` sink
-- 中间态散射
 - Rydberg 衰减
-- 中间态和 Rydberg dephasing
-- common / differential / Doppler detuning
+- `|e>` 是 clock-shelving surrogate，不是 literal short-lived intermediate
+- 默认只保留 Rydberg decay、Doppler、振幅误差和 leakage 为主噪声
+- measured `T2* / T2_echo` 保留作实验量级记录，默认不直接映射成 Lindblad dephasing
+- common / differential detuning 与 blockade jitter 默认收回到 0
 - finite blockade
 - lower / upper 振幅标定误差
 - 额外 Rydberg leakage 通道
@@ -113,6 +114,12 @@
 - 产出按 `T` 顺序推进的 coarse scan
 - 产出单点 smoke 结果
 - 给出和 `v3` 的资源对比
+
+当前默认 `^171Yb` 标定不再按 generic neutral-atom / `Rb` 两光子门叙述，而是按 `Phys. Rev. X 15, 011009 (2025)` 解释：
+
+- interaction / blockade 口径改成 `^171Yb` Rydberg-state selection 背景
+- 默认误差主项改成 Rydberg decay 与 Doppler
+- 默认不再把 `T2*` 直接塞进 Markovian dephasing
 
 但它还不是最终高保真版本。当前的限制主要是：
 

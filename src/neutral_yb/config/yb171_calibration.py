@@ -15,33 +15,37 @@ from neutral_yb.models.two_photon_cz_open_10d import (
 
 @dataclass(frozen=True)
 class Yb171ExperimentalCalibration:
-    """Best-effort 171Yb gate calibration compatible with the current v4 model.
+    """PRX-2025-oriented 171Yb calibration for the current surrogate v4 model.
 
-    The best published 171Yb CZ gates use single-photon excitation from the
-    clock state to a Rydberg state, whereas the current repository model is a
-    two-photon ladder with an explicit intermediate level. To keep the v4 code
-    usable while moving it closer to experiment, this calibration:
+    Reference target:
+    - Peper et al., Phys. Rev. X 15, 011009 (2025)
 
-    - uses an effective gate scale taken from high-fidelity neutral-atom CZ work
-    - matches the Rydberg lifetime, dephasing, blockade, and laser-area errors
-      to reported 171Yb quantities
-    - suppresses explicit intermediate-state loss channels because that
-      intermediate state is only a surrogate for the present model, not a
-      literal 171Yb gate level used in the latest experiments
+    Important modeling caveat:
+    - the repository's current v4 Hamiltonian is still a ladder surrogate with
+      an explicit intermediate level ``|e>``
+    - the PRX 2025 171Yb gate picture is built around selecting a better
+      Rydberg manifold and understanding the interaction potential, not around a
+      literal short-lived alkali-style two-photon intermediate state
+    - accordingly, parameters that map directly onto the Rydberg interaction
+      picture are calibrated to PRX 2025, while the explicit intermediate level
+      is treated as a numerical surrogate for clock-shelving structure rather
+      than a physical short-lived scattering state
     """
 
-    effective_rabi_hz: float = 4.6e6
-    effective_rabi_hz_max: float = 15e6
+    effective_rabi_hz: float = 10e6
+    effective_rabi_hz_max: float = 10e6
     intermediate_detuning_hz: float = 7.8e9
     blockade_shift_hz: float = 160e6
     rydberg_lifetime_s: float = 56e-6
     rydberg_t2_star_s: float = 3.4e-6
+    rydberg_t2_echo_s: float = 5.1e-6
     uv_pulse_area_fractional_error: float = 0.004
-    residual_common_detuning_hz: float = 10e3
-    residual_differential_detuning_hz: float = 5e3
+    residual_common_detuning_hz: float = 0.0
+    residual_differential_detuning_hz: float = 0.0
     doppler_detuning_01_hz: float = 10e3
     doppler_detuning_11_hz: float = 15e3
-    blockade_shift_jitter_hz: float = 5e6
+    blockade_shift_jitter_hz: float = 0.0
+    markovian_rydberg_dephasing_t2_s: float | None = None
     unwanted_mf_error_per_gate: float = 4.8e-4
     leakage_reference_t_omega: float = 8.0
 
@@ -116,9 +120,23 @@ class Yb171ExperimentalCalibration:
         self,
         effective_rabi_hz: float | None = None,
     ) -> TwoPhotonOpenNoiseConfig:
-        # The explicit intermediate state is only a ladder surrogate. The latest
-        # high-fidelity 171Yb gates use a single-photon clock-to-Rydberg drive,
-        # so we do not assign a literal spontaneous-scattering rate here.
+        # The explicit intermediate level in the current v4 code is not a
+        # literal short-lived alkali-style two-photon intermediate state. For
+        # PRX-2025-style 171Yb calibration we therefore treat it as a surrogate
+        # clock-shelving level and do not attach a physical spontaneous
+        # scattering channel to it.
+        #
+        # PRX 2025 attributes the dominant residual gate errors to Rydberg-state
+        # decay and Doppler shifts. The measured T2* is therefore not mapped
+        # wholesale into a Lindblad dephasing rate here; doing so would double
+        # count slow detuning-like noise already represented by the quasistatic
+        # Doppler/off-resonance terms.
+        rydberg_dephasing_rate = 0.0
+        if self.markovian_rydberg_dephasing_t2_s is not None:
+            rydberg_dephasing_rate = self.dimensionless_rate_from_lifetime(
+                self.markovian_rydberg_dephasing_t2_s,
+                effective_rabi_hz,
+            )
         return TwoPhotonOpenNoiseConfig(
             intermediate_detuning_offset=0.0,
             common_two_photon_detuning=self.dimensionless_hamiltonian_frequency(
@@ -146,10 +164,7 @@ class Yb171ExperimentalCalibration:
                 effective_rabi_hz,
             ),
             intermediate_dephasing_rate=0.0,
-            rydberg_dephasing_rate=self.dimensionless_rate_from_lifetime(
-                self.rydberg_t2_star_s,
-                effective_rabi_hz,
-            ),
+            rydberg_dephasing_rate=rydberg_dephasing_rate,
             extra_rydberg_leakage_rate=self.derived_leakage_rate_dimensionless(),
             intermediate_branch_to_qubit=1.0,
             rydberg_branch_to_qubit=0.0,
@@ -191,6 +206,9 @@ class Yb171ExperimentalCalibration:
         one_photon_rabi_hz = self.derived_one_photon_rabi_hz(omega_hz)
         return {
             **asdict(self),
+            "calibration_reference": "Peper et al., Phys. Rev. X 15, 011009 (2025)",
+            "rydberg_state_manifold": "171Yb S-state, F=1/2 gate-target manifold",
+            "intermediate_level_interpretation": "surrogate clock-shelving level in current ladder model",
             "resolved_effective_rabi_hz": omega_hz,
             "omega_ref_rad_s": self.omega_ref_rad_s(omega_hz),
             "derived_one_photon_rabi_hz": one_photon_rabi_hz,
@@ -207,9 +225,16 @@ class Yb171ExperimentalCalibration:
                 self.rydberg_lifetime_s,
                 omega_hz,
             ),
-            "rydberg_dephasing_rate_dimensionless": self.dimensionless_rate_from_lifetime(
-                self.rydberg_t2_star_s,
-                omega_hz,
+            "rydberg_t2_star_s_measured": self.rydberg_t2_star_s,
+            "rydberg_t2_echo_s_measured": self.rydberg_t2_echo_s,
+            "markovian_rydberg_dephasing_t2_s": self.markovian_rydberg_dephasing_t2_s,
+            "rydberg_dephasing_rate_dimensionless": (
+                0.0
+                if self.markovian_rydberg_dephasing_t2_s is None
+                else self.dimensionless_rate_from_lifetime(
+                    self.markovian_rydberg_dephasing_t2_s,
+                    omega_hz,
+                )
             ),
             "residual_common_detuning_dimensionless": self.dimensionless_hamiltonian_frequency(
                 self.residual_common_detuning_hz,

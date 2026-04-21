@@ -74,6 +74,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
         self.assertEqual(result.ctrl_y.shape[0], 4)
         self.assertGreaterEqual(result.probe_fidelity, 0.0)
         self.assertLessEqual(result.probe_fidelity, 1.0)
+        self.assertGreaterEqual(result.probe_fidelity, 0.6 - 1e-9)
 
     def test_special_state_formula_matches_model_method(self) -> None:
         optimizer = self.build_optimizer()

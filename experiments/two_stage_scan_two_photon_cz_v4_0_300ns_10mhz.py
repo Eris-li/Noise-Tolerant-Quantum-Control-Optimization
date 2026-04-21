@@ -23,14 +23,14 @@ from neutral_yb.config.yb171_calibration import (
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
-OMEGA_MAX_HZ = 100e6
+OMEGA_MAX_HZ = 10e6
 COARSE_TIMES_NS = [float(value) for value in range(0, 301, 30)]
 COARSE_THRESHOLD = 0.999
 COARSE_ENSEMBLE_SIZE = 2
 FINE_ENSEMBLE_SIZE = 3
 SEED = 17
-COARSE_MAX_ITER = 6
-COARSE_NUM_RESTARTS = 2
+COARSE_MAX_ITER = 30
+COARSE_NUM_RESTARTS = 4
 COARSE_INIT_PULSE_TYPE = "SINE"
 COARSE_INIT_CONTROL_SCALE = 0.35
 
@@ -235,7 +235,7 @@ def coarse_optimize_point(
     )
     summary["scan_stage"] = "coarse"
     summary["ensemble_size"] = COARSE_ENSEMBLE_SIZE
-    summary["omega_mode"] = "exploratory_high_drive_override"
+    summary["omega_mode"] = "yb171_default_10mhz"
     return summary, result
 
 
@@ -299,7 +299,7 @@ def fine_optimize_point(
     best_summary["scan_stage"] = "fine"
     best_summary["ensemble_size"] = FINE_ENSEMBLE_SIZE
     best_summary["fine_stage_records"] = stage_records
-    best_summary["omega_mode"] = "exploratory_high_drive_override"
+    best_summary["omega_mode"] = "yb171_default_10mhz"
     return best_summary
 
 
@@ -317,7 +317,7 @@ def coarse_problem_detected(points: list[dict[str, object]]) -> tuple[bool, str]
 def main() -> None:
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    output_prefix = "two_photon_cz_v4_0_300ns_100mhz"
+    output_prefix = "two_photon_cz_v4_0_300ns_10mhz"
 
     runtime_estimate = benchmark_runtime()
     print(json.dumps({"runtime_estimate": runtime_estimate}, indent=2), flush=True)
@@ -328,7 +328,7 @@ def main() -> None:
 
     for gate_time_ns in COARSE_TIMES_NS[1:]:
         started_at = time.perf_counter()
-        print(f"[v4-100mhz] coarse point {gate_time_ns:.1f} ns", flush=True)
+        print(f"[v4-10mhz] coarse point {gate_time_ns:.1f} ns", flush=True)
         summary, _result = coarse_optimize_point(gate_time_ns, previous_summary)
         summary["wall_clock_scan_s"] = time.perf_counter() - started_at
         coarse_points.append(summary)
@@ -338,7 +338,7 @@ def main() -> None:
             encoding="utf-8",
         )
         print(
-            f"[v4-100mhz] coarse {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
+            f"[v4-10mhz] coarse {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
             f"theta={summary['optimized_theta']:.6f}",
             flush=True,
         )
@@ -349,7 +349,7 @@ def main() -> None:
     coarse_payload = {
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
-        "omega_mode": "exploratory_high_drive_override",
+        "omega_mode": "yb171_default_10mhz",
         "coarse_times_ns": COARSE_TIMES_NS,
         "runtime_estimate": runtime_estimate,
         "points": coarse_points,
@@ -365,7 +365,7 @@ def main() -> None:
         final_payload = {
             "omega_max_hz": OMEGA_MAX_HZ,
             "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
-            "omega_mode": "exploratory_high_drive_override",
+            "omega_mode": "yb171_default_10mhz",
             "runtime_estimate": runtime_estimate,
             "coarse_summary": coarse_payload,
             "fine_scan_started": False,
@@ -392,7 +392,7 @@ def main() -> None:
             fine_points.append(baseline_point())
             continue
         started_at = time.perf_counter()
-        print(f"[v4-100mhz] fine point {gate_time_ns:.1f} ns", flush=True)
+        print(f"[v4-10mhz] fine point {gate_time_ns:.1f} ns", flush=True)
         summary = fine_optimize_point(gate_time_ns, warm_start)
         summary["wall_clock_scan_s"] = time.perf_counter() - started_at
         fine_points.append(summary)
@@ -402,7 +402,7 @@ def main() -> None:
             encoding="utf-8",
         )
         print(
-            f"[v4-100mhz] fine {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
+            f"[v4-10mhz] fine {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
             f"stages={len(summary['fine_stage_records'])}",
             flush=True,
         )
@@ -410,7 +410,7 @@ def main() -> None:
     fine_payload = {
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
-        "omega_mode": "exploratory_high_drive_override",
+        "omega_mode": "yb171_default_10mhz",
         "fine_times_ns": fine_times_ns,
         "points": fine_points,
     }
@@ -422,7 +422,7 @@ def main() -> None:
     final_payload = {
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
-        "omega_mode": "exploratory_high_drive_override",
+        "omega_mode": "yb171_default_10mhz",
         "runtime_estimate": runtime_estimate,
         "coarse_summary": coarse_payload,
         "fine_summary": fine_payload,
