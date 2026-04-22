@@ -21,7 +21,9 @@
 - [two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
   `v3` 双光子闭系统模型，显式保留中间态 `|e>`。
 - [two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
-  `v4` 双光子开放系统模型，新增 `|loss>` sink 和 Lindblad 噪声。
+  `v4` 早期的双光子开放系统 surrogate，现已退居历史参考。
+- [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
+  `v4` 当前主线模型，使用 `^171Yb` 的有效 `clock -> Rydberg` 完整门开放系统表示；固定前后 `clock` 脉冲并入传播，中间 `UV` 段作为优化变量。
 
 ### `src/neutral_yb/optimization`
 
@@ -96,7 +98,9 @@
 - `test_amplitude_phase_grape.py`
   `v3` 振幅加单相位优化器测试
 - `test_two_photon_cz_open_10d.py`
-  `v4` 开放系统模型测试
+  早期 `v4` ladder surrogate 模型测试，现主要作历史回归
+- `test_yb171_clock_rydberg_cz_open.py`
+  当前 `v4` `^171Yb` `clock -> Rydberg` 模型测试
 - `test_open_system_grape.py`
   `v4` 开放系统 GRAPE 的 smoke 测试
 
@@ -109,8 +113,8 @@
 - `v3` 闭系统双光子：
   - [two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
   - [amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
-- `v4` 开放系统双光子：
-  - [two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
+- `v4` 开放系统 `^171Yb`：
+  - [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
   - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 
 ## 迁移到 WSL 后先做什么

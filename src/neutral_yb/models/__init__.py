@@ -7,6 +7,10 @@ from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonOpenNoiseConfig,
 )
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
+from neutral_yb.models.yb171_clock_rydberg_cz_open import (
+    Yb171ClockRydbergCZOpenModel,
+    Yb171ClockRydbergNoiseConfig,
+)
 
 __all__ = [
     "FiniteBlockadeCZ5DModel",
@@ -14,4 +18,6 @@ __all__ = [
     "TwoPhotonCZ9DModel",
     "TwoPhotonCZOpen10DModel",
     "TwoPhotonOpenNoiseConfig",
+    "Yb171ClockRydbergCZOpenModel",
+    "Yb171ClockRydbergNoiseConfig",
 ]

@@ -1,0 +1,157 @@
+{
+  "validation_basis": {
+    "time_evolution_reference": "qutip_liouvillian_slice_propagation",
+    "optimization_reference": "piecewise_constant_grape_with_exact_frechet_gradient",
+    "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+    "caveat": "This validation run checks the default paper Eq.(7) special-state objective on the active {|01>, |11>} manifold. The optimizer also now supports an optional active-subspace process-fidelity objective; reduced-channel exactness is validated separately here."
+  },
+  "checks": {
+    "dynamics_vs_mesolve": {
+      "uv_segment_time_ns": 136.0,
+      "total_gate_time_us": 260.136,
+      "omega_max_mhz": 10.0,
+      "num_tslots": 3,
+      "max_final_state_frobenius_error": 0.0,
+      "max_trajectory_state_frobenius_error": 0.0,
+      "max_trace_error": 8.024692021990631e-13,
+      "min_state_eigenvalue": -1.9012265588052723e-13,
+      "passed": true
+    },
+    "reduced_channel_consistency_diagnostic": {
+      "max_active_superoperator_abs_error": 4.718958039861916e-17,
+      "passed": true
+    },
+    "special_state_phase_gate_metric": {
+      "gate_time_ns": 136.0,
+      "fidelity_from_optimizer": 0.38275636948827185,
+      "fidelity_from_model": 0.38275636948827185,
+      "theta_gradient": 0.18425181369091187,
+      "theta_model_opt": 1.6941087510378057,
+      "theta_optimizer_opt": 1.6941087510378057,
+      "theta_wrapped_error": 0.0,
+      "optimized_fidelity_model": 0.5054892708763672,
+      "optimized_fidelity_optimizer": 0.5054892708763672,
+      "passed": true
+    },
+    "gradient_finite_difference": {
+      "objective": 0.5554941023981499,
+      "directional_derivative_analytic": 0.39622006078203464,
+      "directional_derivative_finite_difference": 0.39622006231532225,
+      "abs_error": 1.5332876079909852e-09,
+      "rel_error": 3.869787912886539e-09,
+      "passed": true
+    },
+    "optimization_progress": {
+      "gate_time_ns": 100.0,
+      "initial_phase_gate_fidelity": 0.4533926466991617,
+      "optimized_phase_gate_fidelity": 0.5999263652687699,
+      "initial_objective": 0.5466073533008383,
+      "optimized_objective": 0.40007363473123014,
+      "improvement": 0.14653371856960817,
+      "optimizer_success": true,
+      "passed": true,
+      "optimized_result": {
+        "ctrl_x": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrl_y": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "phases": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_theta": 0.0,
+        "optimized_theta": 1.5708576715549636,
+        "fid_err": 0.40007363473123014,
+        "objective_fidelity": 0.5999263652687699,
+        "probe_fidelity": 0.5999263652687699,
+        "active_channel_fidelity": 0.49987729079391313,
+        "phase_gate_fidelity": 0.5999263652687699,
+        "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+        "objective_metric": "paper_eq7_special_state_phase_gate_fidelity",
+        "objective": 0.40007363473123014,
+        "num_iter": 0,
+        "num_fid_func_calls": 1,
+        "wall_time": 0.0,
+        "termination_reason": "zero-control baseline",
+        "evo_time": 6.283185307179587,
+        "num_tslots": 3,
+        "control_smoothness_cost": 0.0,
+        "control_curvature_cost": 0.0,
+        "success": true,
+        "uv_segment_time_ns": 100.0,
+        "uv_segment_time_us": 0.1,
+        "gate_time_ns": 100.0,
+        "gate_time_us": 0.1,
+        "slot_duration_ns": 33.333333333333336,
+        "slot_midpoints_ns": [
+          16.666666666666668,
+          50.0,
+          83.33333333333334
+        ],
+        "omega_max_hz": 10000000.0,
+        "omega_max_mhz": 10.0,
+        "effective_rabi_hz_reference": 10000000.0,
+        "effective_rabi_sequence_hz": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "effective_rabi_sequence_mhz": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "effective_rabi_fraction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensionless_gate_time": 6.283185307179587,
+        "physical_time_from_dimensionless_ns": 100.00000000000001,
+        "clock_pi_pulse_duration_us": 130.0,
+        "clock_pi_pulse_duration_ns": 129999.99999999999,
+        "clock_num_steps": 64,
+        "total_gate_time_ns": 260099.99999999997,
+        "total_gate_time_us": 260.1,
+        "basis_labels": [
+          "01",
+          "0c",
+          "0r",
+          "11",
+          "W_c",
+          "cc",
+          "W_r",
+          "W_cr",
+          "rr",
+          "leak",
+          "loss"
+        ],
+        "model_kind": "effective full ^171Yb clock-to-Rydberg CZ gate"
+      }
+    },
+    "physical_sanity": {
+      "uv_gate_time_ns": 136.0,
+      "total_gate_time_us": 260.13599999999997,
+      "omega_max_mhz": 10.0,
+      "blockade_over_omega_max": 16.0,
+      "quasistatic_uv_detuning_over_omega_max": 0.004681027737996921,
+      "uv_gate_over_t2_star": 0.04,
+      "uv_gate_over_rydberg_lifetime": 0.0020923076923076924,
+      "total_gate_over_clock_lifetime": 0.0002454113207547169,
+      "passed": true
+    }
+  },
+  "all_passed": true
+}

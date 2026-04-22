@@ -15,7 +15,8 @@
 
 - 链接: https://www.nature.com/articles/s41586-023-06481-y
 - 在项目中的作用:
-  - `v3` 和 `v4` 的双光子门物理背景
+  - `v3` 的双光子门物理背景
+  - `v4` 早期 ladder surrogate 的历史背景
   - lower-leg 振幅加相位控制的实验图像
   - 中间态散射、Rydberg decay、dephasing、温度效应等误差来源
 
@@ -38,9 +39,9 @@
 
 - 链接: https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009
 - 在项目中的作用:
-  - `^171Yb` 特定平台上的误差预算
-  - 有限寿命、Doppler、有限 blockade、幅度噪声、快相位噪声的优先级
-  - 支撑 `v4` 的 Yb-specific 噪声清单
+  - `^171Yb` 特定平台上的 Rydberg 态选择和 interaction / blockade 背景
+  - 解释为什么当前 `v4` 应转向 `F=1/2` manifold 的 `clock -> Rydberg` 门图像
+  - 支撑 `v4` 的 Yb-specific blockade 与误差优先级
 
 ## 次级参考
 
@@ -69,8 +70,9 @@
 
 - 链接: https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.6.020334
 - 在项目中的作用:
-  - `^171Yb` 高保真门和误差预算的补充背景
-  - 帮助确认当前项目关注误差源的优先级
+  - 当前 `v4` 主模型最直接的实验门机制来源
+  - 给出 `clock shelving -> UV Rydberg pulse -> unshelving` 的物理图像
+  - 提供 `10 MHz` 量级 UV 驱动、`160 MHz` blockade、`65 us` lifetime、`3.4 us` `T2*` 等关键量级
 
 ## 和代码的直接对应关系
 

@@ -25,8 +25,14 @@ class OpenSystemGRAPEConfig:
     init_control_scale: float = 0.15
     control_smoothness_weight: float = 1e-3
     control_curvature_weight: float = 2e-3
+    amplitude_diff_weight: float = 0.0
+    phase_diff_weight: float = 0.0
+    amplitude_diff_threshold: float = 0.01
+    phase_diff_threshold: float = 0.1
     target_theta: float = 0.0
     fidelity_target: float = 0.995
+    objective_metric: str = "special_state"
+    benchmark_active_channel: bool = False
     show_progress: bool = False
 
     @property
@@ -43,7 +49,10 @@ class OpenSystemGRAPEResult:
     target_theta: float
     optimized_theta: float
     fid_err: float
+    objective_fidelity: float
     probe_fidelity: float
+    active_channel_fidelity: float | None
+    objective_metric: str
     objective: float
     num_iter: int
     num_fid_func_calls: int
@@ -53,9 +62,11 @@ class OpenSystemGRAPEResult:
     num_tslots: int
     control_smoothness_cost: float
     control_curvature_cost: float
+    amplitude_diff_cost: float
+    phase_diff_cost: float
     success: bool
 
-    def to_json(self) -> dict[str, float | int | str | bool | list[float]]:
+    def to_json(self) -> dict[str, float | int | str | bool | list[float] | None]:
         return {
             "ctrl_x": [float(x) for x in self.ctrl_x],
             "ctrl_y": [float(x) for x in self.ctrl_y],
@@ -64,9 +75,14 @@ class OpenSystemGRAPEResult:
             "target_theta": float(self.target_theta),
             "optimized_theta": float(self.optimized_theta),
             "fid_err": float(self.fid_err),
+            "objective_fidelity": float(self.objective_fidelity),
             "probe_fidelity": float(self.probe_fidelity),
+            "active_channel_fidelity": None
+            if self.active_channel_fidelity is None
+            else float(self.active_channel_fidelity),
             "phase_gate_fidelity": float(self.probe_fidelity),
             "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+            "objective_metric": self.objective_metric,
             "objective": float(self.objective),
             "num_iter": int(self.num_iter),
             "num_fid_func_calls": int(self.num_fid_func_calls),
@@ -76,6 +92,8 @@ class OpenSystemGRAPEResult:
             "num_tslots": int(self.num_tslots),
             "control_smoothness_cost": float(self.control_smoothness_cost),
             "control_curvature_cost": float(self.control_curvature_cost),
+            "amplitude_diff_cost": float(self.amplitude_diff_cost),
+            "phase_diff_cost": float(self.phase_diff_cost),
             "success": bool(self.success),
         }
 
@@ -99,10 +117,10 @@ class OpenSystemScanResult:
 
 
 class OpenSystemGRAPEOptimizer:
-    r"""Open-system GRAPE using the paper Eq.(7) special-state fidelity.
+    r"""Open-system GRAPE for the active {|01>, |11>} manifold.
 
-    The main optimization target follows arXiv:2202.00903 for the active
-    {|01>, |11>} manifold. It propagates the unnormalized state
+    The default optimization target follows arXiv:2202.00903. It propagates
+    the unnormalized state
 
         |psi(0)> = |01> + |11>
 
@@ -120,9 +138,11 @@ class OpenSystemGRAPEOptimizer:
 
         G = -i H - 1/2 sum_k C_k^\dagger C_k
 
-    while keeping exact Liouvillian helpers available for diagnostics. When an
-    ensemble of models is provided, the optimization target is the arithmetic
-    mean of this phase-gate fidelity over the quasistatic ensemble.
+    while keeping exact Liouvillian helpers available for diagnostics. Setting
+    ``OpenSystemGRAPEConfig.objective_metric="active_channel"`` switches the
+    target to the exact process fidelity of the reduced active-subspace
+    superoperator. When an ensemble of models is provided, the optimization
+    target is the arithmetic mean over the quasistatic ensemble.
     """
 
     def __init__(self, model, config: OpenSystemGRAPEConfig, ensemble_models: list | None = None):
@@ -148,6 +168,8 @@ class OpenSystemGRAPEOptimizer:
         self.l_x, self.l_y = [
             np.asarray(operator.full(), dtype=np.complex128) for operator in model.control_liouvillians()
         ]
+        self.phase_identity = np.eye(self.dimension, dtype=np.complex128)
+        self.liou_identity = np.eye(self.vector_dimension, dtype=np.complex128)
         self.ensemble_models = [self.model] if ensemble_models is None else list(ensemble_models)
         self.ensemble_data = [self._build_member_data(member) for member in self.ensemble_models]
         for member in self.ensemble_models:
@@ -163,6 +185,9 @@ class OpenSystemGRAPEOptimizer:
         ).ravel()
         self.active_operator_basis = self._build_active_operator_basis()
         self.active_reducer = self._build_active_reducer()
+
+    def reconfigure(self, config: OpenSystemGRAPEConfig) -> None:
+        self.config = config
 
     def initial_guess(self) -> tuple[np.ndarray, np.ndarray]:
         rng = np.random.default_rng(self.config.seed)
@@ -242,7 +267,7 @@ class OpenSystemGRAPEOptimizer:
             if self.config.show_progress:
                 print(
                     f"[open-grape] restart {restart + 1}/{self.config.num_restarts} "
-                    f"F={candidate.probe_fidelity:.6f} obj={candidate.objective:.6e} "
+                    f"F={candidate.objective_fidelity:.6f} obj={candidate.objective:.6e} "
                     f"time={candidate.wall_time:7.1f}s",
                     flush=True,
                 )
@@ -272,14 +297,7 @@ class OpenSystemGRAPEOptimizer:
 
         for index, duration in enumerate(durations, start=1):
             started_at = time.perf_counter()
-            if self.config.show_progress:
-                print(
-                    f"[scan] starting {index}/{len(durations)} "
-                    f"T={duration:.3f} slots={self.config.num_tslots}",
-                    flush=True,
-                )
-            optimizer = OpenSystemGRAPEOptimizer(
-                self.model,
+            self.reconfigure(
                 OpenSystemGRAPEConfig(
                     num_tslots=self.config.num_tslots,
                     evo_time=duration,
@@ -293,19 +311,30 @@ class OpenSystemGRAPEOptimizer:
                     init_control_scale=self.config.init_control_scale,
                     control_smoothness_weight=self.config.control_smoothness_weight,
                     control_curvature_weight=self.config.control_curvature_weight,
+                    amplitude_diff_weight=self.config.amplitude_diff_weight,
+                    phase_diff_weight=self.config.phase_diff_weight,
+                    amplitude_diff_threshold=self.config.amplitude_diff_threshold,
+                    phase_diff_threshold=self.config.phase_diff_threshold,
                     target_theta=self.config.target_theta,
                     fidelity_target=self.config.fidelity_target,
+                    objective_metric=self.config.objective_metric,
+                    benchmark_active_channel=self.config.benchmark_active_channel,
                     show_progress=self.config.show_progress,
-                ),
-                ensemble_models=self.ensemble_models,
+                )
             )
-            result = optimizer.optimize(
+            if self.config.show_progress:
+                print(
+                    f"[scan] starting {index}/{len(durations)} "
+                    f"T={duration:.3f} slots={self.config.num_tslots}",
+                    flush=True,
+                )
+            result = self.optimize(
                 initial_ctrl_x=ctrl_x,
                 initial_ctrl_y=ctrl_y,
                 initial_theta=theta,
             )
             results.append(result)
-            fidelities.append(result.probe_fidelity)
+            fidelities.append(result.objective_fidelity)
             ctrl_x, ctrl_y, theta = result.ctrl_x, result.ctrl_y, result.optimized_theta
             if self.config.show_progress:
                 step_elapsed = time.perf_counter() - started_at
@@ -314,13 +343,13 @@ class OpenSystemGRAPEOptimizer:
                 remaining = avg_per_step * (len(durations) - index)
                 print(
                     f"[scan] {index}/{len(durations)} ({100.0*index/len(durations):5.1f}%) "
-                    f"T={duration:.3f} F={result.probe_fidelity:.6f} "
+                    f"T={duration:.3f} F={result.objective_fidelity:.6f} "
                     f"step={step_elapsed:7.1f}s elapsed={total_elapsed:7.1f}s "
                     f"remaining_T={len(durations)-index:2d} eta={remaining:7.1f}s",
                     flush=True,
                 )
 
-        qualified = [res for res in results if res.probe_fidelity >= self.config.fidelity_target]
+        qualified = [res for res in results if res.objective_fidelity >= self.config.fidelity_target]
         best_duration = None if not qualified else min(res.evo_time for res in qualified)
         return (
             OpenSystemScanResult(
@@ -346,8 +375,11 @@ class OpenSystemGRAPEOptimizer:
         rho0: qutip.Qobj,
     ) -> qutip.Qobj:
         vector = np.asarray(rho0.full(), dtype=np.complex128).reshape(-1, order="F")
+        member = self.ensemble_data[0]
+        vector = member["liou_prefix"] @ vector
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             vector = expm(self.config.dt * self._liouvillian(float(x_value), float(y_value))) @ vector
+        vector = member["liou_suffix"] @ vector
         return qutip.Qobj(self._vec_to_matrix(vector))
 
     def trajectory(
@@ -357,12 +389,27 @@ class OpenSystemGRAPEOptimizer:
         rho0: qutip.Qobj,
     ) -> tuple[np.ndarray, list[qutip.Qobj]]:
         vector = np.asarray(rho0.full(), dtype=np.complex128).reshape(-1, order="F")
+        member = self.ensemble_data[0]
         states = [qutip.Qobj(self._vec_to_matrix(vector))]
+        times = [0.0]
+        current_time = 0.0
+        trajectory_cache = self._build_fixed_clock_trajectory_segments(self.ensemble_models[0], member["l_d"])
+        for propagator, dt in zip(trajectory_cache["liou_prefix_steps"], trajectory_cache["liou_prefix_dts"]):
+            vector = propagator @ vector
+            current_time += dt
+            times.append(current_time)
+            states.append(qutip.Qobj(self._vec_to_matrix(vector)))
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             vector = expm(self.config.dt * self._liouvillian(float(x_value), float(y_value))) @ vector
+            current_time += self.config.dt
+            times.append(current_time)
             states.append(qutip.Qobj(self._vec_to_matrix(vector)))
-        times = np.linspace(0.0, self.config.evo_time, self.config.num_tslots + 1)
-        return times, states
+        for propagator, dt in zip(trajectory_cache["liou_suffix_steps"], trajectory_cache["liou_suffix_dts"]):
+            vector = propagator @ vector
+            current_time += dt
+            times.append(current_time)
+            states.append(qutip.Qobj(self._vec_to_matrix(vector)))
+        return np.asarray(times, dtype=np.float64), states
 
     def benchmark_probe_evolution(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, repeats: int = 3) -> float:
         self.final_phase_state(ctrl_x, ctrl_y)
@@ -380,6 +427,12 @@ class OpenSystemGRAPEOptimizer:
         destination.write_text(json.dumps(result.to_json(), indent=2), encoding="utf-8")
 
     def objective_and_gradient(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
+        metric = self._resolve_objective_metric()
+        if metric == "special_state":
+            return self._objective_and_gradient_special_state(variables)
+        return self._objective_and_gradient_active_channel(variables)
+
+    def _objective_and_gradient_special_state(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
         ctrl_x, ctrl_y, theta = self._unpack(variables)
         dt = self.config.dt
         fidelity = 0.0
@@ -389,8 +442,8 @@ class OpenSystemGRAPEOptimizer:
 
         for member in self.ensemble_data:
             slice_propags: list[np.ndarray] = []
-            state_prefix: list[np.ndarray] = [self.initial_phase_state]
-            current_state = np.array(self.initial_phase_state, copy=True)
+            current_state = member["phase_prefix"] @ self.initial_phase_state
+            state_prefix: list[np.ndarray] = [current_state]
 
             for x_value, y_value in zip(ctrl_x, ctrl_y):
                 g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
@@ -399,13 +452,13 @@ class OpenSystemGRAPEOptimizer:
                 current_state = u_k @ current_state
                 state_prefix.append(current_state)
 
-            final_state = state_prefix[-1]
+            final_state = member["phase_suffix"] @ state_prefix[-1]
             member_fidelity, member_theta_grad = self._phase_gate_fidelity_and_theta_gradient(final_state, theta)
             fidelity += member_fidelity
             fidelity_theta_grad += member_theta_grad
 
-            suffix_propags: list[np.ndarray] = [np.eye(self.dimension, dtype=np.complex128) for _ in range(self.config.num_tslots)]
-            current_suffix = np.eye(self.dimension, dtype=np.complex128)
+            suffix_propags: list[np.ndarray] = [self.phase_identity for _ in range(self.config.num_tslots)]
+            current_suffix = member["phase_suffix"]
             for index in range(self.config.num_tslots - 1, -1, -1):
                 suffix_propags[index] = current_suffix
                 current_suffix = current_suffix @ slice_propags[index]
@@ -426,10 +479,15 @@ class OpenSystemGRAPEOptimizer:
         ctrl_y_grad /= ensemble_size
         smoothness_cost = self._control_smoothness_cost(ctrl_x, ctrl_y)
         curvature_cost = self._control_curvature_cost(ctrl_x, ctrl_y)
+        amplitude_diff_cost, phase_diff_cost, amp_penalty_x, amp_penalty_y, phase_penalty_x, phase_penalty_y = (
+            self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
+        )
         objective = (
             1.0 - fidelity
             + self.config.control_smoothness_weight * smoothness_cost
             + self.config.control_curvature_weight * curvature_cost
+            + self.config.amplitude_diff_weight * amplitude_diff_cost
+            + self.config.phase_diff_weight * phase_diff_cost
         )
 
         if self.config.control_smoothness_weight > 0.0:
@@ -438,6 +496,86 @@ class OpenSystemGRAPEOptimizer:
         if self.config.control_curvature_weight > 0.0:
             ctrl_x_grad += self.config.control_curvature_weight * self._curvature_gradient(ctrl_x)
             ctrl_y_grad += self.config.control_curvature_weight * self._curvature_gradient(ctrl_y)
+        if self.config.amplitude_diff_weight > 0.0:
+            ctrl_x_grad += self.config.amplitude_diff_weight * amp_penalty_x
+            ctrl_y_grad += self.config.amplitude_diff_weight * amp_penalty_y
+        if self.config.phase_diff_weight > 0.0:
+            ctrl_x_grad += self.config.phase_diff_weight * phase_penalty_x
+            ctrl_y_grad += self.config.phase_diff_weight * phase_penalty_y
+
+        gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
+        return float(objective), gradient
+
+    def _objective_and_gradient_active_channel(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
+        ctrl_x, ctrl_y, theta = self._unpack(variables)
+        dt = self.config.dt
+        fidelity = 0.0
+        fidelity_theta_grad = 0.0
+        ctrl_x_grad = np.zeros_like(ctrl_x)
+        ctrl_y_grad = np.zeros_like(ctrl_y)
+
+        for member in self.ensemble_data:
+            slice_propags: list[np.ndarray] = []
+            current_batch = member["liou_prefix"] @ self.active_operator_basis
+            batch_prefix: list[np.ndarray] = [current_batch]
+
+            for x_value, y_value in zip(ctrl_x, ctrl_y):
+                l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
+                u_k = expm(dt * l_k)
+                slice_propags.append(u_k)
+                current_batch = u_k @ current_batch
+                batch_prefix.append(current_batch)
+
+            final_batch = member["liou_suffix"] @ batch_prefix[-1]
+            member_fidelity, member_theta_grad = self._channel_fidelity_and_theta_gradient(final_batch, theta)
+            fidelity += member_fidelity
+            fidelity_theta_grad += member_theta_grad
+
+            suffix_propags: list[np.ndarray] = [self.liou_identity for _ in range(self.config.num_tslots)]
+            current_suffix = member["liou_suffix"]
+            for index in range(self.config.num_tslots - 1, -1, -1):
+                suffix_propags[index] = current_suffix
+                current_suffix = current_suffix @ slice_propags[index]
+
+            for index, (x_value, y_value) in enumerate(zip(ctrl_x, ctrl_y)):
+                l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
+                du_x = expm_frechet(dt * l_k, dt * member["l_x"], compute_expm=False)
+                du_y = expm_frechet(dt * l_k, dt * member["l_y"], compute_expm=False)
+                d_batch_x = suffix_propags[index] @ du_x @ batch_prefix[index]
+                d_batch_y = suffix_propags[index] @ du_y @ batch_prefix[index]
+                ctrl_x_grad[index] -= self._channel_fidelity_batch_gradient(d_batch_x, theta)
+                ctrl_y_grad[index] -= self._channel_fidelity_batch_gradient(d_batch_y, theta)
+
+        ensemble_size = float(len(self.ensemble_data))
+        fidelity /= ensemble_size
+        fidelity_theta_grad /= ensemble_size
+        ctrl_x_grad /= ensemble_size
+        ctrl_y_grad /= ensemble_size
+        smoothness_cost = self._control_smoothness_cost(ctrl_x, ctrl_y)
+        curvature_cost = self._control_curvature_cost(ctrl_x, ctrl_y)
+        amplitude_diff_cost, phase_diff_cost, amp_penalty_x, amp_penalty_y, phase_penalty_x, phase_penalty_y = (
+            self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
+        )
+        objective = (
+            1.0 - fidelity
+            + self.config.control_smoothness_weight * smoothness_cost
+            + self.config.control_curvature_weight * curvature_cost
+            + self.config.amplitude_diff_weight * amplitude_diff_cost
+            + self.config.phase_diff_weight * phase_diff_cost
+        )
+
+        if self.config.control_smoothness_weight > 0.0:
+            ctrl_x_grad += self.config.control_smoothness_weight * self._smoothness_gradient(ctrl_x)
+            ctrl_y_grad += self.config.control_smoothness_weight * self._smoothness_gradient(ctrl_y)
+        if self.config.control_curvature_weight > 0.0:
+            ctrl_x_grad += self.config.control_curvature_weight * self._curvature_gradient(ctrl_x)
+            ctrl_y_grad += self.config.control_curvature_weight * self._curvature_gradient(ctrl_y)
+        if self.config.amplitude_diff_weight > 0.0:
+            ctrl_x_grad += self.config.amplitude_diff_weight * amp_penalty_x
+            ctrl_y_grad += self.config.amplitude_diff_weight * amp_penalty_y
+        if self.config.phase_diff_weight > 0.0:
+            ctrl_x_grad += self.config.phase_diff_weight * phase_penalty_x
+            ctrl_y_grad += self.config.phase_diff_weight * phase_penalty_y
 
         gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
         return float(objective), gradient
@@ -454,12 +592,23 @@ class OpenSystemGRAPEOptimizer:
         ctrl_x, ctrl_y, theta = self._unpack(variables)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
         probe_fidelity = self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
+        active_channel_fidelity: float | None = None
+        if self._resolve_objective_metric() == "active_channel" or self.config.benchmark_active_channel:
+            active_channel_fidelity = self.channel_fidelity(ctrl_x, ctrl_y, theta)
+        objective_fidelity = (
+            probe_fidelity
+            if self._resolve_objective_metric() == "special_state"
+            else float(active_channel_fidelity)
+        )
         objective = (
             1.0
-            - probe_fidelity
+            - objective_fidelity
             + self.config.control_smoothness_weight * self._control_smoothness_cost(ctrl_x, ctrl_y)
             + self.config.control_curvature_weight * self._control_curvature_cost(ctrl_x, ctrl_y)
+            + self.config.amplitude_diff_weight * self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)[0]
+            + self.config.phase_diff_weight * self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)[1]
         )
+        amplitude_diff_cost, phase_diff_cost, _, _, _, _ = self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
         return OpenSystemGRAPEResult(
             ctrl_x=ctrl_x,
             ctrl_y=ctrl_y,
@@ -467,8 +616,11 @@ class OpenSystemGRAPEOptimizer:
             phases=phases,
             target_theta=float(self.config.target_theta),
             optimized_theta=float(theta),
-            fid_err=float(1.0 - probe_fidelity),
+            fid_err=float(1.0 - objective_fidelity),
+            objective_fidelity=float(objective_fidelity),
             probe_fidelity=float(probe_fidelity),
+            active_channel_fidelity=None if active_channel_fidelity is None else float(active_channel_fidelity),
+            objective_metric=self._objective_metric_label(),
             objective=float(objective),
             num_iter=int(num_iter),
             num_fid_func_calls=int(num_fid_func_calls),
@@ -478,13 +630,22 @@ class OpenSystemGRAPEOptimizer:
             num_tslots=int(self.config.num_tslots),
             control_smoothness_cost=float(self._control_smoothness_cost(ctrl_x, ctrl_y)),
             control_curvature_cost=float(self._control_curvature_cost(ctrl_x, ctrl_y)),
+            amplitude_diff_cost=float(amplitude_diff_cost),
+            phase_diff_cost=float(phase_diff_cost),
             success=bool(success),
         )
 
     def _zero_control_baseline_result(self) -> OpenSystemGRAPEResult:
         ctrl_x = np.zeros(self.config.num_tslots, dtype=np.float64)
         ctrl_y = np.zeros(self.config.num_tslots, dtype=np.float64)
-        theta, fidelity = self.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
+        if self._resolve_objective_metric() == "special_state":
+            theta, objective_fidelity = self.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
+        else:
+            theta, objective_fidelity = self.optimize_theta_for_channel(ctrl_x, ctrl_y)
+        probe_fidelity = self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
+        active_channel_fidelity: float | None = None
+        if self._resolve_objective_metric() == "active_channel" or self.config.benchmark_active_channel:
+            active_channel_fidelity = self.channel_fidelity(ctrl_x, ctrl_y, theta)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
         return OpenSystemGRAPEResult(
             ctrl_x=ctrl_x,
@@ -493,9 +654,12 @@ class OpenSystemGRAPEOptimizer:
             phases=phases,
             target_theta=float(self.config.target_theta),
             optimized_theta=float(theta),
-            fid_err=float(1.0 - fidelity),
-            probe_fidelity=float(fidelity),
-            objective=float(1.0 - fidelity),
+            fid_err=float(1.0 - objective_fidelity),
+            objective_fidelity=float(objective_fidelity),
+            probe_fidelity=float(probe_fidelity),
+            active_channel_fidelity=None if active_channel_fidelity is None else float(active_channel_fidelity),
+            objective_metric=self._objective_metric_label(),
+            objective=float(1.0 - objective_fidelity),
             num_iter=0,
             num_fid_func_calls=1,
             wall_time=0.0,
@@ -504,6 +668,8 @@ class OpenSystemGRAPEOptimizer:
             num_tslots=int(self.config.num_tslots),
             control_smoothness_cost=0.0,
             control_curvature_cost=0.0,
+            amplitude_diff_cost=0.0,
+            phase_diff_cost=0.0,
             success=True,
         )
 
@@ -512,11 +678,11 @@ class OpenSystemGRAPEOptimizer:
 
     def final_phase_state_member(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
         member = self.ensemble_data[member_index]
-        current_state = np.array(self.initial_phase_state, copy=True)
+        current_state = member["phase_prefix"] @ self.initial_phase_state
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
             current_state = expm(self.config.dt * g_k) @ current_state
-        return current_state
+        return member["phase_suffix"] @ current_state
 
     def phase_gate_fidelity(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, theta: float) -> float:
         values = [
@@ -540,11 +706,11 @@ class OpenSystemGRAPEOptimizer:
 
     def channel_superoperator(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
         member = self.ensemble_data[member_index]
-        current_batch = np.array(self.active_operator_basis, copy=True)
+        current_batch = member["liou_prefix"] @ self.active_operator_basis
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
             current_batch = expm(self.config.dt * l_k) @ current_batch
-        return self.active_reducer @ current_batch
+        return self.active_reducer @ (member["liou_suffix"] @ current_batch)
 
     def channel_fidelity(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, theta: float) -> float:
         values = [
@@ -607,7 +773,7 @@ class OpenSystemGRAPEOptimizer:
             c_matrix = np.asarray(operator.full(), dtype=np.complex128)
             decay_matrix += c_matrix.conj().T @ c_matrix
         l_x, l_y = [np.asarray(operator.full(), dtype=np.complex128) for operator in member.control_liouvillians()]
-        return {
+        data = {
             "g_d": -1j * h_d - 0.5 * decay_matrix,
             "g_x": -1j * h_x,
             "g_y": -1j * h_y,
@@ -615,6 +781,139 @@ class OpenSystemGRAPEOptimizer:
             "l_x": l_x,
             "l_y": l_y,
         }
+        clock_segments = self._build_fixed_clock_segments(member, data["g_d"], data["l_d"])
+        data.update(clock_segments)
+        return data
+
+    def _build_fixed_clock_segments(
+        self,
+        member,
+        g_d: np.ndarray,
+        l_d: np.ndarray,
+    ) -> dict[str, object]:
+        if hasattr(member, "fixed_clock_segment_cache"):
+            cache = member.fixed_clock_segment_cache
+            return {
+                "phase_prefix": np.asarray(cache["phase_prefix"], dtype=np.complex128),
+                "phase_suffix": np.asarray(cache["phase_suffix"], dtype=np.complex128),
+                "liou_prefix": np.asarray(cache["liou_prefix"], dtype=np.complex128),
+                "liou_suffix": np.asarray(cache["liou_suffix"], dtype=np.complex128),
+            }
+        if not hasattr(member, "clock_control_hamiltonians") or not hasattr(member, "clock_segment_controls"):
+            return {
+                "phase_prefix": self.phase_identity,
+                "phase_suffix": self.phase_identity,
+                "liou_prefix": self.liou_identity,
+                "liou_suffix": self.liou_identity,
+            }
+
+        h_clock_x, h_clock_y = [
+            np.asarray(operator.full(), dtype=np.complex128)
+            for operator in member.clock_control_hamiltonians()
+        ]
+        g_clock_x = -1j * h_clock_x
+        g_clock_y = -1j * h_clock_y
+        l_clock_x, l_clock_y = [
+            np.asarray(operator.full(), dtype=np.complex128)
+            for operator in member.clock_control_liouvillians()
+        ]
+        segments = member.clock_segment_controls()
+
+        def build_phase_steps(ctrl_x: np.ndarray, ctrl_y: np.ndarray, dt: float) -> list[np.ndarray]:
+            return [
+                expm(float(dt) * (g_d + float(x_value) * g_clock_x + float(y_value) * g_clock_y))
+                for x_value, y_value in zip(ctrl_x, ctrl_y)
+            ]
+
+        def build_liou_steps(ctrl_x: np.ndarray, ctrl_y: np.ndarray, dt: float) -> list[np.ndarray]:
+            return [
+                expm(float(dt) * (l_d + float(x_value) * l_clock_x + float(y_value) * l_clock_y))
+                for x_value, y_value in zip(ctrl_x, ctrl_y)
+            ]
+
+        prefix_phase_steps = build_phase_steps(
+            np.asarray(segments["prefix_x"], dtype=np.float64),
+            np.asarray(segments["prefix_y"], dtype=np.float64),
+            float(segments["prefix_dt"]),
+        )
+        suffix_phase_steps = build_phase_steps(
+            np.asarray(segments["suffix_x"], dtype=np.float64),
+            np.asarray(segments["suffix_y"], dtype=np.float64),
+            float(segments["suffix_dt"]),
+        )
+        prefix_liou_steps = build_liou_steps(
+            np.asarray(segments["prefix_x"], dtype=np.float64),
+            np.asarray(segments["prefix_y"], dtype=np.float64),
+            float(segments["prefix_dt"]),
+        )
+        suffix_liou_steps = build_liou_steps(
+            np.asarray(segments["suffix_x"], dtype=np.float64),
+            np.asarray(segments["suffix_y"], dtype=np.float64),
+            float(segments["suffix_dt"]),
+        )
+        return {
+            "phase_prefix": self._compose_propagators(prefix_phase_steps, self.phase_identity),
+            "phase_suffix": self._compose_propagators(suffix_phase_steps, self.phase_identity),
+            "liou_prefix": self._compose_propagators(prefix_liou_steps, self.liou_identity),
+            "liou_suffix": self._compose_propagators(suffix_liou_steps, self.liou_identity),
+        }
+
+    def _build_fixed_clock_trajectory_segments(
+        self,
+        member,
+        l_d: np.ndarray,
+    ) -> dict[str, object]:
+        if hasattr(member, "fixed_clock_trajectory_cache"):
+            cache = member.fixed_clock_trajectory_cache
+            return {
+                "liou_prefix_steps": [np.asarray(step, dtype=np.complex128) for step in cache["liou_prefix_steps"]],
+                "liou_prefix_dts": [float(value) for value in cache["liou_prefix_dts"]],
+                "liou_suffix_steps": [np.asarray(step, dtype=np.complex128) for step in cache["liou_suffix_steps"]],
+                "liou_suffix_dts": [float(value) for value in cache["liou_suffix_dts"]],
+            }
+        if not hasattr(member, "clock_control_hamiltonians") or not hasattr(member, "clock_segment_controls"):
+            return {
+                "liou_prefix_steps": [],
+                "liou_prefix_dts": [],
+                "liou_suffix_steps": [],
+                "liou_suffix_dts": [],
+            }
+
+        l_clock_x, l_clock_y = [
+            np.asarray(operator.full(), dtype=np.complex128)
+            for operator in member.clock_control_liouvillians()
+        ]
+        segments = member.clock_segment_controls()
+
+        def build_liou_steps(ctrl_x: np.ndarray, ctrl_y: np.ndarray, dt: float) -> list[np.ndarray]:
+            return [
+                expm(float(dt) * (l_d + float(x_value) * l_clock_x + float(y_value) * l_clock_y))
+                for x_value, y_value in zip(ctrl_x, ctrl_y)
+            ]
+
+        prefix_liou_steps = build_liou_steps(
+            np.asarray(segments["prefix_x"], dtype=np.float64),
+            np.asarray(segments["prefix_y"], dtype=np.float64),
+            float(segments["prefix_dt"]),
+        )
+        suffix_liou_steps = build_liou_steps(
+            np.asarray(segments["suffix_x"], dtype=np.float64),
+            np.asarray(segments["suffix_y"], dtype=np.float64),
+            float(segments["suffix_dt"]),
+        )
+        return {
+            "liou_prefix_steps": prefix_liou_steps,
+            "liou_prefix_dts": [float(segments["prefix_dt"])] * len(prefix_liou_steps),
+            "liou_suffix_steps": suffix_liou_steps,
+            "liou_suffix_dts": [float(segments["suffix_dt"])] * len(suffix_liou_steps),
+        }
+
+    @staticmethod
+    def _compose_propagators(propagators: list[np.ndarray], identity: np.ndarray) -> np.ndarray:
+        total = np.array(identity, copy=True)
+        for propagator in propagators:
+            total = propagator @ total
+        return total
 
     def _build_active_operator_basis(self) -> np.ndarray:
         basis = np.zeros((self.vector_dimension, self.active_dim * self.active_dim), dtype=np.complex128)
@@ -688,6 +987,60 @@ class OpenSystemGRAPEOptimizer:
     def _control_curvature_cost(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> float:
         return self._curvature_cost(ctrl_x) + self._curvature_cost(ctrl_y)
 
+    def _amplitude_phase_diff_penalty(
+        self,
+        ctrl_x: np.ndarray,
+        ctrl_y: np.ndarray,
+    ) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        amp_grad_x = np.zeros_like(ctrl_x)
+        amp_grad_y = np.zeros_like(ctrl_y)
+        phase_grad_x = np.zeros_like(ctrl_x)
+        phase_grad_y = np.zeros_like(ctrl_y)
+        if len(ctrl_x) < 2:
+            return 0.0, 0.0, amp_grad_x, amp_grad_y, phase_grad_x, phase_grad_y
+
+        radius = np.sqrt(ctrl_x**2 + ctrl_y**2)
+        amp_fraction = radius / self.amp_bound
+        delta_amp = amp_fraction[1:] - amp_fraction[:-1]
+        amp_abs = np.abs(delta_amp)
+        amp_excess = np.maximum(amp_abs - self.config.amplitude_diff_threshold, 0.0)
+        amp_cost = float(np.mean(amp_excess**2))
+
+        if self.config.amplitude_diff_weight > 0.0 and amp_excess.size > 0:
+            scale = 2.0 / amp_excess.size
+            active = amp_excess > 0.0
+            amp_delta_grad = np.zeros_like(delta_amp)
+            amp_delta_grad[active] = scale * amp_excess[active] * np.sign(delta_amp[active])
+            safe_radius = np.where(radius > 1e-12, radius, np.inf)
+            d_amp_dx = np.where(radius > 1e-12, ctrl_x / (self.amp_bound * safe_radius), 0.0)
+            d_amp_dy = np.where(radius > 1e-12, ctrl_y / (self.amp_bound * safe_radius), 0.0)
+            amp_grad_x[:-1] -= amp_delta_grad * d_amp_dx[:-1]
+            amp_grad_x[1:] += amp_delta_grad * d_amp_dx[1:]
+            amp_grad_y[:-1] -= amp_delta_grad * d_amp_dy[:-1]
+            amp_grad_y[1:] += amp_delta_grad * d_amp_dy[1:]
+
+        phases = np.arctan2(ctrl_y, ctrl_x)
+        delta_phase = (phases[1:] - phases[:-1] + np.pi) % (2.0 * np.pi) - np.pi
+        phase_abs = np.abs(delta_phase)
+        phase_excess = np.maximum(phase_abs - self.config.phase_diff_threshold, 0.0)
+        phase_cost = float(np.mean(phase_excess**2))
+
+        if self.config.phase_diff_weight > 0.0 and phase_excess.size > 0:
+            scale = 2.0 / phase_excess.size
+            active = phase_excess > 0.0
+            phase_delta_grad = np.zeros_like(delta_phase)
+            phase_delta_grad[active] = scale * phase_excess[active] * np.sign(delta_phase[active])
+            radius_sq = ctrl_x**2 + ctrl_y**2
+            safe_radius_sq = np.where(radius_sq > 1e-12, radius_sq, np.inf)
+            d_phase_dx = np.where(radius_sq > 1e-12, -ctrl_y / safe_radius_sq, 0.0)
+            d_phase_dy = np.where(radius_sq > 1e-12, ctrl_x / safe_radius_sq, 0.0)
+            phase_grad_x[:-1] -= phase_delta_grad * d_phase_dx[:-1]
+            phase_grad_x[1:] += phase_delta_grad * d_phase_dx[1:]
+            phase_grad_y[:-1] -= phase_delta_grad * d_phase_dy[:-1]
+            phase_grad_y[1:] += phase_delta_grad * d_phase_dy[1:]
+
+        return amp_cost, phase_cost, amp_grad_x, amp_grad_y, phase_grad_x, phase_grad_y
+
     @staticmethod
     def _smoothness_cost(values: np.ndarray) -> float:
         if len(values) < 2:
@@ -730,10 +1083,23 @@ class OpenSystemGRAPEOptimizer:
     def _vec_to_matrix(self, vector: np.ndarray) -> np.ndarray:
         return np.asarray(vector, dtype=np.complex128).reshape((self.dimension, self.dimension), order="F")
 
+    def _resolve_objective_metric(self) -> str:
+        metric = str(self.config.objective_metric).strip().lower()
+        if metric not in {"special_state", "active_channel"}:
+            raise ValueError(
+                "OpenSystemGRAPEConfig.objective_metric must be 'special_state' or 'active_channel'"
+            )
+        return metric
+
+    def _objective_metric_label(self) -> str:
+        if self._resolve_objective_metric() == "special_state":
+            return "paper_eq7_special_state_phase_gate_fidelity"
+        return "active_subspace_process_fidelity"
+
     @staticmethod
     def _is_better(left: OpenSystemGRAPEResult, right: OpenSystemGRAPEResult) -> bool:
-        if left.probe_fidelity > right.probe_fidelity + 1e-8:
+        if left.objective_fidelity > right.objective_fidelity + 1e-8:
             return True
-        if abs(left.probe_fidelity - right.probe_fidelity) <= 1e-8 and left.objective < right.objective:
+        if abs(left.objective_fidelity - right.objective_fidelity) <= 1e-8 and left.objective < right.objective:
             return True
         return False

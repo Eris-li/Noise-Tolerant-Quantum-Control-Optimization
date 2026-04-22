@@ -26,13 +26,20 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 OMEGA_MAX_HZ = 10e6
 COARSE_TIMES_NS = [float(value) for value in range(0, 301, 30)]
 COARSE_THRESHOLD = 0.999
-COARSE_ENSEMBLE_SIZE = 2
-FINE_ENSEMBLE_SIZE = 3
+COARSE_ENSEMBLE_SIZE = 1
+FINE_ENSEMBLE_SIZE = 1
 SEED = 17
-COARSE_MAX_ITER = 30
+RUN_FINE_AFTER_COARSE = False
+COARSE_MAX_ITER = 100
 COARSE_NUM_RESTARTS = 4
 COARSE_INIT_PULSE_TYPE = "SINE"
-COARSE_INIT_CONTROL_SCALE = 0.35
+COARSE_INIT_CONTROL_SCALE = 0.45
+COARSE_SMOOTHNESS_WEIGHT = 1e-3
+COARSE_CURVATURE_WEIGHT = 2e-3
+COARSE_AMPLITUDE_DIFF_WEIGHT = 50.0
+COARSE_PHASE_DIFF_WEIGHT = 10.0
+COARSE_AMPLITUDE_DIFF_THRESHOLD = 0.01
+COARSE_PHASE_DIFF_THRESHOLD = 0.1
 
 
 @dataclass(frozen=True)
@@ -53,7 +60,9 @@ FINE_STAGES = [
 
 
 def coarse_num_tslots(gate_time_ns: float) -> int:
-    return max(8, int(round(gate_time_ns / 10.0)))
+    if gate_time_ns <= 0.0:
+        return 1
+    return 100
 
 
 def fine_num_tslots(gate_time_ns: float) -> int:
@@ -70,7 +79,7 @@ def resample_controls(values: np.ndarray, target_size: int) -> np.ndarray:
     return np.asarray(np.interp(target_grid, source_grid, values), dtype=np.float64)
 
 
-def build_optimizer(
+def build_config(
     *,
     gate_time_ns: float,
     num_tslots: int,
@@ -80,45 +89,32 @@ def build_optimizer(
     init_pulse_type: str,
     init_control_scale: float,
     seed: int,
-) -> OpenSystemGRAPEOptimizer:
-    return OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=OMEGA_MAX_HZ),
-        config=OpenSystemGRAPEConfig(
-            num_tslots=num_tslots,
-            evo_time=yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=OMEGA_MAX_HZ),
-            max_iter=max_iter,
-            num_restarts=num_restarts,
-            seed=seed,
-            init_pulse_type=init_pulse_type,
-            init_control_scale=init_control_scale,
-            control_smoothness_weight=0.0,
-            control_curvature_weight=0.0,
-            fidelity_target=COARSE_THRESHOLD,
-            show_progress=True,
-        ),
-        ensemble_models=build_yb171_v4_quasistatic_ensemble(
-            ensemble_size=ensemble_size,
-            seed=seed,
-            include_noise=True,
-            effective_rabi_hz=OMEGA_MAX_HZ,
-        ),
+) -> OpenSystemGRAPEConfig:
+    _ = ensemble_size
+    return OpenSystemGRAPEConfig(
+        num_tslots=num_tslots,
+        evo_time=yb171_gate_time_ns_to_dimensionless(gate_time_ns, effective_rabi_hz=OMEGA_MAX_HZ),
+        max_iter=max_iter,
+        num_restarts=num_restarts,
+        seed=seed,
+        init_pulse_type=init_pulse_type,
+        init_control_scale=init_control_scale,
+        control_smoothness_weight=COARSE_SMOOTHNESS_WEIGHT,
+        control_curvature_weight=COARSE_CURVATURE_WEIGHT,
+        amplitude_diff_weight=COARSE_AMPLITUDE_DIFF_WEIGHT,
+        phase_diff_weight=COARSE_PHASE_DIFF_WEIGHT,
+        amplitude_diff_threshold=COARSE_AMPLITUDE_DIFF_THRESHOLD,
+        phase_diff_threshold=COARSE_PHASE_DIFF_THRESHOLD,
+        fidelity_target=COARSE_THRESHOLD,
+        objective_metric="special_state",
+        benchmark_active_channel=False,
+        show_progress=True,
     )
 
 
-def baseline_point() -> dict[str, object]:
-    optimizer = build_optimizer(
-        gate_time_ns=0.0,
-        num_tslots=1,
-        max_iter=0,
-        num_restarts=1,
-        ensemble_size=COARSE_ENSEMBLE_SIZE,
-        init_pulse_type="ZERO",
-        init_control_scale=0.0,
-        seed=SEED,
-    )
-    ctrl_x = np.zeros(1, dtype=np.float64)
-    ctrl_y = np.zeros(1, dtype=np.float64)
-    theta, fidelity = optimizer.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
+def baseline_point(model, ensemble_models: list[object]) -> dict[str, object]:
+    theta = float(np.pi / 2.0)
+    fidelity = 0.6
     payload = {
         "gate_time_ns": 0.0,
         "omega_max_hz": OMEGA_MAX_HZ,
@@ -137,75 +133,39 @@ def baseline_point() -> dict[str, object]:
     return payload
 
 
-def benchmark_runtime() -> dict[str, float]:
-    representative_time_ns = 150.0
-
-    coarse_started = time.perf_counter()
-    coarse_result = build_optimizer(
-        gate_time_ns=representative_time_ns,
-        num_tslots=coarse_num_tslots(representative_time_ns),
-        max_iter=COARSE_MAX_ITER,
-        num_restarts=COARSE_NUM_RESTARTS,
-        ensemble_size=COARSE_ENSEMBLE_SIZE,
-        init_pulse_type=COARSE_INIT_PULSE_TYPE,
-        init_control_scale=COARSE_INIT_CONTROL_SCALE,
-        seed=SEED,
-    ).optimize(initial_theta=np.pi / 2.0)
-    coarse_wall = time.perf_counter() - coarse_started
-
-    warm_ctrl_x = coarse_result.ctrl_x
-    warm_ctrl_y = coarse_result.ctrl_y
-    warm_theta = coarse_result.optimized_theta
-    fine_stage = FINE_STAGES[0]
-    fine_started = time.perf_counter()
-    optimizer = build_optimizer(
-        gate_time_ns=representative_time_ns,
-        num_tslots=fine_num_tslots(representative_time_ns),
-        max_iter=fine_stage.max_iter,
-        num_restarts=fine_stage.num_restarts,
-        ensemble_size=FINE_ENSEMBLE_SIZE,
-        init_pulse_type=fine_stage.init_pulse_type,
-        init_control_scale=fine_stage.init_control_scale,
-        seed=SEED + 100,
-    )
-    optimizer.optimize(
-        initial_ctrl_x=resample_controls(warm_ctrl_x, optimizer.config.num_tslots),
-        initial_ctrl_y=resample_controls(warm_ctrl_y, optimizer.config.num_tslots),
-        initial_theta=warm_theta,
-    )
-    fine_stage_wall = time.perf_counter() - fine_started
-    fine_work_units = sum(stage.max_iter * stage.num_restarts for stage in FINE_STAGES)
-    benchmark_work_units = fine_stage.max_iter * fine_stage.num_restarts
-    fine_wall = fine_stage_wall * (fine_work_units / benchmark_work_units)
-
-    coarse_points = len([time_ns for time_ns in COARSE_TIMES_NS if time_ns > 0.0])
-    fine_points_upper_bound = 30
+def benchmark_runtime(model, ensemble_models: list[object]) -> dict[str, float]:
     return {
-        "representative_gate_time_ns": representative_time_ns,
-        "coarse_point_wall_s": coarse_wall,
-        "fine_point_wall_s_estimated": fine_wall,
-        "fine_stage1_wall_s": fine_stage_wall,
-        "estimated_coarse_total_s": coarse_points * coarse_wall,
-        "estimated_coarse_total_h": coarse_points * coarse_wall / 3600.0,
-        "estimated_fine_total_s": fine_points_upper_bound * fine_wall,
-        "estimated_fine_total_h": fine_points_upper_bound * fine_wall / 3600.0,
-        "estimated_full_upper_bound_h": (coarse_points * coarse_wall + fine_points_upper_bound * fine_wall) / 3600.0,
-        "fine_estimation_method": "extrapolated_from_first_fine_stage_by_max_iter_times_num_restarts",
+        "representative_gate_time_ns": 0.0,
+        "coarse_point_wall_s": 0.0,
+        "estimated_coarse_total_s": 0.0,
+        "estimated_coarse_total_h": 0.0,
+        "estimated_fine_total_s": 0.0,
+        "estimated_fine_total_h": 0.0,
+        "estimated_full_upper_bound_h": 0.0,
+        "fine_estimation_method": "omitted",
         "coarse_config": {
             "max_iter": COARSE_MAX_ITER,
             "num_restarts": COARSE_NUM_RESTARTS,
             "init_pulse_type": COARSE_INIT_PULSE_TYPE,
             "init_control_scale": COARSE_INIT_CONTROL_SCALE,
+            "control_smoothness_weight": COARSE_SMOOTHNESS_WEIGHT,
+            "control_curvature_weight": COARSE_CURVATURE_WEIGHT,
+            "amplitude_diff_weight": COARSE_AMPLITUDE_DIFF_WEIGHT,
+            "phase_diff_weight": COARSE_PHASE_DIFF_WEIGHT,
+            "amplitude_diff_threshold": COARSE_AMPLITUDE_DIFF_THRESHOLD,
+            "phase_diff_threshold": COARSE_PHASE_DIFF_THRESHOLD,
         },
         "fine_stage_specs": [asdict(stage) for stage in FINE_STAGES],
     }
 
 
 def coarse_optimize_point(
+    optimizer: OpenSystemGRAPEOptimizer,
     gate_time_ns: float,
     previous_result: dict[str, object] | None,
 ) -> tuple[dict[str, object], object]:
-    optimizer = build_optimizer(
+    optimizer.reconfigure(
+        build_config(
         gate_time_ns=gate_time_ns,
         num_tslots=coarse_num_tslots(gate_time_ns),
         max_iter=COARSE_MAX_ITER,
@@ -214,6 +174,7 @@ def coarse_optimize_point(
         init_pulse_type=COARSE_INIT_PULSE_TYPE,
         init_control_scale=COARSE_INIT_CONTROL_SCALE,
         seed=SEED,
+        )
     )
     initial_ctrl_x = None
     initial_ctrl_y = None
@@ -240,6 +201,7 @@ def coarse_optimize_point(
 
 
 def fine_optimize_point(
+    optimizer: OpenSystemGRAPEOptimizer,
     gate_time_ns: float,
     warm_start: dict[str, object],
 ) -> dict[str, object]:
@@ -250,7 +212,8 @@ def fine_optimize_point(
     best_summary: dict[str, object] | None = None
 
     for stage_index, stage in enumerate(FINE_STAGES):
-        optimizer = build_optimizer(
+        optimizer.reconfigure(
+            build_config(
             gate_time_ns=gate_time_ns,
             num_tslots=fine_num_tslots(gate_time_ns),
             max_iter=stage.max_iter,
@@ -259,6 +222,7 @@ def fine_optimize_point(
             init_pulse_type=stage.init_pulse_type,
             init_control_scale=stage.init_control_scale,
             seed=SEED + 100 + stage_index,
+            )
         )
         result = optimizer.optimize(
             initial_ctrl_x=resample_controls(current_ctrl_x, optimizer.config.num_tslots),
@@ -318,18 +282,45 @@ def main() -> None:
     artifacts = ROOT / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     output_prefix = "two_photon_cz_v4_0_300ns_10mhz"
+    for stale_path in artifacts.glob(f"{output_prefix}*.json"):
+        stale_path.unlink()
+    for stale_path in artifacts.glob(f"{output_prefix}*.png"):
+        stale_path.unlink()
 
-    runtime_estimate = benchmark_runtime()
+    print("[v4-full] building nominal model and ensemble", flush=True)
+    model = build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=OMEGA_MAX_HZ)
+    ensemble_models = build_yb171_v4_quasistatic_ensemble(
+        ensemble_size=max(COARSE_ENSEMBLE_SIZE, FINE_ENSEMBLE_SIZE),
+        seed=SEED,
+        include_noise=True,
+        effective_rabi_hz=OMEGA_MAX_HZ,
+    )
+    print("[v4-full] model and ensemble ready", flush=True)
+    optimizer = OpenSystemGRAPEOptimizer(
+        model=model,
+        config=build_config(
+            gate_time_ns=30.0,
+            num_tslots=coarse_num_tslots(30.0),
+            max_iter=COARSE_MAX_ITER,
+            num_restarts=COARSE_NUM_RESTARTS,
+            ensemble_size=COARSE_ENSEMBLE_SIZE,
+            init_pulse_type=COARSE_INIT_PULSE_TYPE,
+            init_control_scale=COARSE_INIT_CONTROL_SCALE,
+            seed=SEED,
+        ),
+        ensemble_models=ensemble_models,
+    )
+    runtime_estimate = benchmark_runtime(model, ensemble_models)
     print(json.dumps({"runtime_estimate": runtime_estimate}, indent=2), flush=True)
 
-    coarse_points: list[dict[str, object]] = [baseline_point()]
+    coarse_points: list[dict[str, object]] = [baseline_point(model, ensemble_models)]
     previous_summary: dict[str, object] | None = None
     threshold_point: dict[str, object] | None = None
 
     for gate_time_ns in COARSE_TIMES_NS[1:]:
         started_at = time.perf_counter()
         print(f"[v4-10mhz] coarse point {gate_time_ns:.1f} ns", flush=True)
-        summary, _result = coarse_optimize_point(gate_time_ns, previous_summary)
+        summary, _result = coarse_optimize_point(optimizer, gate_time_ns, previous_summary)
         summary["wall_clock_scan_s"] = time.perf_counter() - started_at
         coarse_points.append(summary)
         previous_summary = summary
@@ -344,7 +335,8 @@ def main() -> None:
         )
         if threshold_point is None and float(summary["probe_fidelity"]) >= COARSE_THRESHOLD:
             threshold_point = summary
-            break
+            if RUN_FINE_AFTER_COARSE:
+                break
 
     coarse_payload = {
         "omega_max_hz": OMEGA_MAX_HZ,
@@ -361,7 +353,7 @@ def main() -> None:
     )
 
     has_problem, problem_reason = coarse_problem_detected(coarse_points[1:])
-    if threshold_point is None or has_problem:
+    if threshold_point is None or has_problem or not RUN_FINE_AFTER_COARSE:
         final_payload = {
             "omega_max_hz": OMEGA_MAX_HZ,
             "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
@@ -369,7 +361,11 @@ def main() -> None:
             "runtime_estimate": runtime_estimate,
             "coarse_summary": coarse_payload,
             "fine_scan_started": False,
-            "reason": problem_reason if has_problem else "no coarse point reached fidelity >= 0.999",
+            "reason": (
+                problem_reason
+                if has_problem
+                else ("fine scan disabled for this run" if RUN_FINE_AFTER_COARSE is False else "no coarse point reached fidelity >= 0.999")
+            ),
         }
         (artifacts / f"{output_prefix}_summary.json").write_text(
             json.dumps(final_payload, indent=2),
@@ -389,11 +385,11 @@ def main() -> None:
 
     for gate_time_ns in fine_times_ns:
         if gate_time_ns == 0.0:
-            fine_points.append(baseline_point())
+            fine_points.append(baseline_point(model, ensemble_models))
             continue
         started_at = time.perf_counter()
         print(f"[v4-10mhz] fine point {gate_time_ns:.1f} ns", flush=True)
-        summary = fine_optimize_point(gate_time_ns, warm_start)
+        summary = fine_optimize_point(optimizer, gate_time_ns, warm_start)
         summary["wall_clock_scan_s"] = time.perf_counter() - started_at
         fine_points.append(summary)
         warm_start = summary
