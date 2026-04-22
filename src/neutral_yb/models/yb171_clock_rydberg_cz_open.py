@@ -134,15 +134,28 @@ class Yb171ClockRydbergCZOpenModel:
         return qutip.Qobj(h_x), qutip.Qobj(h_y)
 
     def clock_segment_controls(self) -> dict[str, np.ndarray | float]:
-        envelope = np.blackman(self.clock_num_steps).astype(np.float64)
-        if np.allclose(envelope, 0.0):
-            envelope = np.ones(self.clock_num_steps, dtype=np.float64)
-        envelope = np.clip(envelope, 0.0, None)
-        dt = self.clock_pi_time / float(self.clock_num_steps)
-        area = dt * float(np.sum(envelope))
-        amplitude = 0.0 if area <= 0.0 else float(np.pi / area)
-        ctrl_x = amplitude * envelope
-        ctrl_y = np.zeros_like(ctrl_x)
+        def shaped_segment(num_steps: int, duration: float, rotation_angle: float, axis: str) -> tuple[np.ndarray, np.ndarray]:
+            envelope = np.blackman(num_steps).astype(np.float64)
+            if np.allclose(envelope, 0.0):
+                envelope = np.ones(num_steps, dtype=np.float64)
+            envelope = np.clip(envelope, 0.0, None)
+            dt = duration / float(num_steps)
+            area = dt * float(np.sum(envelope))
+            amplitude = 0.0 if area <= 0.0 else float(rotation_angle / area)
+            if axis.upper() == "X":
+                return amplitude * envelope, np.zeros_like(envelope)
+            return np.zeros_like(envelope), amplitude * envelope
+
+        half_steps = max(1, int(round(self.clock_num_steps / 2)))
+        half_time = 0.5 * float(self.clock_pi_time)
+
+        seg1_x, seg1_y = shaped_segment(half_steps, half_time, 0.5 * np.pi, "Y")
+        seg2_x, seg2_y = shaped_segment(self.clock_num_steps, float(self.clock_pi_time), np.pi, "X")
+        seg3_x, seg3_y = shaped_segment(half_steps, half_time, 0.5 * np.pi, "Y")
+
+        ctrl_x = np.concatenate([seg1_x, seg2_x, seg3_x]).astype(np.float64)
+        ctrl_y = np.concatenate([seg1_y, seg2_y, seg3_y]).astype(np.float64)
+        dt = float(self.clock_pi_time) / float(self.clock_num_steps)
         return {
             "prefix_x": ctrl_x,
             "prefix_y": ctrl_y,
@@ -241,10 +254,10 @@ class Yb171ClockRydbergCZOpenModel:
         }
 
     def fixed_prefix_duration(self) -> float:
-        return float(self.clock_pi_time)
+        return float(2.0 * self.clock_pi_time)
 
     def fixed_suffix_duration(self) -> float:
-        return float(self.clock_pi_time)
+        return float(2.0 * self.clock_pi_time)
 
     def total_gate_time(self, uv_segment_time: float) -> float:
         return float(self.clock_pi_time + uv_segment_time + self.clock_pi_time)
