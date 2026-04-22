@@ -28,6 +28,10 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
     return np.unwrap(wrapped)
 
 
+def wrapped_phase(phases: np.ndarray) -> np.ndarray:
+    return (phases + np.pi) % (2.0 * np.pi) - np.pi
+
+
 def main() -> None:
     artifacts = ROOT / "artifacts"
     coarse_summary = json.loads(
@@ -52,6 +56,7 @@ def main() -> None:
     amplitudes = np.asarray(best["effective_rabi_sequence_mhz"], dtype=np.float64)
     phases = np.asarray(best["phases"], dtype=np.float64)
     centered = centered_phase(phases)
+    wrapped = wrapped_phase(phases)
     amp_smooth = np.diff(amplitudes)
     phase_smooth = np.diff(centered)
 
@@ -192,7 +197,30 @@ def main() -> None:
 
     output_path = artifacts / "two_photon_cz_v4_0_300ns_10mhz_summary.png"
     fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+    pulse_fig, pulse_axes = plt.subplots(2, 1, figsize=(9, 6.5), sharex=True)
+    pulse_x = np.arange(len(amplitudes))
+
+    pulse_axes[0].plot(pulse_x, amplitudes, color="#e31a1c", linewidth=1.8)
+    pulse_axes[0].set_ylabel("Amplitude [MHz]")
+    pulse_axes[0].set_ylim(0.0, 15.0)
+    pulse_axes[0].set_title("Optimized amplitude")
+
+    pulse_axes[1].plot(pulse_x, wrapped, color="#1f78b4", linewidth=1.8)
+    pulse_axes[1].set_xlabel("Time slice")
+    pulse_axes[1].set_ylabel("Phase [rad]")
+    pulse_axes[1].set_ylim(-np.pi, np.pi)
+    pulse_axes[1].set_title("Optimized phase")
+
+    pulse_fig.suptitle("^171Yb v4 optimized UV control at coarse optimum")
+    pulse_fig.tight_layout()
+    pulse_output_path = artifacts / "two_photon_cz_v4_0_300ns_10mhz_optimized_pulse.png"
+    pulse_fig.savefig(pulse_output_path, dpi=180)
+    plt.close(pulse_fig)
+
     print(output_path)
+    print(pulse_output_path)
 
 
 if __name__ == "__main__":
