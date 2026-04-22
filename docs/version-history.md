@@ -77,27 +77,27 @@
 
 这是当前最成熟的闭系统双光子版本，也是后续 `v4` 的直接前身。
 
-## `v4`: 双光子开放系统
+## `v4`: `^171Yb` 开放系统
 
 ### 目标
 
-把 `v3` 升级成显式 Lindblad 开放系统版本，开始真正考虑 decay、dephasing 和 loss。
+把开放系统主线升级成更符合 `^171Yb` 实验门机制的模型，并把默认参数和噪声解释切到 `Muniz 2025` / `Peper 2025` 口径。
 
 ### 物理假设
 
-- 10 维有效空间
-- 显式 `|loss>` sink
-- 中间态散射
+- 有效 `clock -> Rydberg` 完整门模型
+- 7 维对称约化开放系统空间
+- 显式 `|leak>` 与 `|loss>` sink
 - Rydberg 衰减
-- 中间态和 Rydberg dephasing
-- common / differential / Doppler detuning
+- 默认只保留 Rydberg decay、准静态 UV detuning、pulse-area 漂移和 leakage 为主噪声
+- measured `T2* / T2_echo` 保留作实验量级记录，默认不直接映射成 Lindblad dephasing
+- blockade jitter 默认收回到 0
 - finite blockade
-- lower / upper 振幅标定误差
-- 额外 Rydberg leakage 通道
+- 邻近 `m_F` 支路的有效 leakage 通道
 
 ### 对应文件
 
-- 模型：[two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
+- 模型：[yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
 - 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 - coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
 - smoke run：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
@@ -113,6 +113,13 @@
 - 产出按 `T` 顺序推进的 coarse scan
 - 产出单点 smoke 结果
 - 给出和 `v3` 的资源对比
+
+当前默认 `^171Yb` 标定不再按 generic neutral-atom / `Rb` 两光子门叙述，而是按 `PRX Quantum 6, 020334 (2025)` 和 `Phys. Rev. X 15, 011009 (2025)` 解释：
+
+- 门机制改成 `clock shelving -> UV Rydberg pulse -> unshelving` 的有效完整门模型
+- interaction / blockade 口径改成 `^171Yb` 更优 `F=1/2` Rydberg manifold 背景
+- 默认误差主项改成 Rydberg decay、准静态 UV detuning 和 pulse-area 漂移
+- 默认不再把 `T2*` 直接塞进 Markovian dephasing
 
 但它还不是最终高保真版本。当前的限制主要是：
 

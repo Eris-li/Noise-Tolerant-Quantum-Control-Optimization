@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import json
 import sys
@@ -19,6 +20,13 @@ from neutral_yb.config.yb171_calibration import (
     yb171_experimental_calibration,
 )
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+
+
+def build_validation_model(*, include_noise: bool, effective_rabi_hz: float):
+    return replace(
+        build_yb171_v4_calibrated_model(include_noise=include_noise, effective_rabi_hz=effective_rabi_hz),
+        clock_num_steps=4,
+    )
 
 
 def deterministic_controls(num_tslots: int, amp_bound: float) -> tuple[np.ndarray, np.ndarray]:
@@ -79,7 +87,7 @@ def validate_dynamics_against_mesolve() -> dict[str, object]:
     omega_max_hz = calibration.effective_rabi_hz_max
     gate_time_ns = 136.0
     evo_time = calibration.physical_gate_time_to_dimensionless(gate_time_ns * 1e-9, effective_rabi_hz=omega_max_hz)
-    model = build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=omega_max_hz)
+    model = build_validation_model(include_noise=True, effective_rabi_hz=omega_max_hz)
     optimizer = OpenSystemGRAPEOptimizer(
         model=model,
         config=OpenSystemGRAPEConfig(
@@ -97,7 +105,9 @@ def validate_dynamics_against_mesolve() -> dict[str, object]:
 
     h_d = model.drift_hamiltonian()
     h_x, h_y = model.lower_leg_control_hamiltonians()
+    h_clock_x, h_clock_y = model.clock_control_hamiltonians()
     c_ops = model.collapse_operators()
+    clock_segments = model.clock_segment_controls()
 
     probe_states = [qutip.ket2dm(model.probe_kets(theta=0.0)[2][0])]
 
@@ -110,13 +120,35 @@ def validate_dynamics_against_mesolve() -> dict[str, object]:
         exact_times, exact_traj = optimizer.trajectory(ctrl_x, ctrl_y, rho0)
         reference_traj = [rho0]
         current = rho0
+        current_time = 0.0
+        reference_times = [current_time]
+        for x_value, y_value in zip(clock_segments["prefix_x"], clock_segments["prefix_y"]):
+            h_k = h_d + float(x_value) * h_clock_x + float(y_value) * h_clock_y
+            l_k = qutip.liouvillian(h_k, c_ops)
+            rho_vec = qutip.operator_to_vector(current)
+            propagated = (float(clock_segments["prefix_dt"]) * l_k).expm() * rho_vec
+            current = qutip.vector_to_operator(propagated)
+            current_time += float(clock_segments["prefix_dt"])
+            reference_traj.append(current)
+            reference_times.append(current_time)
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             h_k = h_d + float(x_value) * h_x + float(y_value) * h_y
             l_k = qutip.liouvillian(h_k, c_ops)
             rho_vec = qutip.operator_to_vector(current)
             propagated = (dt * l_k).expm() * rho_vec
             current = qutip.vector_to_operator(propagated)
+            current_time += dt
             reference_traj.append(current)
+            reference_times.append(current_time)
+        for x_value, y_value in zip(clock_segments["suffix_x"], clock_segments["suffix_y"]):
+            h_k = h_d + float(x_value) * h_clock_x + float(y_value) * h_clock_y
+            l_k = qutip.liouvillian(h_k, c_ops)
+            rho_vec = qutip.operator_to_vector(current)
+            propagated = (float(clock_segments["suffix_dt"]) * l_k).expm() * rho_vec
+            current = qutip.vector_to_operator(propagated)
+            current_time += float(clock_segments["suffix_dt"])
+            reference_traj.append(current)
+            reference_times.append(current_time)
 
         final_errors.append(
             float(
@@ -140,11 +172,14 @@ def validate_dynamics_against_mesolve() -> dict[str, object]:
         trace_errors.extend(abs(float(state.tr().real) - 1.0) for state in exact_traj)
         min_eigenvalues.extend(float(np.min(np.linalg.eigvalsh(np.asarray(state.full(), dtype=np.complex128)).real)) for state in exact_traj)
 
-        if not np.allclose(exact_times, np.linspace(0.0, optimizer.config.evo_time, optimizer.config.num_tslots + 1)):
+        if not np.allclose(exact_times, np.asarray(reference_times, dtype=np.float64)):
             raise AssertionError("Internal trajectory time grid mismatch")
 
     return {
-        "gate_time_ns": gate_time_ns,
+        "uv_segment_time_ns": gate_time_ns,
+        "total_gate_time_us": float(
+            gate_time_ns / 1000.0 + 2.0 * calibration.clock_pi_pulse_duration_s * 1e6
+        ),
         "omega_max_mhz": omega_max_hz / 1e6,
         "num_tslots": optimizer.config.num_tslots,
         "max_final_state_frobenius_error": float(max(final_errors)),
@@ -166,7 +201,7 @@ def validate_reduced_channel_consistency() -> dict[str, object]:
     gate_time_ns = 136.0
     evo_time = calibration.physical_gate_time_to_dimensionless(gate_time_ns * 1e-9, effective_rabi_hz=omega_max_hz)
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=omega_max_hz),
+        model=build_validation_model(include_noise=True, effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=3,
             evo_time=evo_time,
@@ -194,7 +229,7 @@ def validate_special_state_phase_gate_metric() -> dict[str, object]:
     gate_time_ns = 136.0
     evo_time = calibration.physical_gate_time_to_dimensionless(gate_time_ns * 1e-9, effective_rabi_hz=omega_max_hz)
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=omega_max_hz),
+        model=build_validation_model(include_noise=True, effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=4,
             evo_time=evo_time,
@@ -237,7 +272,7 @@ def validate_exact_gradient() -> dict[str, object]:
     omega_max_hz = calibration.effective_rabi_hz_max
     evo_time = calibration.physical_gate_time_to_dimensionless(100e-9, effective_rabi_hz=omega_max_hz)
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=omega_max_hz),
+        model=build_validation_model(include_noise=True, effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=2,
             evo_time=evo_time,
@@ -275,7 +310,7 @@ def validate_optimization_progress() -> dict[str, object]:
     gate_time_ns = 100.0
     evo_time = calibration.physical_gate_time_to_dimensionless(gate_time_ns * 1e-9, effective_rabi_hz=omega_max_hz)
     optimizer = OpenSystemGRAPEOptimizer(
-        model=build_yb171_v4_calibrated_model(include_noise=True, effective_rabi_hz=omega_max_hz),
+        model=build_validation_model(include_noise=True, effective_rabi_hz=omega_max_hz),
         config=OpenSystemGRAPEConfig(
             num_tslots=3,
             evo_time=evo_time,
@@ -322,27 +357,32 @@ def validate_optimization_progress() -> dict[str, object]:
 
 def validate_physical_sanity() -> dict[str, object]:
     calibration = yb171_experimental_calibration()
-    gate_time_ns = 136.0
-    gate_time_s = gate_time_ns * 1e-9
-    detuning_over_one_photon = calibration.intermediate_detuning_hz / calibration.derived_one_photon_rabi_hz(
-        calibration.effective_rabi_hz_max
-    )
+    uv_gate_time_ns = 136.0
+    uv_gate_time_s = uv_gate_time_ns * 1e-9
+    total_gate_time_s = 2.0 * calibration.clock_pi_pulse_duration_s + uv_gate_time_s
     blockade_over_omega = calibration.blockade_shift_hz / calibration.effective_rabi_hz_max
-    gate_over_t2 = gate_time_s / calibration.rydberg_t2_star_s
-    gate_over_t1 = gate_time_s / calibration.rydberg_lifetime_s
+    quasistatic_detuning_over_omega = (
+        calibration.resolved_quasistatic_uv_detuning_rms_hz() / calibration.effective_rabi_hz_max
+    )
+    uv_gate_over_t2 = uv_gate_time_s / calibration.rydberg_t2_star_s
+    uv_gate_over_t1 = uv_gate_time_s / calibration.rydberg_lifetime_s
+    total_gate_over_clock_lifetime = total_gate_time_s / calibration.clock_state_lifetime_s
 
     return {
-        "gate_time_ns": gate_time_ns,
+        "uv_gate_time_ns": uv_gate_time_ns,
+        "total_gate_time_us": total_gate_time_s * 1e6,
         "omega_max_mhz": calibration.effective_rabi_hz_max / 1e6,
-        "detuning_over_one_photon_rabi": float(detuning_over_one_photon),
         "blockade_over_omega_max": float(blockade_over_omega),
-        "gate_over_t2_star": float(gate_over_t2),
-        "gate_over_rydberg_lifetime": float(gate_over_t1),
+        "quasistatic_uv_detuning_over_omega_max": float(quasistatic_detuning_over_omega),
+        "uv_gate_over_t2_star": float(uv_gate_over_t2),
+        "uv_gate_over_rydberg_lifetime": float(uv_gate_over_t1),
+        "total_gate_over_clock_lifetime": float(total_gate_over_clock_lifetime),
         "passed": bool(
-            detuning_over_one_photon > 10.0
-            and blockade_over_omega > 5.0
-            and gate_over_t2 < 0.1
-            and gate_over_t1 < 0.01
+            blockade_over_omega > 5.0
+            and quasistatic_detuning_over_omega < 0.02
+            and uv_gate_over_t2 < 0.1
+            and uv_gate_over_t1 < 0.01
+            and total_gate_over_clock_lifetime < 1e-3
         ),
     }
 
@@ -367,9 +407,10 @@ def main() -> None:
             "optimization_reference": "piecewise_constant_grape_with_exact_frechet_gradient",
             "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
             "caveat": (
-                "Current objective follows the paper Eq.(7) special-state formula on the "
-                "active {|01>, |11>} manifold, using the effective non-Hermitian generator "
-                "inside the optimizer; reduced-channel checks remain diagnostics only."
+                "This validation run checks the default paper Eq.(7) special-state "
+                "objective on the active {|01>, |11>} manifold. The optimizer also now "
+                "supports an optional active-subspace process-fidelity objective; "
+                "reduced-channel exactness is validated separately here."
             ),
         },
         "checks": {

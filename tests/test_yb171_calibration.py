@@ -25,14 +25,15 @@ class Yb171CalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(reconstructed, gate_time_s, places=15)
 
     def test_model_builder_accepts_effective_rabi_override(self) -> None:
-        calibration = yb171_experimental_calibration()
         default_model = build_yb171_v4_calibrated_model()
         fast_model = build_yb171_v4_calibrated_model(
-            effective_rabi_hz=calibration.effective_rabi_hz_max,
+            effective_rabi_hz=12e6,
         )
-        self.assertNotAlmostEqual(default_model.lower_rabi, fast_model.lower_rabi)
-        self.assertNotAlmostEqual(default_model.intermediate_detuning, fast_model.intermediate_detuning)
+        self.assertAlmostEqual(default_model.uv_rabi, 1.0)
+        self.assertAlmostEqual(fast_model.uv_rabi, 1.0)
         self.assertNotAlmostEqual(default_model.blockade_shift, fast_model.blockade_shift)
+        self.assertGreater(default_model.clock_pi_time, 0.0)
+        self.assertEqual(default_model.clock_num_steps, yb171_experimental_calibration().clock_num_steps)
 
     def test_quasistatic_ensemble_is_reproducible_and_differs_from_nominal(self) -> None:
         nominal = build_yb171_v4_calibrated_model()
@@ -42,17 +43,23 @@ class Yb171CalibrationTests(unittest.TestCase):
         self.assertEqual(len(ensemble_a), 3)
         self.assertEqual(len(ensemble_b), 3)
         for model_a, model_b in zip(ensemble_a, ensemble_b):
-            self.assertAlmostEqual(model_a.noise.common_two_photon_detuning, model_b.noise.common_two_photon_detuning)
-            self.assertAlmostEqual(model_a.noise.doppler_detuning_11, model_b.noise.doppler_detuning_11)
+            self.assertAlmostEqual(model_a.noise.common_uv_detuning, model_b.noise.common_uv_detuning)
+            self.assertAlmostEqual(model_a.noise.uv_amplitude_scale, model_b.noise.uv_amplitude_scale)
             self.assertAlmostEqual(model_a.noise.blockade_shift_offset, model_b.noise.blockade_shift_offset)
 
         different_from_nominal = any(
-            abs(member.noise.common_two_photon_detuning - nominal.noise.common_two_photon_detuning) > 1e-12
-            or abs(member.noise.doppler_detuning_11 - nominal.noise.doppler_detuning_11) > 1e-12
+            abs(member.noise.common_uv_detuning - nominal.noise.common_uv_detuning) > 1e-12
+            or abs(member.noise.uv_amplitude_scale - nominal.noise.uv_amplitude_scale) > 1e-12
             or abs(member.noise.blockade_shift_offset - nominal.noise.blockade_shift_offset) > 1e-12
             for member in ensemble_a
         )
         self.assertTrue(different_from_nominal)
+
+    def test_default_v4_noise_matches_current_yb171_assumptions(self) -> None:
+        model = build_yb171_v4_calibrated_model()
+        self.assertEqual(model.noise.common_clock_detuning, 0.0)
+        self.assertEqual(model.noise.common_uv_detuning, 0.0)
+        self.assertEqual(model.noise.rydberg_dephasing_rate, 0.0)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonOpenNoiseConfig,
 )
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
+from neutral_yb.models.yb171_clock_rydberg_cz_open import (
+    Yb171ClockRydbergCZOpenModel,
+    Yb171ClockRydbergNoiseConfig,
+)
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
     GlobalPhaseOptimizationResult,
@@ -56,5 +60,7 @@ __all__ = [
     "TwoPhotonCZOpen10DModel",
     "TwoPhotonCZ9DModel",
     "TwoPhotonOpenNoiseConfig",
+    "Yb171ClockRydbergCZOpenModel",
+    "Yb171ClockRydbergNoiseConfig",
     "idealised_yb171",
 ]
