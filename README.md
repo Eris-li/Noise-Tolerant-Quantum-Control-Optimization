@@ -93,29 +93,30 @@ docker compose run --rm test
 - 实验脚本：[freeze_v1_global_cz_reference.py](experiments/freeze_v1_global_cz_reference.py)
 - 出图脚本：[plot_freeze_v1_global_cz.py](scripts/plot_freeze_v1_global_cz.py)
 - 结果文件：
-  - [freeze_v1_global_cz_coarse_scan.json](artifacts/freeze_v1_global_cz_coarse_scan.json)
-  - [freeze_v1_global_cz_fine_scan.json](artifacts/freeze_v1_global_cz_fine_scan.json)
-  - [freeze_v1_global_cz_optimal.json](artifacts/freeze_v1_global_cz_optimal.json)
-  - [freeze_v1_global_cz_fit.json](artifacts/freeze_v1_global_cz_fit.json)
-  - [freeze_v1_global_cz_summary.png](artifacts/freeze_v1_global_cz_summary.png)
+  - [freeze_v1_global_cz_coarse_scan.json](artifacts/v1/freeze_v1_global_cz_coarse_scan.json)
+  - [freeze_v1_global_cz_fine_scan.json](artifacts/v1/freeze_v1_global_cz_fine_scan.json)
+  - [freeze_v1_global_cz_optimal.json](artifacts/v1/freeze_v1_global_cz_optimal.json)
+  - [freeze_v1_global_cz_fit.json](artifacts/v1/freeze_v1_global_cz_fit.json)
+  - [freeze_v1_global_cz_summary.png](artifacts/v1/freeze_v1_global_cz_summary.png)
 
 ### `v3` 双光子闭系统
 
 - 主实验：[coarse_scan_two_photon_cz_v3.py](experiments/coarse_scan_two_photon_cz_v3.py)
 - 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
 - 出图脚本：[plot_two_photon_cz_v3.py](scripts/plot_two_photon_cz_v3.py)
+- 结果目录：[artifacts/v3](artifacts/v3)
 
 ### `v4` `^171Yb` 开放系统
 
-- 粗扫描：[coarse_scan_two_photon_cz_v4_open_system.py](experiments/coarse_scan_two_photon_cz_v4_open_system.py)
-- 单点 smoke：[run_two_photon_cz_v4_open_system_smoke.py](experiments/run_two_photon_cz_v4_open_system_smoke.py)
-- 闭开系统 benchmark：[benchmark_v4_open_system_vs_v3_closed.py](experiments/benchmark_v4_open_system_vs_v3_closed.py)
-- 结果文件：
-  - [two_photon_cz_v4_open_system_coarse.json](artifacts/two_photon_cz_v4_open_system_coarse.json)
-  - [two_photon_cz_v4_open_system_best.json](artifacts/two_photon_cz_v4_open_system_best.json)
-  - [two_photon_cz_v4_open_system_optimal.json](artifacts/two_photon_cz_v4_open_system_optimal.json)
-  - [two_photon_cz_v4_open_system_smoke.json](artifacts/two_photon_cz_v4_open_system_smoke.json)
-  - [benchmark_v4_open_system_vs_v3_closed.json](artifacts/benchmark_v4_open_system_vs_v3_closed.json)
+- 粗扫描：[two_stage_scan_two_photon_cz_v4_0_300ns_10mhz.py](experiments/two_stage_scan_two_photon_cz_v4_0_300ns_10mhz.py)
+- 细扫描：[fine_scan_two_photon_cz_v4_90_150ns_10mhz.py](experiments/fine_scan_two_photon_cz_v4_90_150ns_10mhz.py)
+- 单点优化：[optimize_yb171_v4_full_gate_300ns_10mhz.py](experiments/optimize_yb171_v4_full_gate_300ns_10mhz.py)
+- 验证：[validate_v4_dynamics_and_optimization.py](experiments/validate_v4_dynamics_and_optimization.py)
+- 结果目录：
+  - [粗扫](artifacts/v4/coarse_0_300ns_10mhz)
+  - [细扫](artifacts/v4/fine_90_150ns_0p5ns_10mhz)
+  - [单点 300 ns](artifacts/v4/single_300ns_10mhz)
+  - [验证](artifacts/v4/validation)
 
 ## 当前技术结论
 

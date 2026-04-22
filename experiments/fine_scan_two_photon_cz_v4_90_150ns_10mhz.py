@@ -18,6 +18,7 @@ from neutral_yb.config.yb171_calibration import (
     summarize_yb171_v4_result,
     yb171_gate_time_ns_to_dimensionless,
 )
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v4_fine_90_150ns_10mhz_dir
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
@@ -94,8 +95,7 @@ def benchmark_runtime() -> dict[str, object]:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v4_fine_90_150ns_10mhz_dir(ROOT))
     output_prefix = "two_photon_cz_v4_90_150ns_0p5ns_10mhz_fine"
 
     for stale_path in artifacts.glob(f"{output_prefix}*.json"):

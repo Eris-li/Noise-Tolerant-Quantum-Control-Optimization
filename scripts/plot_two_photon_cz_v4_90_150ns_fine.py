@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import qutip
 
+from neutral_yb.config.artifact_paths import v4_fine_90_150ns_10mhz_dir
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
     yb171_dimensionless_time_to_gate_time_ns,
@@ -33,7 +34,7 @@ def wrapped_phase(phases: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
+    artifacts = v4_fine_90_150ns_10mhz_dir(ROOT)
     summary = json.loads(
         (artifacts / "two_photon_cz_v4_90_150ns_0p5ns_10mhz_fine_summary.json").read_text(encoding="utf-8")
     )

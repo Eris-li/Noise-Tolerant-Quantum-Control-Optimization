@@ -19,6 +19,7 @@ from neutral_yb.config.yb171_calibration import (
     summarize_yb171_v4_result,
     yb171_gate_time_ns_to_dimensionless,
 )
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v4_single_300ns_10mhz_dir
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
@@ -103,8 +104,7 @@ def resample_controls(values: np.ndarray, target_size: int) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v4_single_300ns_10mhz_dir(ROOT))
     summary_path = artifacts / "two_photon_cz_v4_full_gate_300ns_10mhz_summary.json"
     result_path = artifacts / "two_photon_cz_v4_full_gate_300ns_10mhz_best.json"
 

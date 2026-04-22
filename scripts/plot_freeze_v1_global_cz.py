@@ -15,6 +15,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(ROOT / ".cache" / "matplotlib"))
 import matplotlib.pyplot as plt
 import numpy as np
 
+from neutral_yb.config.artifact_paths import v1_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
 from neutral_yb.optimization.global_phase_grape import (
@@ -29,7 +30,7 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
+    artifacts = v1_artifacts_dir(ROOT)
     coarse = json.loads((artifacts / "freeze_v1_global_cz_coarse_scan.json").read_text(encoding="utf-8"))
     fine = json.loads((artifacts / "freeze_v1_global_cz_fine_scan.json").read_text(encoding="utf-8"))
     optimal = json.loads((artifacts / "freeze_v1_global_cz_optimal.json").read_text(encoding="utf-8"))

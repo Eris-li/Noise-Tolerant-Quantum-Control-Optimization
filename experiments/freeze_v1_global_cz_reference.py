@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 import numpy as np
 from scipy.optimize import curve_fit
 
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v1_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
 from neutral_yb.optimization.global_phase_grape import (
@@ -76,8 +77,7 @@ def main() -> None:
     coarse_durations = list(reversed(frange(1.0, 10.0, 0.5)))
     coarse_scan, coarse_results = run_scan(coarse_durations, num_tslots=100, max_iter=250)
 
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v1_artifacts_dir(ROOT))
 
     model = GlobalCZ4DModel(species=idealised_yb171())
     writer = PaperGlobalPhaseOptimizer(

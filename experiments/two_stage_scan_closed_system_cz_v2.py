@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 import numpy as np
 from scipy.optimize import curve_fit
 
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v2_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.finite_blockade_cz_5d import FiniteBlockadeCZ5DModel
 from neutral_yb.optimization.global_phase_grape import (
@@ -78,8 +79,7 @@ def main() -> None:
     )
     coarse_scan, coarse_results = coarse_optimizer.scan_durations(coarse_durations)
 
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v2_artifacts_dir(ROOT))
     coarse_optimizer.save_scan(coarse_scan, artifacts / "closed_system_cz_v2_two_stage_coarse.json")
 
     qualifying = [res.evo_time for res in coarse_results if res.fidelity >= threshold]
@@ -125,4 +125,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

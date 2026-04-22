@@ -9,6 +9,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from neutral_yb.config.species import idealised_yb171
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v3_artifacts_dir
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
     AmplitudePhaseOptimizationConfig,
@@ -61,8 +62,7 @@ def main() -> None:
 
     scan, results = optimizer.scan_durations(durations)
 
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v3_artifacts_dir(ROOT))
     optimizer.save_scan(scan, artifacts / "two_photon_cz_v3_coarse_scan.json")
 
     qualifying = [res for res in results if res.fidelity >= threshold]

@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import qutip
 
+from neutral_yb.config.artifact_paths import v4_single_300ns_10mhz_dir
 from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
     yb171_dimensionless_time_to_gate_time_ns,
@@ -29,7 +30,7 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
+    artifacts = v4_single_300ns_10mhz_dir(ROOT)
     summary = json.loads(
         (artifacts / "two_photon_cz_v4_full_gate_300ns_10mhz_summary.json").read_text(encoding="utf-8")
     )

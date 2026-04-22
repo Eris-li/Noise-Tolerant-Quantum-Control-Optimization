@@ -15,6 +15,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(ROOT / ".cache" / "matplotlib"))
 import matplotlib.pyplot as plt
 import numpy as np
 
+from neutral_yb.config.artifact_paths import v3_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 from neutral_yb.optimization.amplitude_phase_grape import (
@@ -29,7 +30,7 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
+    artifacts = v3_artifacts_dir(ROOT)
     scan = json.loads((artifacts / "two_photon_cz_v3_coarse_scan.json").read_text(encoding="utf-8"))
     optimal = json.loads((artifacts / "two_photon_cz_v3_best.json").read_text(encoding="utf-8"))
 

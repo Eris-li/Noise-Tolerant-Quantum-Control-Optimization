@@ -15,6 +15,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(ROOT / ".cache" / "matplotlib"))
 import matplotlib.pyplot as plt
 import numpy as np
 
+from neutral_yb.config.artifact_paths import v2_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.finite_blockade_cz_5d import FiniteBlockadeCZ5DModel
 from neutral_yb.optimization.global_phase_grape import GlobalPhaseOptimizationConfig, PaperGlobalPhaseOptimizer
@@ -26,7 +27,7 @@ def centered_phase(phases: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
+    artifacts = v2_artifacts_dir(ROOT)
     coarse = json.loads((artifacts / "closed_system_cz_v2_two_stage_coarse.json").read_text(encoding="utf-8"))
     fine = json.loads((artifacts / "closed_system_cz_v2_two_stage_fine.json").read_text(encoding="utf-8"))
     optimal = json.loads((artifacts / "closed_system_cz_v2_two_stage_optimal.json").read_text(encoding="utf-8"))

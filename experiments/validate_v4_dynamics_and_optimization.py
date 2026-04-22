@@ -19,6 +19,7 @@ from neutral_yb.config.yb171_calibration import (
     summarize_yb171_v4_result,
     yb171_experimental_calibration,
 )
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v4_validation_dir
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
@@ -431,8 +432,7 @@ def main() -> None:
         ),
     }
 
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v4_validation_dir(ROOT))
     destination = artifacts / "two_photon_cz_v4_pipeline_validation.json"
     destination.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 

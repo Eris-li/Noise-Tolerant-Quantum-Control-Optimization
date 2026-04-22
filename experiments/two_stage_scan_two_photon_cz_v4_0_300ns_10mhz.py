@@ -20,6 +20,7 @@ from neutral_yb.config.yb171_calibration import (
     yb171_gate_time_ns_to_dimensionless,
     yb171_experimental_calibration,
 )
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v4_coarse_10mhz_dir
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
@@ -279,8 +280,7 @@ def coarse_problem_detected(points: list[dict[str, object]]) -> tuple[bool, str]
 
 
 def main() -> None:
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = ensure_artifact_dir(v4_coarse_10mhz_dir(ROOT))
     output_prefix = "two_photon_cz_v4_0_300ns_10mhz"
     for stale_path in artifacts.glob(f"{output_prefix}*.json"):
         stale_path.unlink()
