@@ -40,8 +40,8 @@ class Yb171ExperimentalCalibration:
     rydberg_lifetime_s: float = 65e-6
     rydberg_t2_star_s: float = 3.4e-6
     rydberg_t2_echo_s: float = 5.1e-6
-    clock_pulse_area_fractional_rms: float = 0.0
-    quasistatic_clock_detuning_rms_hz: float = 0.0
+    clock_pulse_area_fractional_rms: float = 0.002
+    quasistatic_clock_detuning_rms_hz: float = 250.0
     differential_clock_detuning_rms_hz: float = 0.0
     uv_pulse_area_fractional_rms: float = 0.004
     quasistatic_uv_detuning_rms_hz: float | None = None

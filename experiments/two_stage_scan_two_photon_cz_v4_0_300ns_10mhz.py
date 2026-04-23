@@ -27,8 +27,8 @@ from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, Ope
 OMEGA_MAX_HZ = 10e6
 COARSE_TIMES_NS = [float(value) for value in range(0, 301, 30)]
 COARSE_THRESHOLD = 0.999
-COARSE_ENSEMBLE_SIZE = 1
-FINE_ENSEMBLE_SIZE = 1
+COARSE_ENSEMBLE_SIZE = 3
+FINE_ENSEMBLE_SIZE = 3
 SEED = 17
 RUN_FINE_AFTER_COARSE = False
 COARSE_MAX_ITER = 100
@@ -108,7 +108,7 @@ def build_config(
         phase_diff_threshold=COARSE_PHASE_DIFF_THRESHOLD,
         fidelity_target=COARSE_THRESHOLD,
         objective_metric="special_state",
-        benchmark_active_channel=False,
+        benchmark_active_channel=True,
         show_progress=True,
     )
 
