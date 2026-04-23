@@ -39,6 +39,18 @@ def v4_validation_dir(root: Path) -> Path:
     return v4_artifacts_dir(root) / "validation"
 
 
+def v5_artifacts_dir(root: Path) -> Path:
+    return artifact_root(root) / "v5"
+
+
+def v5_profile_dir(root: Path, profile: str) -> Path:
+    return v5_artifacts_dir(root) / profile
+
+
+def v5_coarse_10mhz_dir(root: Path, profile: str) -> Path:
+    return v5_profile_dir(root, profile) / "coarse_0_300ns_10mhz"
+
+
 def ensure_artifact_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path

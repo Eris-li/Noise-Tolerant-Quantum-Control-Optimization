@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 import math
+from typing import Literal
 
 import numpy as np
 
@@ -11,6 +12,8 @@ from neutral_yb.models.yb171_clock_rydberg_cz_open import (
     Yb171ClockRydbergCZOpenModel,
     Yb171ClockRydbergNoiseConfig,
 )
+
+Yb171CalibrationProfile = Literal["strict_literature_minimal", "experimental_surrogate_full"]
 
 
 @dataclass(frozen=True)
@@ -37,12 +40,19 @@ class Yb171ExperimentalCalibration:
     clock_num_steps: int = 16
     blockade_shift_hz: float = 160e6
     clock_state_lifetime_s: float = 1.06
+    clock_trap_loss_lifetime_s: float = 5.0
     rydberg_lifetime_s: float = 65e-6
     rydberg_t2_star_s: float = 3.4e-6
     rydberg_t2_echo_s: float = 5.1e-6
-    clock_pulse_area_fractional_rms: float = 0.002
-    quasistatic_clock_detuning_rms_hz: float = 250.0
+    clock_pulse_area_fractional_rms: float = 0.0
+    clock_lamb_dicke_eta: float = 0.26
+    clock_temperature_nbar: float = 0.25
+    quasistatic_clock_detuning_rms_hz: float = 33.0
     differential_clock_detuning_rms_hz: float = 0.0
+    clock_phase_noise_psd_fmin_hz: float = 10.0
+    clock_phase_noise_psd_fmax_hz: float = 50e3
+    clock_phase_noise_num_bins: int = 128
+    clock_phase_noise_psd_level_rad2_per_hz: float = 2.0e-8
     uv_pulse_area_fractional_rms: float = 0.004
     quasistatic_uv_detuning_rms_hz: float | None = None
     differential_uv_detuning_rms_hz: float = 0.0
@@ -51,6 +61,8 @@ class Yb171ExperimentalCalibration:
     markovian_rydberg_dephasing_t2_s: float | None = None
     neighboring_mf_leakage_per_gate: float = 0.0
     leakage_reference_t_omega: float = 8.0
+    clock_decay_as_single_loss_channel: bool = False
+    profile_name: str = "experimental_surrogate_full"
     rydberg_state_label: str = "|65 3S1, F=1/2, m_F=-1/2>"
     clock_state_label: str = "|3P0, m_F=-1/2>"
 
@@ -100,6 +112,73 @@ class Yb171ExperimentalCalibration:
         if self.quasistatic_uv_detuning_rms_hz is not None:
             return float(self.quasistatic_uv_detuning_rms_hz)
         return float(1.0 / (2.0 * math.pi * self.rydberg_t2_star_s))
+
+    def clock_total_num_steps(self) -> int:
+        half_steps = max(1, int(round(self.clock_num_steps / 2)))
+        return int(2 * half_steps + self.clock_num_steps)
+
+    def clock_total_duration_s(self) -> float:
+        return float(2.0 * self.clock_pi_pulse_duration_s)
+
+    def _clock_thermal_carrier_reduction(self, motional_n: int) -> float:
+        eta_sq = float(self.clock_lamb_dicke_eta) ** 2
+        coeffs = np.zeros(int(max(motional_n, 0)) + 1, dtype=np.float64)
+        coeffs[int(max(motional_n, 0))] = 1.0
+        laguerre_value = np.polynomial.laguerre.lagval(eta_sq, coeffs)
+        return float(np.exp(-0.5 * eta_sq) * laguerre_value)
+
+    def _clock_thermal_average_reduction(self) -> float:
+        nbar = float(max(self.clock_temperature_nbar, 0.0))
+        if nbar <= 0.0:
+            return self._clock_thermal_carrier_reduction(0)
+        probability = 1.0 / (1.0 + nbar)
+        total = 0.0
+        for motional_n in range(256):
+            total += probability * self._clock_thermal_carrier_reduction(motional_n)
+            probability *= nbar / (1.0 + nbar)
+            if probability < 1e-12:
+                break
+        return float(max(total, 1e-12))
+
+    def sample_clock_thermal_amplitude_scale(self, *, rng: np.random.Generator) -> float:
+        nbar = float(max(self.clock_temperature_nbar, 0.0))
+        if nbar <= 0.0:
+            return 1.0
+        probability = 1.0 / (1.0 + nbar)
+        motional_n = int(rng.geometric(probability) - 1)
+        reduction = self._clock_thermal_carrier_reduction(motional_n)
+        average = self._clock_thermal_average_reduction()
+        return float(max(reduction / average, 0.0))
+
+    def sample_clock_phase_noise_trace(
+        self,
+        *,
+        rng: np.random.Generator,
+    ) -> tuple[tuple[float, ...], tuple[float, ...]]:
+        if self.clock_phase_noise_psd_level_rad2_per_hz <= 0.0:
+            zeros = tuple(0.0 for _ in range(self.clock_total_num_steps()))
+            return zeros, zeros
+
+        frequencies = np.linspace(
+            float(self.clock_phase_noise_psd_fmin_hz),
+            float(self.clock_phase_noise_psd_fmax_hz),
+            int(max(self.clock_phase_noise_num_bins, 2)),
+            dtype=np.float64,
+        )
+        delta_f = float((frequencies[-1] - frequencies[0]) / (len(frequencies) - 1))
+        amplitude = 2.0 * np.sqrt(float(self.clock_phase_noise_psd_level_rad2_per_hz) * delta_f)
+        num_steps = self.clock_total_num_steps()
+        duration_s = self.clock_total_duration_s()
+        sample_times = (np.arange(num_steps, dtype=np.float64) + 0.5) * (duration_s / float(num_steps))
+
+        def sample_trace() -> tuple[float, ...]:
+            phases = rng.uniform(0.0, 2.0 * math.pi, size=frequencies.size)
+            values = np.zeros_like(sample_times)
+            for frequency_hz, random_phase in zip(frequencies, phases):
+                values += amplitude * np.cos(2.0 * math.pi * frequency_hz * sample_times + random_phase)
+            return tuple(float(value) for value in values)
+
+        return sample_trace(), sample_trace()
 
     def derived_neighboring_mf_leakage_rate_dimensionless(self) -> float:
         return self.neighboring_mf_leakage_per_gate / self.leakage_reference_t_omega
@@ -152,9 +231,29 @@ class Yb171ExperimentalCalibration:
             blockade_shift_offset=0.0,
             clock_amplitude_scale=1.0,
             uv_amplitude_scale=1.0,
-            clock_decay_rate=self.dimensionless_rate_from_lifetime(
-                self.clock_state_lifetime_s,
-                effective_rabi_hz,
+            clock_decay_rate=(
+                self.dimensionless_rate_from_lifetime(
+                    self.clock_state_lifetime_s,
+                    effective_rabi_hz,
+                )
+                if self.clock_decay_as_single_loss_channel
+                else 0.0
+            ),
+            clock_scattering_rate=(
+                0.0
+                if self.clock_decay_as_single_loss_channel
+                else self.dimensionless_rate_from_lifetime(
+                    self.clock_state_lifetime_s,
+                    effective_rabi_hz,
+                )
+            ),
+            clock_loss_rate=(
+                0.0
+                if self.clock_decay_as_single_loss_channel
+                else self.dimensionless_rate_from_lifetime(
+                    self.clock_trap_loss_lifetime_s,
+                    effective_rabi_hz,
+                )
             ),
             clock_dephasing_rate=clock_dephasing_rate,
             rydberg_decay_rate=self.dimensionless_rate_from_lifetime(
@@ -172,8 +271,11 @@ class Yb171ExperimentalCalibration:
         effective_rabi_hz: float | None = None,
     ) -> Yb171ClockRydbergNoiseConfig:
         nominal = self.open_system_noise(effective_rabi_hz=effective_rabi_hz)
-        sampled_clock_scale = float(rng.normal(1.0, self.clock_pulse_area_fractional_rms))
+        sampled_clock_scale = self.sample_clock_thermal_amplitude_scale(rng=rng)
+        if self.clock_pulse_area_fractional_rms > 0.0:
+            sampled_clock_scale *= float(rng.normal(1.0, self.clock_pulse_area_fractional_rms))
         sampled_scale = float(rng.normal(1.0, self.uv_pulse_area_fractional_rms))
+        prefix_phase_trace, suffix_phase_trace = self.sample_clock_phase_noise_trace(rng=rng)
         return replace(
             nominal,
             common_clock_detuning=self.dimensionless_hamiltonian_frequency(
@@ -198,6 +300,8 @@ class Yb171ExperimentalCalibration:
             ),
             clock_amplitude_scale=max(0.0, sampled_clock_scale),
             uv_amplitude_scale=max(0.0, sampled_scale),
+            clock_phase_trace_prefix=prefix_phase_trace,
+            clock_phase_trace_suffix=suffix_phase_trace,
         )
 
     def summary(self, effective_rabi_hz: float | None = None) -> dict[str, object]:
@@ -207,6 +311,7 @@ class Yb171ExperimentalCalibration:
             "calibration_reference_primary": "Muniz et al., PRX Quantum 6, 020334 (2025)",
             "calibration_reference_interaction": "Peper et al., Phys. Rev. X 15, 011009 (2025)",
             "model_kind": "effective full ^171Yb clock-to-Rydberg CZ gate",
+            "profile_name": self.profile_name,
             "resolved_uv_rabi_hz": omega_hz,
             "resolved_uv_rabi_mhz": omega_hz / 1e6,
             "clock_pi_pulse_duration_us": self.clock_pi_pulse_duration_s * 1e6,
@@ -215,8 +320,13 @@ class Yb171ExperimentalCalibration:
                 self.clock_pi_pulse_duration_s,
                 effective_rabi_hz=omega_hz,
             ),
-            "clock_decay_rate_dimensionless": self.dimensionless_rate_from_lifetime(
+            "clock_decay_rate_dimensionless": 0.0,
+            "clock_scattering_rate_dimensionless": self.dimensionless_rate_from_lifetime(
                 self.clock_state_lifetime_s,
+                omega_hz,
+            ),
+            "clock_loss_rate_dimensionless": self.dimensionless_rate_from_lifetime(
+                self.clock_trap_loss_lifetime_s,
                 omega_hz,
             ),
             "clock_dephasing_rate_dimensionless": (
@@ -245,20 +355,43 @@ class Yb171ExperimentalCalibration:
                 )
             ),
             "resolved_quasistatic_uv_detuning_rms_hz": self.resolved_quasistatic_uv_detuning_rms_hz(),
+            "resolved_quasistatic_clock_detuning_rms_hz": float(self.quasistatic_clock_detuning_rms_hz),
             "resolved_quasistatic_uv_detuning_dimensionless": self.dimensionless_hamiltonian_frequency(
                 self.resolved_quasistatic_uv_detuning_rms_hz(),
                 omega_hz,
             ),
+            "clock_total_duration_us": self.clock_total_duration_s() * 1e6,
+            "clock_total_num_steps": self.clock_total_num_steps(),
             "neighboring_mf_leakage_rate_dimensionless": self.derived_neighboring_mf_leakage_rate_dimensionless(),
-        }
+}
 
 
-def yb171_experimental_calibration() -> Yb171ExperimentalCalibration:
-    return Yb171ExperimentalCalibration()
+def yb171_experimental_calibration(
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
+) -> Yb171ExperimentalCalibration:
+    base = Yb171ExperimentalCalibration()
+    if profile == "experimental_surrogate_full":
+        return base
+    if profile == "strict_literature_minimal":
+        return replace(
+            base,
+            clock_trap_loss_lifetime_s=math.inf,
+            quasistatic_uv_detuning_rms_hz=0.0,
+            clock_phase_noise_psd_level_rad2_per_hz=0.0,
+            clock_decay_as_single_loss_channel=True,
+            profile_name=profile,
+        )
+    raise ValueError(f"Unsupported Yb171 calibration profile: {profile}")
 
 
 def yb171_v4_default_omega_max_hz() -> float:
     return yb171_experimental_calibration().uv_rabi_hz_max
+
+
+def yb171_v5_default_omega_max_hz(
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
+) -> float:
+    return yb171_experimental_calibration(profile=profile).uv_rabi_hz_max
 
 
 def yb171_gate_time_ns_to_dimensionless(
@@ -325,8 +458,12 @@ def summarize_yb171_v4_result(
         "physical_time_from_dimensionless_ns": float(
             1e9 * calibration.dimensionless_gate_time_to_seconds(result.evo_time, effective_rabi_hz=omega_max_hz)
         ),
-        "clock_pi_pulse_duration_us": float(prefix_ns / 1000.0),
-        "clock_pi_pulse_duration_ns": float(prefix_ns),
+        "clock_pi_pulse_duration_us": float(calibration.clock_pi_pulse_duration_s * 1e6),
+        "clock_pi_pulse_duration_ns": float(calibration.clock_pi_pulse_duration_s * 1e9),
+        "fixed_prefix_duration_us": float(prefix_ns / 1000.0),
+        "fixed_prefix_duration_ns": float(prefix_ns),
+        "fixed_suffix_duration_us": float(suffix_ns / 1000.0),
+        "fixed_suffix_duration_ns": float(suffix_ns),
         "clock_num_steps": int(getattr(model, "clock_num_steps", calibration.clock_num_steps)),
         "total_gate_time_ns": float(
             gate_time_ns + prefix_ns + suffix_ns
@@ -359,8 +496,9 @@ def build_yb171_v3_calibrated_model(
 def build_yb171_v4_calibrated_model(
     include_noise: bool = True,
     effective_rabi_hz: float | None = None,
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
 ) -> Yb171ClockRydbergCZOpenModel:
-    calibration = yb171_experimental_calibration()
+    calibration = yb171_experimental_calibration(profile=profile)
     noise = (
         calibration.open_system_noise(effective_rabi_hz=effective_rabi_hz)
         if include_noise
@@ -379,8 +517,9 @@ def build_yb171_v4_quasistatic_ensemble(
     seed: int = 17,
     include_noise: bool = True,
     effective_rabi_hz: float | None = None,
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
 ) -> list[Yb171ClockRydbergCZOpenModel]:
-    calibration = yb171_experimental_calibration()
+    calibration = yb171_experimental_calibration(profile=profile)
     rng = np.random.default_rng(seed)
     models: list[Yb171ClockRydbergCZOpenModel] = []
     for _ in range(int(max(ensemble_size, 1))):
@@ -400,3 +539,49 @@ def build_yb171_v4_quasistatic_ensemble(
             )
         )
     return models
+
+
+def build_yb171_v5_calibrated_model(
+    include_noise: bool = True,
+    effective_rabi_hz: float | None = None,
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
+) -> Yb171ClockRydbergCZOpenModel:
+    return build_yb171_v4_calibrated_model(
+        include_noise=include_noise,
+        effective_rabi_hz=effective_rabi_hz,
+        profile=profile,
+    )
+
+
+def build_yb171_v5_quasistatic_ensemble(
+    *,
+    ensemble_size: int,
+    seed: int = 17,
+    include_noise: bool = True,
+    effective_rabi_hz: float | None = None,
+    profile: Yb171CalibrationProfile = "experimental_surrogate_full",
+) -> list[Yb171ClockRydbergCZOpenModel]:
+    return build_yb171_v4_quasistatic_ensemble(
+        ensemble_size=ensemble_size,
+        seed=seed,
+        include_noise=include_noise,
+        effective_rabi_hz=effective_rabi_hz,
+        profile=profile,
+    )
+
+
+def summarize_yb171_v5_result(
+    *,
+    result,
+    gate_time_ns: float,
+    omega_max_hz: float,
+    model,
+) -> dict[str, object]:
+    payload = summarize_yb171_v4_result(
+        result=result,
+        gate_time_ns=gate_time_ns,
+        omega_max_hz=omega_max_hz,
+        model=model,
+    )
+    payload["model_version"] = "v5"
+    return payload

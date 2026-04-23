@@ -34,10 +34,14 @@ class Yb171ClockRydbergNoiseConfig:
     clock_amplitude_scale: float = 1.0
     uv_amplitude_scale: float = 1.0
     clock_decay_rate: float = 0.0
+    clock_scattering_rate: float = 0.0
+    clock_loss_rate: float = 0.0
     clock_dephasing_rate: float = 0.0
     rydberg_decay_rate: float = 0.0
     rydberg_dephasing_rate: float = 0.0
     neighboring_mf_leakage_rate: float = 0.0
+    clock_phase_trace_prefix: tuple[float, ...] = ()
+    clock_phase_trace_suffix: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,13 +159,22 @@ class Yb171ClockRydbergCZOpenModel:
 
         ctrl_x = np.concatenate([seg1_x, seg2_x, seg3_x]).astype(np.float64)
         ctrl_y = np.concatenate([seg1_y, seg2_y, seg3_y]).astype(np.float64)
+        prefix_phase = np.asarray(self.noise.clock_phase_trace_prefix, dtype=np.float64)
+        suffix_phase = np.asarray(self.noise.clock_phase_trace_suffix, dtype=np.float64)
+        if prefix_phase.size == ctrl_x.size:
+            ctrl_x, ctrl_y = self._rotate_controls(ctrl_x, ctrl_y, prefix_phase)
+        if suffix_phase.size == ctrl_x.size:
+            suffix_x, suffix_y = self._rotate_controls(ctrl_x, ctrl_y, suffix_phase)
+        else:
+            suffix_x = ctrl_x.copy()
+            suffix_y = ctrl_y.copy()
         dt = float(self.clock_pi_time) / float(self.clock_num_steps)
         return {
             "prefix_x": ctrl_x,
             "prefix_y": ctrl_y,
             "prefix_dt": float(dt),
-            "suffix_x": ctrl_x.copy(),
-            "suffix_y": ctrl_y.copy(),
+            "suffix_x": suffix_x,
+            "suffix_y": suffix_y,
             "suffix_dt": float(dt),
         }
 
@@ -260,14 +273,18 @@ class Yb171ClockRydbergCZOpenModel:
         return float(2.0 * self.clock_pi_time)
 
     def total_gate_time(self, uv_segment_time: float) -> float:
-        return float(self.clock_pi_time + uv_segment_time + self.clock_pi_time)
+        return float(self.fixed_prefix_duration() + uv_segment_time + self.fixed_suffix_duration())
 
     def control_amplitude_bound(self) -> float:
         return float(self.uv_rabi)
 
     def collapse_operators(self) -> list[qutip.Qobj]:
         c_ops: list[qutip.Qobj] = []
-        gamma_c = max(float(self.noise.clock_decay_rate), 0.0)
+        gamma_c_scatter = max(
+            float(self.noise.clock_scattering_rate if self.noise.clock_scattering_rate > 0.0 else self.noise.clock_decay_rate),
+            0.0,
+        )
+        gamma_c_loss = max(float(self.noise.clock_loss_rate), 0.0)
         gamma_c_phi = max(float(self.noise.clock_dephasing_rate), 0.0)
         gamma_r = max(float(self.noise.rydberg_decay_rate), 0.0)
         gamma_r_phi = max(float(self.noise.rydberg_dephasing_rate), 0.0)
@@ -275,11 +292,17 @@ class Yb171ClockRydbergCZOpenModel:
         leak = self.leak_index()
         loss = self.loss_index()
 
-        if gamma_c > 0.0:
-            self._append_jump(c_ops, gamma_c, loss, 1)
-            self._append_jump(c_ops, gamma_c, loss, 4)
-            self._append_jump(c_ops, 2.0 * gamma_c, loss, 5)
-            self._append_jump(c_ops, gamma_c, loss, 7)
+        if gamma_c_scatter > 0.0:
+            self._append_jump(c_ops, gamma_c_scatter, leak, 1)
+            self._append_jump(c_ops, gamma_c_scatter, leak, 4)
+            self._append_jump(c_ops, 2.0 * gamma_c_scatter, leak, 5)
+            self._append_jump(c_ops, gamma_c_scatter, leak, 7)
+
+        if gamma_c_loss > 0.0:
+            self._append_jump(c_ops, gamma_c_loss, loss, 1)
+            self._append_jump(c_ops, gamma_c_loss, loss, 4)
+            self._append_jump(c_ops, 2.0 * gamma_c_loss, loss, 5)
+            self._append_jump(c_ops, gamma_c_loss, loss, 7)
 
         if gamma_r > 0.0:
             self._append_jump(c_ops, gamma_r, loss, 2)
@@ -456,6 +479,18 @@ class Yb171ClockRydbergCZOpenModel:
         for propagator in propagators:
             total = propagator @ total
         return total
+
+    @staticmethod
+    def _rotate_controls(
+        ctrl_x: np.ndarray,
+        ctrl_y: np.ndarray,
+        phase: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        cos_phase = np.cos(phase)
+        sin_phase = np.sin(phase)
+        rotated_x = ctrl_x * cos_phase - ctrl_y * sin_phase
+        rotated_y = ctrl_x * sin_phase + ctrl_y * cos_phase
+        return rotated_x.astype(np.float64), rotated_y.astype(np.float64)
 
     @staticmethod
     def _add_quadrature_coupling(

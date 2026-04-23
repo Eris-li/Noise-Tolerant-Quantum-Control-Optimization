@@ -46,6 +46,8 @@ class Yb171CalibrationTests(unittest.TestCase):
             self.assertAlmostEqual(model_a.noise.common_uv_detuning, model_b.noise.common_uv_detuning)
             self.assertAlmostEqual(model_a.noise.uv_amplitude_scale, model_b.noise.uv_amplitude_scale)
             self.assertAlmostEqual(model_a.noise.blockade_shift_offset, model_b.noise.blockade_shift_offset)
+            self.assertAlmostEqual(model_a.noise.common_clock_detuning, model_b.noise.common_clock_detuning)
+            self.assertEqual(model_a.noise.clock_phase_trace_prefix, model_b.noise.clock_phase_trace_prefix)
 
         different_from_nominal = any(
             abs(member.noise.common_uv_detuning - nominal.noise.common_uv_detuning) > 1e-12
@@ -60,6 +62,29 @@ class Yb171CalibrationTests(unittest.TestCase):
         self.assertEqual(model.noise.common_clock_detuning, 0.0)
         self.assertEqual(model.noise.common_uv_detuning, 0.0)
         self.assertEqual(model.noise.rydberg_dephasing_rate, 0.0)
+        self.assertEqual(model.noise.clock_decay_rate, 0.0)
+        self.assertGreater(model.noise.clock_scattering_rate, 0.0)
+        self.assertGreater(model.noise.clock_loss_rate, 0.0)
+
+    def test_strict_literature_profile_disables_surrogate_terms(self) -> None:
+        calibration = yb171_experimental_calibration(profile="strict_literature_minimal")
+        self.assertEqual(calibration.profile_name, "strict_literature_minimal")
+        self.assertEqual(calibration.quasistatic_uv_detuning_rms_hz, 0.0)
+        self.assertEqual(calibration.clock_phase_noise_psd_level_rad2_per_hz, 0.0)
+        self.assertTrue(calibration.clock_decay_as_single_loss_channel)
+
+        model = build_yb171_v4_calibrated_model(profile="strict_literature_minimal")
+        self.assertGreater(model.noise.clock_decay_rate, 0.0)
+        self.assertEqual(model.noise.clock_scattering_rate, 0.0)
+        self.assertEqual(model.noise.clock_loss_rate, 0.0)
+
+        ensemble = build_yb171_v4_quasistatic_ensemble(
+            ensemble_size=1,
+            seed=5,
+            profile="strict_literature_minimal",
+        )
+        self.assertEqual(ensemble[0].noise.common_uv_detuning, 0.0)
+        self.assertTrue(all(value == 0.0 for value in ensemble[0].noise.clock_phase_trace_prefix))
 
 
 if __name__ == "__main__":

@@ -419,7 +419,7 @@
   "objective": 0.007102766258089643,
   "num_iter": 100,
   "num_fid_func_calls": 110,
-  "wall_time": 10.969795361000251,
+  "wall_time": 9.315404476001277,
   "termination_reason": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
   "evo_time": 13.194689145077131,
   "num_tslots": 100,
@@ -846,8 +846,12 @@
   ],
   "dimensionless_gate_time": 13.194689145077131,
   "physical_time_from_dimensionless_ns": 210.0,
-  "clock_pi_pulse_duration_us": 259.99999999999994,
-  "clock_pi_pulse_duration_ns": 259999.99999999997,
+  "clock_pi_pulse_duration_us": 130.0,
+  "clock_pi_pulse_duration_ns": 129999.99999999999,
+  "fixed_prefix_duration_us": 259.99999999999994,
+  "fixed_prefix_duration_ns": 259999.99999999997,
+  "fixed_suffix_duration_us": 259.99999999999994,
+  "fixed_suffix_duration_ns": 259999.99999999997,
   "clock_num_steps": 16,
   "total_gate_time_ns": 520209.99999999994,
   "total_gate_time_us": 520.2099999999998,
@@ -865,8 +869,10 @@
     "loss"
   ],
   "model_kind": "effective full ^171Yb clock-to-Rydberg CZ gate",
+  "model_version": "v5",
   "scan_stage": "coarse",
   "ensemble_size": 3,
+  "profile_name": "experimental_surrogate_full",
   "omega_mode": "yb171_default_10mhz",
-  "wall_clock_scan_s": 319.5421349139997
+  "wall_clock_scan_s": 277.33830713599673
 }

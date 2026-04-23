@@ -24,7 +24,8 @@ class Yb171ClockRydbergCZOpenModelTest(unittest.TestCase):
             noise=Yb171ClockRydbergNoiseConfig(
                 common_clock_detuning=0.01,
                 common_uv_detuning=0.02,
-                clock_decay_rate=1e-4,
+                clock_scattering_rate=1e-4,
+                clock_loss_rate=5e-5,
                 rydberg_decay_rate=0.01,
                 neighboring_mf_leakage_rate=0.002,
             ),
@@ -41,10 +42,13 @@ class Yb171ClockRydbergCZOpenModelTest(unittest.TestCase):
     def test_clock_segments_are_present(self) -> None:
         model = self.build_model()
         segments = model.clock_segment_controls()
-        self.assertEqual(len(segments["prefix_x"]), model.clock_num_steps)
-        self.assertEqual(len(segments["suffix_x"]), model.clock_num_steps)
+        half_steps = max(1, int(round(model.clock_num_steps / 2)))
+        expected_steps = 2 * half_steps + model.clock_num_steps
+        self.assertEqual(len(segments["prefix_x"]), expected_steps)
+        self.assertEqual(len(segments["suffix_x"]), expected_steps)
         self.assertGreater(np.max(segments["prefix_x"]), 0.0)
         self.assertAlmostEqual(float(segments["prefix_dt"]) * model.clock_num_steps, model.clock_pi_time)
+        self.assertAlmostEqual(model.fixed_prefix_duration(), 2.0 * model.clock_pi_time)
 
     def test_phase_gate_fidelity_bounds(self) -> None:
         model = self.build_model()
