@@ -179,7 +179,7 @@ def validate_dynamics_against_mesolve() -> dict[str, object]:
     return {
         "uv_segment_time_ns": gate_time_ns,
         "total_gate_time_us": float(
-            gate_time_ns / 1000.0 + 2.0 * calibration.clock_pi_pulse_duration_s * 1e6
+            gate_time_ns / 1000.0 + 2.0 * model.fixed_prefix_duration() / (2.0 * np.pi * omega_max_hz) * 1e6
         ),
         "omega_max_mhz": omega_max_hz / 1e6,
         "num_tslots": optimizer.config.num_tslots,
@@ -360,7 +360,7 @@ def validate_physical_sanity() -> dict[str, object]:
     calibration = yb171_experimental_calibration()
     uv_gate_time_ns = 136.0
     uv_gate_time_s = uv_gate_time_ns * 1e-9
-    total_gate_time_s = 2.0 * calibration.clock_pi_pulse_duration_s + uv_gate_time_s
+    total_gate_time_s = calibration.clock_pi_pulse_duration_s + uv_gate_time_s + calibration.clock_pi_pulse_duration_s
     blockade_over_omega = calibration.blockade_shift_hz / calibration.effective_rabi_hz_max
     quasistatic_detuning_over_omega = (
         calibration.resolved_quasistatic_uv_detuning_rms_hz() / calibration.effective_rabi_hz_max

@@ -15,7 +15,7 @@
 - `v3`
   闭系统、显式中间态的双光子 9 维模型，当前主线是 lower-leg 振幅加单相位控制。
 - `v4`
-  开放系统、`^171Yb` `clock -> Rydberg` 有效完整门模型。当前显式优化的是中间 `UV` 段，但固定前后 `clock shelving / unshelving` 脉冲已经被并入总门传播，默认参数按 `PRX Quantum 6, 020334 (2025)` 与 `Phys. Rev. X 15, 011009 (2025)` 口径设定，使用仓库内自写的逐 slice 传播和 GRAPE，并以 QuTiP 负责算符构造与独立验证。
+  开放系统、`^171Yb` `clock -> Rydberg` 有效完整门模型。当前显式优化的是中间 `UV` 段，但固定前后 `clock shelving / unshelving` 单个 `\pi` 脉冲已经被并入总门传播，默认参数按 `PRX Quantum 6, 020334 (2025)` 与 `Phys. Rev. X 15, 011009 (2025)` 口径设定，使用仓库内自写的逐 slice 传播和 GRAPE，并以 QuTiP 负责算符构造与独立验证。
 
 如果你刚接手这个仓库，建议先看：
 
@@ -123,7 +123,7 @@ docker compose run --rm test
 - `v3` 之前的主线优化基本是我们自己写的 `SciPy expm/expm_frechet` 闭系统 GRAPE。
 - `v4` 现在按论文 Eq.(7) 传播未归一化特殊态 `|01> + |11>`，并在开放系统下优化对应的 phase-gate fidelity。
 - `v4` 当前主模型已经换成 `^171Yb` 的有效 `clock -> Rydberg` 完整门模型，不再把旧的双光子 `ladder + |e>` 结构当主线。
-- `v4` 当前默认 `^171Yb` 标定以 `Muniz et al. 2025` 和 `Peper et al. 2025` 为主：保留 Rydberg decay、准静态 UV detuning、pulse-area 漂移为主噪声，默认不再把测得的 `T2*` 直接映射成 Lindblad dephasing，也不再默认加入 blockade jitter。
+- `v4` 当前默认 `^171Yb` 标定以 `Muniz et al. 2025` 和 `Peper et al. 2025` 为主：保留 Rydberg decay、由 `T2* / T2_echo` 拆分得到的慢 UV detuning 与快 Rydberg dephasing surrogate、以及 pulse-area 漂移；默认不再把测得的 `T2*` 直接整体映射成 Lindblad dephasing，也不再默认加入 blockade jitter。
 - 实现上继续使用 `QuTiP` 生成开放系统模型与 Liouvillian 并做独立验证，但优化与扫描逻辑由仓库内的 `open_system_grape.py` 控制。
 - 本地 benchmark 表明，开放系统优化的主要瓶颈仍是 Liouvillian propagator 与 Frechet 梯度，而不是 Python 胶水代码。
 

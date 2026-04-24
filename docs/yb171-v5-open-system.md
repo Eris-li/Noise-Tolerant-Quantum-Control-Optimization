@@ -46,13 +46,12 @@ T_{\mathrm{total}} = T_{\mathrm{shelve}} + T_{\mathrm{UV}} + T_{\mathrm{unshelve
 
 默认标定下：
 
-- 复合 shelving 脉冲是
-  `Y_{clk}(\pi/2) - X_{clk}(\pi) - Y_{clk}(\pi/2)`
-- 其中每个 `\pi` 段标定时长约 `130 us`
-- 因此前缀 shelving 总时长约 `260 us`
-- 后缀 unshelving 总时长也约 `260 us`
+- 每边 shelving / unshelving 都是单个 `clock` `\pi` 脉冲
+- 单次 `\pi` 脉冲标定时长约 `130 us`
+- 因此前缀 shelving 总时长约 `130 us`
+- 后缀 unshelving 总时长也约 `130 us`
 - 所以完整门总时间大约是
-  `520 us + T_UV`
+  `260 us + T_UV`
 
 这也是为什么人口演化图的横轴会到 `~260000 ns` 量级：那是**正确的完整门时间**，不是画图 bug。
 
@@ -204,47 +203,42 @@ H(t) = H_0 + u_x(t) H_x + u_y(t) H_y
 
 具体做法是：
 
-当前实现不是单个 `\pi` 脉冲，而是论文对应的复合脉冲：
-
-```math
-Y_{clk}(\pi/2)\;-\;X_{clk}(\pi)\;-\;Y_{clk}(\pi/2).
-```
+当前实现是单个 `clock` `\pi` 脉冲。
 
 具体做法是：
 
-1. 对三段分别生成 `Blackman` 包络
-2. `\pi/2` 段的步数取 `round(clock_num_steps / 2)`
-3. `\pi/2` 段时长取 `clock_pi_time / 2`
-4. `\pi` 段步数取 `clock_num_steps`
-5. `\pi` 段时长取 `clock_pi_time`
-6. 每一段都按面积归一化，使对应旋转角分别为 `\pi/2, \pi, \pi/2`
-
-对任意一段，若持续时间为 `T_seg`，步数为 `N_seg`，目标旋转角为 `\Theta_seg`，则：
+1. 生成长度为 `clock_num_steps` 的 `Blackman` 包络
+2. 取每个小步时长
 
 ```math
-\Delta t_{\mathrm{seg}} = T_{\mathrm{seg}} / N_{\mathrm{seg}}
+\Delta t_{\mathrm{clock}} = T_{\pi,\mathrm{clock}} / N_{\mathrm{clock}}
 ```
+
+3. 令整个脉冲面积满足 `\pi`
 
 ```math
-A_{\mathrm{seg}} \,\Delta t_{\mathrm{seg}} \sum_k w_k = \Theta_{\mathrm{seg}}
+A \,\Delta t_{\mathrm{clock}} \sum_k w_k = \pi
 ```
+
+所以振幅系数是：
 
 ```math
-A_{\mathrm{seg}} = \Theta_{\mathrm{seg}} / (\Delta t_{\mathrm{seg}} \sum_k w_k)
+A = \pi / (\Delta t_{\mathrm{clock}} \sum_k w_k)
 ```
 
-然后拼成三段：
+然后固定地取：
 
-- 第一段：`Y_{clk}(\pi/2)`，即 `u_{c,x}=0, u_{c,y}=A_{1/2} w_k`
-- 第二段：`X_{clk}(\pi)`，即 `u_{c,x}=A_{\pi} w_k, u_{c,y}=0`
-- 第三段：`Y_{clk}(\pi/2)`，即 `u_{c,x}=0, u_{c,y}=A_{1/2} w_k`
+- `prefix_x = A * envelope`
+- `prefix_y = 0`
+- `suffix_x = prefix_x`
+- `suffix_y = 0`
 
-后缀 `unshelving` 使用同一复合结构；如果存在 `clock_phase_trace_suffix`，则再对整个后缀控制矢量做逐步相位旋转。
+如果存在 `clock_phase_trace_prefix` 或 `clock_phase_trace_suffix`，则再对前后缀控制矢量做逐步相位旋转。
 
 也就是说：
 
-- 当前 shelving / unshelving 是固定的 `Blackman` 形复合脉冲
-- 其基准轴序列是 `Y - X - Y`
+- 当前 shelving / unshelving 是固定的 `Blackman` 形 `\pi` 脉冲
+- 默认沿一个 clock quadrature 打
 - 默认不把 `clock` 相位当成优化变量，但可以叠加准静态 `clock` phase-noise trace
 
 ## 5. 开放系统噪声如何进入模型
@@ -442,17 +436,17 @@ common_clock_detuning ~ Normal(0, 33 Hz)
 
 #### `clock_phase_trace_prefix` / `clock_phase_trace_suffix`
 
-当前源码还会为前后缀 `clock` 复合脉冲各自采样一条离散相位噪声轨迹：
+当前源码还会为前后缀 `clock` 单个 `\pi` 脉冲各自采样一条离散相位噪声轨迹：
 
 ```python
 clock_phase_trace_prefix
 clock_phase_trace_suffix
 ```
 
-它们不是 Lindblad dephasing，而是直接加到固定 `clock` 复合脉冲的相位上：
+它们不是 Lindblad dephasing，而是直接加到固定 `clock` 脉冲的相位上：
 
 - 对每个离散 step，原本的 `X/Y` quadrature 会被一个随机相位 `phi_k` 旋转
-- 前缀和后缀各自使用一条长度等于 `clock` 复合脉冲步数的 phase trace
+- 前缀和后缀各自使用一条长度等于 `clock_num_steps` 的 phase trace
 
 当前默认实现不是直接读取实验原始 PSD 数据文件，因为论文没有给出完整可复现的数据表；但它采用了与论文 Appendix G 同一类的频谱采样形式：
 
@@ -466,7 +460,7 @@ clock_phase_trace_suffix
 - 默认 `128` 个频率 bin
 - 平坦 PSD level `2.0e-8 rad^2/Hz`
 
-它的作用是给 `clock` 复合脉冲加入与实验 Appendix G 同类型的低频 phase-noise 轨迹，而不是把这部分误差粗暴地塞成一个 Markovian dephasing 率。
+它的作用是给 `clock` 脉冲加入与实验 Appendix G 同类型的低频 phase-noise 轨迹，而不是把这部分误差粗暴地塞成一个 Markovian dephasing 率。
 
 #### `uv_pulse_area_fractional_rms`
 
@@ -633,8 +627,8 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 | Clock 态寿命 | `1.06 s` | `clock_state_lifetime_s` | 转成 `clock_scattering_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
 | Clock trap loss 寿命 | `5.0 s` | `clock_trap_loss_lifetime_s` | 转成 `clock_loss_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
 | Rydberg 态寿命 | `65 us` | `rydberg_lifetime_s` | 转成 `rydberg_decay_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
-| `T2*` | `3.4 us` | `rydberg_t2_star_s` | 默认只作准静态失谐标尺，不直接变成 Lindblad dephasing | Muniz et al., PRX Quantum 6, 020334 (2025) |
-| `T2_echo` | `5.1 us` | `rydberg_t2_echo_s` | 记录用，当前默认不直接进入 Lindblad | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| `T2*` | `3.4 us` | `rydberg_t2_star_s` | 用于估计慢失谐/慢相位噪声对应的准静态 UV detuning 尺度 | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| `T2_echo` | `5.1 us` | `rydberg_t2_echo_s` | 用于反推残余快纯退相干的有效 `T_\phi` | Muniz et al., PRX Quantum 6, 020334 (2025) |
 
 ### 6.3 幅度、失谐与泄漏参数
 
@@ -648,24 +642,59 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 | Clock 准静态差分失谐 rms | `0.0 Hz` | `differential_clock_detuning_rms_hz` | ensemble 采样 | 当前默认关闭 |
 | Clock phase-noise 频段 | `10 Hz – 50 kHz` | `clock_phase_noise_psd_fmin_hz`, `clock_phase_noise_psd_fmax_hz` | 构造 `clock_phase_trace_*` | Muniz et al. Appendix G 频段口径 |
 | Clock phase-noise PSD surrogate | `2.0e-8 rad^2/Hz` | `clock_phase_noise_psd_level_rad2_per_hz` | phase trace 采样 | 基于实验 Appendix G 的 surrogate |
-| UV 准静态共模失谐 rms | `1 / (2π T2*)` | `quasistatic_uv_detuning_rms_hz = None` | 若未手工指定，则由 `T2*` 推得 | 当前代码定义 |
+| UV 准静态共模失谐 rms | `\sqrt{(2\pi T2^*)^{-2}-(2\pi T2_{\mathrm{echo}})^{-2}}` | `quasistatic_uv_detuning_rms_hz = None` | 若未手工指定，则由 `T2*` 与 `T2_echo` 共同推得慢噪声尺度 | 当前代码定义 |
 | UV 准静态差分失谐 rms | `0.0 Hz` | `differential_uv_detuning_rms_hz` | ensemble 采样 | 当前默认关闭 |
 | Blockade 抖动 rms | `0.0 Hz` | `blockade_shift_jitter_hz` | ensemble 采样 `blockade_shift_offset` | 当前默认关闭 |
 | 邻近 `m_F` 泄漏/门 | `0.0` | `neighboring_mf_leakage_per_gate` | 转成 Lindblad leakage 率 | 当前默认关闭 |
 
 ### 6.4 默认 Markovian dephasing 设置
 
-当前默认：
+当前两套 profile 的 dephasing 默认值不同。
+
+`strict_literature_minimal`：
 
 - `markovian_clock_dephasing_t2_s = None`
 - `markovian_rydberg_dephasing_t2_s = None`
+- 因此 `clock_dephasing_rate = 0`
+- 因此 `rydberg_dephasing_rate = 0`
 
-因此：
+`experimental_surrogate_full`：
 
-- `clock_dephasing_rate = 0`
-- `rydberg_dephasing_rate = 0`
+- `markovian_clock_dephasing_t2_s = None`
+- `markovian_rydberg_dephasing_t2_s = T_\phi^{(r)}`
 
-这不是说实验里没有退相干，而是当前实现默认把主要低频相位噪声解释成**准静态失谐 ensemble**，避免和 Lindblad dephasing 双重计数。
+其中 `T_\phi^{(r)}` 用实验给出的 `T2_echo` 与 `T1` 反推：
+
+```math
+\frac{1}{T_2}=\frac{1}{2T_1}+\frac{1}{T_\phi}
+```
+
+代入 `T_2=T2_{\mathrm{echo}}`、`T_1=\tau_r` 得：
+
+```math
+\frac{1}{T_\phi^{(r)}}=\frac{1}{T2_{\mathrm{echo}}}-\frac{1}{2\tau_r}
+```
+
+在当前默认值
+
+- `T2_echo = 5.1 us`
+- `tau_r = 65 us`
+
+下，有：
+
+```math
+T_\phi^{(r)} \approx 5.52\ \mu s
+```
+
+并进一步映射成 Lindblad 纯退相干率：
+
+```math
+\gamma_{\phi,r} = \frac{1}{2\pi \Omega_{\mathrm{ref}} T_\phi^{(r)}}
+```
+
+在 `\Omega_{\mathrm{ref}}/2\pi = 10 MHz` 下，对应当前无量纲 `rydberg_dephasing_rate \approx 2.88\times 10^{-3}`。
+
+因此，当前的实验扩展 profile 里，dephasing **已经加进去了**，但只加了 `Rydberg` 的快纯退相干；`clock` 的 Markovian dephasing 仍然默认关闭。
 
 ### 6.5 两套噪声 profile
 
@@ -679,6 +708,43 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 - `yb171_experimental_calibration(profile=...)`
 - `build_yb171_v5_calibrated_model(profile=...)`
 - `build_yb171_v5_quasistatic_ensemble(profile=...)`
+
+### 6.5.0 当前实际加入的噪声总表
+
+下面这张表只回答一个问题：**当前代码到底把哪些噪声加进去了，它们是怎么进入演化方程的。**
+
+| 噪声项 | `strict_literature_minimal` | `experimental_surrogate_full` | 模拟方式 | 进入位置 |
+| --- | --- | --- | --- | --- |
+| `clock` 有限寿命 | 开启 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
+| `clock_scattering -> |leak>` | 关闭 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
+| `clock_loss -> |loss>` | 关闭 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
+| `clock` Markovian dephasing | 关闭 | 关闭 | Lindblad 纯退相干 | `collapse_operators()` |
+| `Rydberg T1` | 开启 | 开启 | Lindblad 跳跃到 `|loss>` | `collapse_operators()` |
+| `Rydberg` Markovian pure dephasing | 关闭 | 开启 | Lindblad 纯退相干 | `collapse_operators()` |
+| `clock` 热分布 carrier 波动 | 开启 | 开启 | 每个 realization 随机采样 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
+| `clock` 额外 pulse-area 漂移 | 默认关闭 | 默认关闭 | 每个 realization 高斯采样后乘到 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
+| `clock` 共模准静态失谐 | 开启 | 开启 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| `clock` 差分准静态失谐 | 默认关闭 | 默认关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| `clock` phase-noise 轨迹 | 关闭 | 开启 | 先采样相位轨迹，再逐步旋转 `clock` 控制矢量 | `clock_segment_controls()` |
+| UV 幅度 repeatability | 开启 | 开启 | 每个 realization 随机采样 `uv_amplitude_scale` | `sample_quasistatic_noise()` |
+| UV 共模准静态失谐 | 关闭 | 开启 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| UV 差分准静态失谐 | 默认关闭 | 默认关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| Blockade 抖动 | 关闭 | 关闭 | 每个 realization 采样 `blockade_shift_offset` | `drift_hamiltonian()` |
+| 邻近 `m_F` leakage | 关闭 | 关闭 | Lindblad 跳跃到 `|leak>` | `collapse_operators()` |
+
+换句话说：
+
+- `strict_literature_minimal` 只保留最保守、最直接可由文献支撑的主噪声
+- `experimental_surrogate_full` 在此基础上再加入：
+  - `clock` phase-noise 轨迹
+  - `clock_scattering / clock_loss` 拆分
+  - UV 慢失谐
+  - `Rydberg` 快纯退相干
+
+其中：
+
+- **Lindblad 类噪声**会在门内持续作用
+- **quasistatic 类噪声**会在每个 realization 开始时随机采样一次，然后在整次门内固定不变
 
 #### `strict_literature_minimal`
 
@@ -720,6 +786,7 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 它在 `strict_literature_minimal` 的基础上再加入：
 
 - `UV T2* -> quasistatic UV detuning` surrogate
+- `T2_echo + T1 ->` 有效 `Rydberg` 纯退相干 surrogate
 - `clock` phase-noise 频谱 surrogate
 - `clock_scattering_rate` 与 `clock_loss_rate` 的拆分
 
@@ -774,7 +841,7 @@ P_n = \frac{1}{1+\bar n}\left(\frac{\bar n}{1+\bar n}\right)^n
 - 这不是拍脑袋给一个高斯幅度误差
 - 而是把有限温度对 `clock` carrier coupling 的影响显式折成了 shot-to-shot 幅度缩放
 
-#### 6.6.2 `UV T2* -> quasistatic UV detuning`
+#### 6.6.2 `UV T2*` 与 `T2_echo` 的快慢噪声拆分
 
 这个近似只在 `experimental_surrogate_full` 里启用。
 
@@ -784,7 +851,7 @@ P_n = \frac{1}{1+\bar n}\left(\frac{\bar n}{1+\bar n}\right)^n
 \phi(t) = 2\pi \delta t
 ```
 
-如果我们把实验测得的 `T2*` 粗略理解为“在这个时间尺度上 rms 相位已经到 `O(1)`”，则取：
+如果只看量级，实验测得的 `T2*` 给出总 Ramsey 去相干尺度：
 
 ```math
 \sigma_\phi(T_2^*) \sim 1
@@ -793,27 +860,61 @@ P_n = \frac{1}{1+\bar n}\left(\frac{\bar n}{1+\bar n}\right)^n
 就得到量级估计：
 
 ```math
-2\pi \sigma_\delta T_2^* \sim 1
-\quad\Rightarrow\quad
-\sigma_\delta \sim \frac{1}{2\pi T_2^*}
+\sigma_{\Delta,\mathrm{tot}} \sim \frac{1}{2\pi T_2^*}
 ```
 
-于是代码设置：
+但当前代码不再把这个总尺度整个塞进准静态失谐，而是进一步利用 `T2_echo` 分离快噪声尺度：
 
 ```math
-\sigma_{\Delta,\mathrm{UV}} = \frac{1}{2\pi T_2^*}
+\sigma_{\Delta,\mathrm{fast}} \sim \frac{1}{2\pi T2_{\mathrm{echo}}}
 ```
 
-并对每个 realization 采样：
+再把慢噪声部分定义为：
 
 ```math
-\Delta_{\mathrm{UV}} \sim \mathcal N(0,\sigma_{\Delta,\mathrm{UV}}^2)
+\sigma_{\Delta,\mathrm{slow}}
+\approx
+\sqrt{
+\sigma_{\Delta,\mathrm{tot}}^2-\sigma_{\Delta,\mathrm{fast}}^2
+}
 ```
+
+在当前默认值
+
+- `T2* = 3.4 us`
+- `T2_echo = 5.1 us`
+
+下：
+
+```math
+\sigma_{\Delta,\mathrm{tot}} \approx 46.8\ \mathrm{kHz}
+```
+
+```math
+\sigma_{\Delta,\mathrm{fast}} \approx 31.2\ \mathrm{kHz}
+```
+
+```math
+\sigma_{\Delta,\mathrm{slow}} \approx 34.9\ \mathrm{kHz}
+```
+
+于是代码对每个 realization 采样：
+
+```math
+\Delta_{\mathrm{UV}} \sim \mathcal N(0,\sigma_{\Delta,\mathrm{slow}}^2)
+```
+
+同时把快部分通过上一节的 `T_\phi^{(r)}` 映到 Lindblad `rydberg_dephasing_rate`。
+
+这样做的含义是：
+
+- `T2*` 的慢部分进入 quasistatic detuning
+- `T2_echo` 的快部分进入 Markovian dephasing
 
 要注意：
 
 - 这不是从 Ramsey 包络精确反演出来的唯一公式
-- 它是一个**量级匹配的工程近似**
+- 它是一个**把快慢噪声分开的量级匹配近似**
 - 因此这项在 `strict_literature_minimal` 里默认关闭
 
 #### 6.6.3 `clock` phase-noise PSD surrogate
@@ -832,7 +933,7 @@ P_n = \frac{1}{1+\bar n}\left(\frac{\bar n}{1+\bar n}\right)^n
 - `\Delta f` 是频率 bin 宽度
 - `\varphi_k` 是独立均匀随机相位
 
-然后把这条 `\phi(t)` 离散到 `clock` 复合脉冲的每个时间步上，分别得到：
+然后把这条 `\phi(t)` 离散到前后缀 `clock` 单个 `\pi` 脉冲的每个时间步上，分别得到：
 
 - `clock_phase_trace_prefix`
 - `clock_phase_trace_suffix`
@@ -948,6 +1049,105 @@ F = \frac{|1 + 2a_{01} + a_{11}|^2 + 1 + 2|a_{01}|^2 + |a_{11}|^2}{20}
 ```
 
 其中 `N = num_tslots`。
+
+### 8.1 `active_channel_fidelity` benchmark 是怎么计算的
+
+除了主优化目标 `Eq.(7)`，当前代码还支持一个 benchmark 指标：
+
+- `active_channel_fidelity`
+
+它**不参与默认优化**，但可以在结果里同步输出，作为对照检查。
+
+具体做法是：
+
+1. 在 active 子空间 `{|01>, |11>}` 上取四个算符基
+
+```math
+\{
+|01\rangle\langle 01|,
+|11\rangle\langle 01|,
+|01\rangle\langle 11|,
+|11\rangle\langle 11|
+\}
+```
+
+2. 对每个算符基在完整 Lindblad Liouvillian 下传播，并包含固定前缀 / 后缀：
+
+```math
+\mathcal S_{\mathrm{act}}
+=
+\mathcal R\,
+\mathcal S_{\mathrm{unshelve}}\,
+\mathcal S_{\mathrm{UV}}\,
+\mathcal S_{\mathrm{shelve}}\,
+\mathcal B
+```
+
+其中：
+
+- `\mathcal B` 把 4 个 active 基算符嵌入到完整 `11` 维空间
+- `\mathcal R` 再把传播后的完整超算符约化回 active 子空间
+
+3. 构造目标相位门在 active 子空间上的超算符：
+
+```math
+U_\theta = \mathrm{diag}(e^{i\theta}, -e^{2i\theta})
+```
+
+```math
+\mathcal S_{\mathrm{target}} = U_\theta^* \otimes U_\theta
+```
+
+4. 最后用归一化 Hilbert-Schmidt overlap 定义 benchmark fidelity：
+
+```math
+F_{\mathrm{act}}(\theta)
+=
+\frac{
+\mathrm{Re}\,
+\mathrm{Tr}
+\left[
+\mathcal S_{\mathrm{target}}^\dagger
+\mathcal S_{\mathrm{act}}
+\right]
+}{d^2},
+\qquad d=2
+```
+
+也就是：
+
+```math
+F_{\mathrm{act}}(\theta)
+=
+\frac{
+\mathrm{Re}\,
+\langle\!\langle
+\mathcal S_{\mathrm{target}},
+\mathcal S_{\mathrm{act}}
+\rangle\!\rangle
+}{4}
+```
+
+### 8.2 它和 `Eq.(7)` 的关系
+
+两者的差别是：
+
+- `Eq.(7)`：
+  - 只传播未归一化特殊态 `|01\rangle + |11\rangle`
+  - 直接对应论文给出的相位门优化公式
+  - 是当前默认优化目标
+
+- `active_channel_fidelity`：
+  - 传播的是 active 子空间上的 4 个算符基
+  - 先构造约化 Lindblad 信道，再和目标相位门超算符做 overlap
+  - 是当前的 benchmark 指标
+
+因此：
+
+- `Eq.(7)` 更接近论文原始优化目标
+- `active_channel_fidelity` 更接近“在 active 子空间上看整个信道”的诊断量
+
+在当前 coarse scan 结果里，两者趋势是一致的，但 `Eq.(7)` 通常略乐观一些。
 
 ## 9. 时序演化与优化内部传播
 

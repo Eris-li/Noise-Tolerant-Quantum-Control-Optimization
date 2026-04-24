@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 import json
 import sys
@@ -14,7 +15,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neutral_yb.config.artifact_paths import ensure_artifact_dir, v5_coarse_10mhz_dir
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v5_profile_dir
 from neutral_yb.config.yb171_calibration import (
     Yb171CalibrationProfile,
     build_yb171_v5_calibrated_model,
@@ -49,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--ensemble-size", type=int, default=3)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--run-label", default=None)
     return parser.parse_args()
 
 
@@ -58,6 +60,12 @@ def profile_slug(profile: str) -> str:
 
 def output_prefix(profile: str) -> str:
     return f"yb171_v5_{profile_slug(profile)}_0_300ns_10mhz"
+
+
+def resolve_run_label(value: str | None) -> str:
+    if value is not None and value.strip():
+        return value.strip()
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def coarse_num_tslots(gate_time_ns: float) -> int:
@@ -138,13 +146,9 @@ def coarse_problem_detected(points: list[dict[str, object]]) -> tuple[bool, str]
 def main() -> None:
     args = parse_args()
     profile: Yb171CalibrationProfile = args.profile
-    artifacts = ensure_artifact_dir(v5_coarse_10mhz_dir(ROOT, profile))
+    run_label = resolve_run_label(args.run_label)
+    artifacts = ensure_artifact_dir(v5_profile_dir(ROOT, profile) / run_label / "coarse_0_300ns_10mhz")
     prefix = output_prefix(profile)
-
-    for stale_path in artifacts.glob(f"{prefix}*.json"):
-        stale_path.unlink()
-    for stale_path in artifacts.glob(f"{prefix}*.png"):
-        stale_path.unlink()
 
     print(f"[v5] building model and ensemble for profile={profile}", flush=True)
     model = build_yb171_v5_calibrated_model(
@@ -226,6 +230,7 @@ def main() -> None:
     coarse_payload = {
         "model_version": "v5",
         "profile_name": profile,
+        "run_label": run_label,
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
         "coarse_times_ns": COARSE_TIMES_NS,
@@ -255,6 +260,7 @@ def main() -> None:
     final_payload = {
         "model_version": "v5",
         "profile_name": profile,
+        "run_label": run_label,
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
         "coarse_summary": coarse_payload,
@@ -269,7 +275,16 @@ def main() -> None:
         json.dumps(final_payload, indent=2),
         encoding="utf-8",
     )
-    print(json.dumps({"profile_name": profile, "summary_path": str(artifacts / f'{prefix}_summary.json')}, indent=2))
+    print(
+        json.dumps(
+            {
+                "profile_name": profile,
+                "run_label": run_label,
+                "summary_path": str(artifacts / f"{prefix}_summary.json"),
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

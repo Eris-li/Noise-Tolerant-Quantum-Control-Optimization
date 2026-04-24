@@ -111,14 +111,25 @@ class Yb171ExperimentalCalibration:
     def resolved_quasistatic_uv_detuning_rms_hz(self) -> float:
         if self.quasistatic_uv_detuning_rms_hz is not None:
             return float(self.quasistatic_uv_detuning_rms_hz)
-        return float(1.0 / (2.0 * math.pi * self.rydberg_t2_star_s))
+        total_scale_hz = float(1.0 / (2.0 * math.pi * self.rydberg_t2_star_s))
+        if self.rydberg_t2_echo_s <= 0.0:
+            return total_scale_hz
+        fast_scale_hz = float(1.0 / (2.0 * math.pi * self.rydberg_t2_echo_s))
+        return float(math.sqrt(max(total_scale_hz * total_scale_hz - fast_scale_hz * fast_scale_hz, 0.0)))
+
+    def derived_rydberg_pure_dephasing_time_s(self) -> float | None:
+        if self.rydberg_t2_echo_s <= 0.0 or self.rydberg_lifetime_s <= 0.0:
+            return None
+        inverse_tphi = (1.0 / float(self.rydberg_t2_echo_s)) - (0.5 / float(self.rydberg_lifetime_s))
+        if inverse_tphi <= 0.0:
+            return None
+        return float(1.0 / inverse_tphi)
 
     def clock_total_num_steps(self) -> int:
-        half_steps = max(1, int(round(self.clock_num_steps / 2)))
-        return int(2 * half_steps + self.clock_num_steps)
+        return int(self.clock_num_steps)
 
     def clock_total_duration_s(self) -> float:
-        return float(2.0 * self.clock_pi_pulse_duration_s)
+        return float(self.clock_pi_pulse_duration_s)
 
     def _clock_thermal_carrier_reduction(self, motional_n: int) -> float:
         eta_sq = float(self.clock_lamb_dicke_eta) ** 2
@@ -355,10 +366,19 @@ class Yb171ExperimentalCalibration:
                 )
             ),
             "resolved_quasistatic_uv_detuning_rms_hz": self.resolved_quasistatic_uv_detuning_rms_hz(),
+            "derived_rydberg_pure_dephasing_time_s": self.derived_rydberg_pure_dephasing_time_s(),
             "resolved_quasistatic_clock_detuning_rms_hz": float(self.quasistatic_clock_detuning_rms_hz),
             "resolved_quasistatic_uv_detuning_dimensionless": self.dimensionless_hamiltonian_frequency(
                 self.resolved_quasistatic_uv_detuning_rms_hz(),
                 omega_hz,
+            ),
+            "derived_rydberg_pure_dephasing_rate_dimensionless": (
+                0.0
+                if self.derived_rydberg_pure_dephasing_time_s() is None
+                else self.dimensionless_rate_from_lifetime(
+                    self.derived_rydberg_pure_dephasing_time_s(),
+                    omega_hz,
+                )
             ),
             "clock_total_duration_us": self.clock_total_duration_s() * 1e6,
             "clock_total_num_steps": self.clock_total_num_steps(),
@@ -371,7 +391,11 @@ def yb171_experimental_calibration(
 ) -> Yb171ExperimentalCalibration:
     base = Yb171ExperimentalCalibration()
     if profile == "experimental_surrogate_full":
-        return base
+        return replace(
+            base,
+            markovian_rydberg_dephasing_t2_s=base.derived_rydberg_pure_dephasing_time_s(),
+            profile_name=profile,
+        )
     if profile == "strict_literature_minimal":
         return replace(
             base,
