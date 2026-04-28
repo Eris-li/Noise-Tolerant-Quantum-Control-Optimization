@@ -11,6 +11,8 @@
 
 - [species.py](../src/neutral_yb/config/species.py)
   物种级配置，目前主要是 `^171Yb` 的语义化配置壳。
+- [artifact_paths.py](../src/neutral_yb/config/artifact_paths.py)
+  统一管理各版本和独立复现板块的 artifact 输出目录。
 
 ### `src/neutral_yb/models`
 
@@ -40,6 +42,8 @@
 
 - [freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
   `v1` 冻结参考实验。
+- [reproduce_ma2023_time_optimal_2q_gate.py](../experiments/reproduce_ma2023_time_optimal_2q_gate.py)
+  Ma et al. Nature 2023 Fig. 3 time-optimal two-qubit gate 的独立复现起点；先跑理想 infinite-blockade global CZ。
 - [two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
   `v2` 的两阶段时间扫描。
 - [coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
@@ -86,6 +90,8 @@
   `v4` 结果
 - `benchmark_v4_open_system_vs_v3_closed.json`
   闭系统和开放系统耗时比较
+- `ma2023_time_optimal_2q`
+  Ma et al. Nature 2023 time-optimal two-qubit gate 复现输出，暂时独立于 `v4/v5`
 
 ### `tests`
 
@@ -116,6 +122,9 @@
 - `v4` 开放系统 `^171Yb`：
   - [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
   - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- `ma2023_time_optimal_2q` 独立复现线：
+  - [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
+  - [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
 
 ## 迁移到 WSL 后先做什么
 

@@ -4,6 +4,18 @@
 
 当前项目只关注两比特及以上的门，不实现单比特门。主线目标是围绕 `CZ`、后续 `CNOT` 和三比特门，逐步从理想闭系统模型推进到显式开放系统、含噪声和含损耗的控制优化。
 
+## Nature 2023 time-optimal 两比特门复现
+
+新增独立复现板块：[docs/ma2023-time-optimal-2q.md](docs/ma2023-time-optimal-2q.md)。
+
+目标是从 Ma et al., Nature 622, 279-284 (2023) 的 Fig. 3 出发，先复现其 time-optimal two-qubit gate 所依赖的理想 global CZ / Jandura-Pupillo pulse，再逐步加入有限 blockade、Rydberg decay 和 erasure/loss 误差。当前起步入口：
+
+```bash
+./.venv/bin/python experiments/reproduce_ma2023_time_optimal_2q_gate.py --duration 7.612 --num-tslots 99 --max-iter 300 --num-restarts 4 --show-progress
+```
+
+结果写入 `artifacts/ma2023_time_optimal_2q/`，暂时不并入 `v4/v5` 主线。
+
 ## 当前状态
 
 仓库里目前并行保留了 4 条有明确定位的版本线：
@@ -139,6 +151,7 @@ docker compose run --rm test
 - 项目地图：[docs/project-map.md](docs/project-map.md)
 - 版本历史：[docs/version-history.md](docs/version-history.md)
 - 文献索引：[docs/references.md](docs/references.md)
+- Ma 2023 time-optimal 两比特门复现：[docs/ma2023-time-optimal-2q.md](docs/ma2023-time-optimal-2q.md)
 - 闭系统噪声与修正哈密顿量：[docs/yb-noise-and-corrected-hamiltonian.md](docs/yb-noise-and-corrected-hamiltonian.md)
 - `v3` 双光子闭系统模型：[docs/two-photon-cz-v3-model.md](docs/two-photon-cz-v3-model.md)
 - `v4` `^171Yb` 开放系统模型：[docs/two-photon-cz-v4-open-system.md](docs/two-photon-cz-v4-open-system.md)

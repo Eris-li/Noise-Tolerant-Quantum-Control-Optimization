@@ -10,6 +10,7 @@
 - 在项目中的作用:
   - `v1` 的理想 `global CZ` 冻结参考
   - time-optimal 思路、phase-gate fidelity 目标和对称约化思路
+  - `ma2023_time_optimal_2q` 复现线的第一阶段方法来源
 
 ### Evered et al., high-fidelity parallel entangling gates on neutral atoms
 
@@ -65,6 +66,7 @@
 - 在项目中的作用:
   - 说明 `^171Yb` 平台里“掉出计算子空间”的误差很重要
   - 支撑 `v4` 中统一 `loss` sink 的设计思路
+  - 新增独立板块复现 Fig. 3 的 time-optimal two-qubit gate；起点是理想 global CZ，再逐步加入实验误差
 
 ### Muniz et al., high-fidelity gates in `^171Yb`
 
@@ -84,3 +86,5 @@
   主要对应 Evered 2023 的双光子门控制图像
 - `v4`
   主要对应 Evered 2023、Day 2022、Jiang 2023、Peper 2025，加上 `^171Yb` decay / erasure 相关文献
+- `ma2023_time_optimal_2q`
+  主要对应 Ma et al. 2023 的 Fig. 3 和 Jandura-Pupillo 2022 的 time-optimal global CZ 方法
