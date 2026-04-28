@@ -1,0 +1,90 @@
+{
+  "reproduction_mode": "method_first",
+  "dataverse_pulse_used_as_initial_condition": false,
+  "dataverse_used_only_for_calibration_and_comparison": true,
+  "source": {
+    "doi": "10.7910/DVN/TJ6OIF",
+    "article": "https://www.nature.com/articles/s41586-023-06438-1",
+    "raw_files": [
+      "Fig3.csv",
+      "FigS2.csv",
+      "FigS3v2.csv"
+    ]
+  },
+  "calibration": {
+    "uv_rabi_hz": 1590000.0,
+    "uv_rabi_hz_max": 1590000.0,
+    "blockade_shift_over_omega": 16.0,
+    "nearby_rydberg_detuning_over_omega": 5.8,
+    "rydberg_lifetime_s": 6.5e-05,
+    "metastable_lifetime_s": 1.0,
+    "rydberg_t2_s": null,
+    "uv_pulse_area_fractional_rms": 0.0,
+    "quasistatic_detuning_rms_hz": 0.0,
+    "differential_detuning_rms_hz": 0.0,
+    "blockade_shift_jitter_fractional_rms": 0.0,
+    "off_resonant_leakage_per_gate": 0.0,
+    "leakage_reference_t_omega": 7.612,
+    "target_two_qubit_fidelity": 0.98,
+    "target_dimensionless_duration": 12.387599999999999,
+    "profile_name": "ma2023_dataverse_fig3",
+    "effective_rabi_hz": 1590000.0,
+    "target_gate_time_ns": 1239.967152858593
+  },
+  "include_noise": true,
+  "ensemble_size": 1,
+  "ensemble_seed": 31,
+  "objective_metric": "special_state",
+  "num_tslots": 96,
+  "max_iter": 220,
+  "num_restarts": 4,
+  "init_pulse_type": "SINE",
+  "init_control_scale": 0.75,
+  "phase_only": true,
+  "gaussian_edge_fraction": 0.2,
+  "gaussian_edge_sigma_fraction": 0.08,
+  "phase_smoothness_weight": 0.001,
+  "phase_curvature_weight": 0.001,
+  "radial_amplitude_bound_weight": 1000.0,
+  "durations_dimensionless": [
+    12.387599999999999
+  ],
+  "scan": {
+    "durations": [
+      12.387599999999999
+    ],
+    "fidelities": [
+      0.994684718734313
+    ],
+    "best_duration": 12.387599999999999,
+    "best_fidelity": 0.994684718734313,
+    "target_reached": true
+  },
+  "best_index": 0,
+  "best_result_file": "ma2023_from_method_TOmega_12p388.json",
+  "best_objective_fidelity": 0.994684718734313,
+  "best_gate_time_dimensionless": 12.387599999999999,
+  "best_gate_time_ns": 1239.967152858593,
+  "target_two_qubit_fidelity": 0.98,
+  "results": [
+    {
+      "gate_time_dimensionless": 12.387599999999999,
+      "gate_time_ns": 1239.967152858593,
+      "objective_fidelity": 0.994684718734313,
+      "phase_gate_fidelity": 0.994684718734313,
+      "active_channel_fidelity": 0.9929591146914648,
+      "optimized_theta": 3.123779915122378,
+      "fid_err": 0.005315281265687033,
+      "max_amplitude": 1.0,
+      "mean_amplitude": 0.7805160520378666,
+      "num_iter": 138,
+      "success": true,
+      "termination_reason": "CONVERGENCE: NORM OF PROJECTED GRADIENT <= PGTOL",
+      "mean_active_population": 0.9929617027335643,
+      "mean_leakage_population": 0.0,
+      "mean_loss_population": 0.007035562014737333,
+      "mean_erasure_population": 0.007035562014737333,
+      "result_file": "ma2023_from_method_TOmega_12p388.json"
+    }
+  ]
+}

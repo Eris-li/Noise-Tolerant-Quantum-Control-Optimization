@@ -8,10 +8,13 @@
 
 新增独立复现板块：[docs/ma2023-time-optimal-2q.md](docs/ma2023-time-optimal-2q.md)。
 
-目标是从 Ma et al., Nature 622, 279-284 (2023) 的 Fig. 3 出发，先复现其 time-optimal two-qubit gate 所依赖的理想 global CZ / Jandura-Pupillo pulse，再逐步加入有限 blockade、Rydberg decay 和 erasure/loss 误差。当前起步入口：
+目标是从 Ma et al., Nature 622, 279-284 (2023) 的 Fig. 3 出发，建立 metastable `^171Yb` time-optimal two-qubit gate 的专用开放系统复现线。当前模型已包含有限 blockade、Rydberg decay、metastable loss、dephasing、quasistatic ensemble 和 erasure/leakage 诊断。当前扫描入口：
 
 ```bash
-./.venv/bin/python experiments/reproduce_ma2023_time_optimal_2q_gate.py --duration 7.612 --num-tslots 99 --max-iter 300 --num-restarts 4 --show-progress
+./.venv/bin/python scripts/import_ma2023_dataverse.py
+./.venv/bin/python experiments/evaluate_ma2023_fig3_pulse.py --num-tslots 96 --ensemble-size 1 --output ma2023_fig3_pulse_96slot.json
+./.venv/bin/python experiments/reproduce_ma2023_from_method.py --num-tslots 96 --max-iter 160 --num-restarts 4 --ensemble-size 1 --show-progress
+./.venv/bin/python scripts/compare_ma2023_method_to_dataverse.py
 ```
 
 结果写入 `artifacts/ma2023_time_optimal_2q/`，暂时不并入 `v4/v5` 主线。

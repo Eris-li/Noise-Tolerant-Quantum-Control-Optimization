@@ -1,0 +1,13 @@
+{
+  "processed_files": [
+    "fig3_time_optimal_gate.json"
+  ],
+  "ignored_files": [
+    "Fig1.csv:Zone.Identifier",
+    "Fig2.csv:Zone.Identifier",
+    "Fig3.csv:Zone.Identifier",
+    "Fig4.csv:Zone.Identifier",
+    "FigS2.csv:Zone.Identifier",
+    "FigS3v2.csv:Zone.Identifier"
+  ]
+}

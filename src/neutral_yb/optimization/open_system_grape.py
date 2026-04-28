@@ -27,6 +27,7 @@ class OpenSystemGRAPEConfig:
     control_curvature_weight: float = 2e-3
     amplitude_diff_weight: float = 0.0
     phase_diff_weight: float = 0.0
+    radial_amplitude_bound_weight: float = 0.0
     amplitude_diff_threshold: float = 0.01
     phase_diff_threshold: float = 0.1
     target_theta: float = 0.0
@@ -313,6 +314,7 @@ class OpenSystemGRAPEOptimizer:
                     control_curvature_weight=self.config.control_curvature_weight,
                     amplitude_diff_weight=self.config.amplitude_diff_weight,
                     phase_diff_weight=self.config.phase_diff_weight,
+                    radial_amplitude_bound_weight=self.config.radial_amplitude_bound_weight,
                     amplitude_diff_threshold=self.config.amplitude_diff_threshold,
                     phase_diff_threshold=self.config.phase_diff_threshold,
                     target_theta=self.config.target_theta,
@@ -482,12 +484,17 @@ class OpenSystemGRAPEOptimizer:
         amplitude_diff_cost, phase_diff_cost, amp_penalty_x, amp_penalty_y, phase_penalty_x, phase_penalty_y = (
             self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
         )
+        radial_bound_cost, radial_bound_grad_x, radial_bound_grad_y = self._radial_amplitude_bound_penalty(
+            ctrl_x,
+            ctrl_y,
+        )
         objective = (
             1.0 - fidelity
             + self.config.control_smoothness_weight * smoothness_cost
             + self.config.control_curvature_weight * curvature_cost
             + self.config.amplitude_diff_weight * amplitude_diff_cost
             + self.config.phase_diff_weight * phase_diff_cost
+            + self.config.radial_amplitude_bound_weight * radial_bound_cost
         )
 
         if self.config.control_smoothness_weight > 0.0:
@@ -502,6 +509,9 @@ class OpenSystemGRAPEOptimizer:
         if self.config.phase_diff_weight > 0.0:
             ctrl_x_grad += self.config.phase_diff_weight * phase_penalty_x
             ctrl_y_grad += self.config.phase_diff_weight * phase_penalty_y
+        if self.config.radial_amplitude_bound_weight > 0.0:
+            ctrl_x_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_x
+            ctrl_y_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_y
 
         gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
         return float(objective), gradient
@@ -556,12 +566,17 @@ class OpenSystemGRAPEOptimizer:
         amplitude_diff_cost, phase_diff_cost, amp_penalty_x, amp_penalty_y, phase_penalty_x, phase_penalty_y = (
             self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
         )
+        radial_bound_cost, radial_bound_grad_x, radial_bound_grad_y = self._radial_amplitude_bound_penalty(
+            ctrl_x,
+            ctrl_y,
+        )
         objective = (
             1.0 - fidelity
             + self.config.control_smoothness_weight * smoothness_cost
             + self.config.control_curvature_weight * curvature_cost
             + self.config.amplitude_diff_weight * amplitude_diff_cost
             + self.config.phase_diff_weight * phase_diff_cost
+            + self.config.radial_amplitude_bound_weight * radial_bound_cost
         )
 
         if self.config.control_smoothness_weight > 0.0:
@@ -576,6 +591,9 @@ class OpenSystemGRAPEOptimizer:
         if self.config.phase_diff_weight > 0.0:
             ctrl_x_grad += self.config.phase_diff_weight * phase_penalty_x
             ctrl_y_grad += self.config.phase_diff_weight * phase_penalty_y
+        if self.config.radial_amplitude_bound_weight > 0.0:
+            ctrl_x_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_x
+            ctrl_y_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_y
 
         gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
         return float(objective), gradient
@@ -607,6 +625,7 @@ class OpenSystemGRAPEOptimizer:
             + self.config.control_curvature_weight * self._control_curvature_cost(ctrl_x, ctrl_y)
             + self.config.amplitude_diff_weight * self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)[0]
             + self.config.phase_diff_weight * self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)[1]
+            + self.config.radial_amplitude_bound_weight * self._radial_amplitude_bound_penalty(ctrl_x, ctrl_y)[0]
         )
         amplitude_diff_cost, phase_diff_cost, _, _, _, _ = self._amplitude_phase_diff_penalty(ctrl_x, ctrl_y)
         return OpenSystemGRAPEResult(
@@ -1040,6 +1059,22 @@ class OpenSystemGRAPEOptimizer:
             phase_grad_y[1:] += phase_delta_grad * d_phase_dy[1:]
 
         return amp_cost, phase_cost, amp_grad_x, amp_grad_y, phase_grad_x, phase_grad_y
+
+    def _radial_amplitude_bound_penalty(
+        self,
+        ctrl_x: np.ndarray,
+        ctrl_y: np.ndarray,
+    ) -> tuple[float, np.ndarray, np.ndarray]:
+        amplitudes = np.sqrt(ctrl_x**2 + ctrl_y**2)
+        excess = np.maximum(amplitudes - self.amp_bound, 0.0)
+        cost = float(np.sum(excess**2))
+        safe_amplitudes = np.where(amplitudes > 1e-12, amplitudes, 1.0)
+        scale = 2.0 * excess / safe_amplitudes
+        return (
+            cost,
+            (scale * ctrl_x).astype(np.float64),
+            (scale * ctrl_y).astype(np.float64),
+        )
 
     @staticmethod
     def _smoothness_cost(values: np.ndarray) -> float:

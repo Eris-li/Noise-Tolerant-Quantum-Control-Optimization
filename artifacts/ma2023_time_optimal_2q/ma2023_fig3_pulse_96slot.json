@@ -1,0 +1,48 @@
+{
+  "source": {
+    "doi": "10.7910/DVN/TJ6OIF",
+    "article": "https://www.nature.com/articles/s41586-023-06438-1",
+    "raw_files": [
+      "Fig3.csv",
+      "FigS2.csv",
+      "FigS3v2.csv"
+    ]
+  },
+  "include_noise": true,
+  "ensemble_size": 1,
+  "num_tslots": 96,
+  "calibration": {
+    "uv_rabi_hz": 1590000.0,
+    "uv_rabi_hz_max": 1590000.0,
+    "blockade_shift_over_omega": 16.0,
+    "nearby_rydberg_detuning_over_omega": 5.8,
+    "rydberg_lifetime_s": 6.5e-05,
+    "metastable_lifetime_s": 1.0,
+    "rydberg_t2_s": null,
+    "uv_pulse_area_fractional_rms": 0.0,
+    "quasistatic_detuning_rms_hz": 0.0,
+    "differential_detuning_rms_hz": 0.0,
+    "blockade_shift_jitter_fractional_rms": 0.0,
+    "off_resonant_leakage_per_gate": 0.0,
+    "leakage_reference_t_omega": 7.612,
+    "target_two_qubit_fidelity": 0.98,
+    "target_dimensionless_duration": 12.387599999999999,
+    "profile_name": "ma2023_dataverse_fig3",
+    "effective_rabi_hz": 1590000.0,
+    "target_gate_time_ns": 1239.967152858593
+  },
+  "phase_gate_theta": 4.2634422969007275,
+  "phase_gate_fidelity": 0.9916028368660879,
+  "active_channel_theta": 4.214326847460279,
+  "active_channel_fidelity": 0.9886474886239447,
+  "target_two_qubit_fidelity": 0.98,
+  "target_two_qubit_error": 0.020000000000000018,
+  "simulated_phase_gate_error": 0.008397163133912144,
+  "simulated_active_channel_error": 0.011352511376055308,
+  "pulse_duration_dimensionless": 12.387599999999999,
+  "pulse_peak_fraction": 0.9999999935211491,
+  "mean_active_population": 0.9886489354697963,
+  "mean_leakage_population": 0.0,
+  "mean_loss_population": 0.0064448297245040444,
+  "mean_erasure_population": 0.0064448297245040444
+}

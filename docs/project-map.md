@@ -26,6 +26,8 @@
   `v4` 早期的双光子开放系统 surrogate，现已退居历史参考。
 - [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
   `v4` 当前主线模型，使用 `^171Yb` 的有效 `clock -> Rydberg` 完整门开放系统表示；固定前后 `clock` 脉冲并入传播，中间 `UV` 段作为优化变量。
+- [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
+  Ma et al. Nature 2023 Fig. 3 复现线的 metastable-qubit Rydberg gate 模型，保留有限 blockade、loss/leak sink 和开放系统噪声接口。
 
 ### `src/neutral_yb/optimization`
 
@@ -44,6 +46,12 @@
   `v1` 冻结参考实验。
 - [reproduce_ma2023_time_optimal_2q_gate.py](../experiments/reproduce_ma2023_time_optimal_2q_gate.py)
   Ma et al. Nature 2023 Fig. 3 time-optimal two-qubit gate 的独立复现起点；先跑理想 infinite-blockade global CZ。
+- [scan_ma2023_time_optimal_2q_open_system.py](../experiments/scan_ma2023_time_optimal_2q_open_system.py)
+  Ma et al. Nature 2023 Fig. 3 的开放系统 time scan，输出 fidelity、active population 和 erasure/leakage 诊断。
+- [evaluate_ma2023_fig3_pulse.py](../experiments/evaluate_ma2023_fig3_pulse.py)
+  直接导入并评估 Dataverse Fig. 3 脉冲，用作复现链路的固定脉冲验证入口。
+- [reproduce_ma2023_from_method.py](../experiments/reproduce_ma2023_from_method.py)
+  不使用论文脉冲作为初值，从通用平滑控制出发生成 time-optimal pulse，并与 Dataverse Fig. 3 仅做后处理对照。
 - [two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
   `v2` 的两阶段时间扫描。
 - [coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
@@ -71,6 +79,12 @@
   `v2` 出图。
 - [plot_two_photon_cz_v3.py](../scripts/plot_two_photon_cz_v3.py)
   `v3` 出图。
+- [plot_ma2023_time_optimal_2q.py](../scripts/plot_ma2023_time_optimal_2q.py)
+  Ma 2023 time-optimal two-qubit gate 复现线的 summary plot。
+- [import_ma2023_dataverse.py](../scripts/import_ma2023_dataverse.py)
+  将 `data/ma2023/*.csv` 规范化为 `data/ma2023/processed/*.json`。
+- [compare_ma2023_method_to_dataverse.py](../scripts/compare_ma2023_method_to_dataverse.py)
+  将 method-first 输出的 pulse、trajectory 和 fidelity 与 Dataverse Fig. 3 数据画在一起。
 - [create_venv.ps1](../scripts/create_venv.ps1)
   Windows 本地环境创建脚本。
 - [run_python.ps1](../scripts/run_python.ps1)
@@ -123,8 +137,9 @@
   - [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
   - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 - `ma2023_time_optimal_2q` 独立复现线：
-  - [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
-  - [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
+  - [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
+  - [ma2023_calibration.py](../src/neutral_yb/config/ma2023_calibration.py)
+  - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
 
 ## 迁移到 WSL 后先做什么
 
