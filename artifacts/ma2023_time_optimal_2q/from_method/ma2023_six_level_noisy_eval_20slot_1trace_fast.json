@@ -1,0 +1,23 @@
+{
+  "pulse": "artifacts/ma2023_time_optimal_2q/from_method/ma2023_six_level_cheb13_20slot_smoke_pulse.json",
+  "noise_model": {
+    "rydberg_lifetime_s": 6.5e-05,
+    "rydberg_decay_bright_fraction": 0.5,
+    "doppler_t2_star_s": 5.7e-06,
+    "doppler_detuning_rms_dimensionless": 0.024834941966156522,
+    "phase_noise_rms_rad": 0.002,
+    "intensity_noise_rms_fractional": 0.002
+  },
+  "summary": {
+    "gate_fidelity": 0.5092975340048767,
+    "gate_error": 0.49070246599512335,
+    "process_fidelity": 0.3925421538351105,
+    "leakage": 0.023680945316058577,
+    "active_population": 0.9763190546839414,
+    "bright_erasure": 0.0031001230698723464,
+    "dark_leakage": 0.0031001230698723464,
+    "trace_count": 1,
+    "process_fidelity_std": 0.0,
+    "leakage_std": 0.0
+  }
+}

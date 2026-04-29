@@ -5,6 +5,7 @@ import time
 
 import numpy as np
 from scipy.linalg import expm, expm_frechet
+from scipy.sparse.linalg import expm_multiply
 from scipy.optimize import minimize
 
 from neutral_yb.models.ma2023_pulse import (
@@ -13,6 +14,7 @@ from neutral_yb.models.ma2023_pulse import (
     validate_phase_only_pulse,
     wrap_phase,
 )
+from neutral_yb.models.ma2023_noise import Ma2023NoiseTrace, apply_noise_trace_to_controls
 from neutral_yb.models.ma2023_six_level import Ma2023PerfectBlockadeSixLevelModel
 
 
@@ -28,6 +30,7 @@ class Ma2023SixLevelGRAPEConfig:
     chebyshev_degree: int = 13
     chebyshev_init_scale: float = 1.0
     chebyshev_coefficient_bound: float | None = 20.0
+    optimize_phase_origin: bool = True
     fidelity_target: float = 0.99999
     show_progress: bool = False
 
@@ -108,6 +111,10 @@ class Ma2023SixLevelPhaseOptimizer:
         self.g_x = -1j * np.asarray(h_x.full(), dtype=np.complex128)
         self.g_y = -1j * np.asarray(h_y.full(), dtype=np.complex128)
         self.initial_indices = model.computational_indices()
+        self.rydberg_projector = self._build_rydberg_projector()
+        self.collapse_matrices = [
+            np.asarray(operator.full(), dtype=np.complex128) for operator in self.model.collapse_operators()
+        ]
 
     def optimize(self) -> Ma2023SixLevelGRAPEResult:
         rng = np.random.default_rng(self.config.seed)
@@ -185,6 +192,30 @@ class Ma2023SixLevelPhaseOptimizer:
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             state = expm(self.config.dt * self._generator(float(x_value), float(y_value))) @ state
         return state
+
+    def evolve_density_matrix(
+        self,
+        ctrl_x: np.ndarray,
+        ctrl_y: np.ndarray,
+        rho0: np.ndarray,
+        *,
+        noise_trace: Ma2023NoiseTrace | None = None,
+    ) -> np.ndarray:
+        ctrl_x = np.asarray(ctrl_x, dtype=np.float64)
+        ctrl_y = np.asarray(ctrl_y, dtype=np.float64)
+        if noise_trace is not None:
+            noise_trace.validate(ctrl_x.size)
+            noisy_ctrl_x, noisy_ctrl_y = apply_noise_trace_to_controls(ctrl_x, ctrl_y, noise_trace)
+            detunings = noise_trace.common_detuning
+        else:
+            noisy_ctrl_x, noisy_ctrl_y = ctrl_x, ctrl_y
+            detunings = np.zeros_like(ctrl_x)
+        vector = np.asarray(rho0, dtype=np.complex128).reshape(-1, order="F")
+        for x_value, y_value, detuning in zip(noisy_ctrl_x, noisy_ctrl_y, detunings):
+            hamiltonian = self._hamiltonian(float(x_value), float(y_value), float(detuning))
+            liouvillian = self._liouvillian(hamiltonian)
+            vector = expm_multiply(self.config.dt * liouvillian, vector)
+        return vector.reshape((self.dimension, self.dimension), order="F")
 
     def _fidelity_and_gradients(
         self,
@@ -335,6 +366,26 @@ class Ma2023SixLevelPhaseOptimizer:
     def _generator(self, ctrl_x: float, ctrl_y: float) -> np.ndarray:
         return self.g_d + ctrl_x * self.g_x + ctrl_y * self.g_y
 
+    def _hamiltonian(self, ctrl_x: float, ctrl_y: float, common_detuning: float = 0.0) -> np.ndarray:
+        return self.h_d + ctrl_x * (1j * self.g_x) + ctrl_y * (1j * self.g_y) - common_detuning * self.rydberg_projector
+
+    def _liouvillian(self, hamiltonian: np.ndarray) -> np.ndarray:
+        identity = np.eye(self.dimension, dtype=np.complex128)
+        liouvillian = -1j * (np.kron(identity, hamiltonian) - np.kron(hamiltonian.T, identity))
+        for collapse in self.collapse_matrices:
+            c_dagger_c = collapse.conj().T @ collapse
+            liouvillian += np.kron(collapse.conj(), collapse)
+            liouvillian -= 0.5 * np.kron(identity, c_dagger_c)
+            liouvillian -= 0.5 * np.kron(c_dagger_c.T, identity)
+        return liouvillian
+
+    def _build_rydberg_projector(self) -> np.ndarray:
+        projector = np.zeros((self.dimension, self.dimension), dtype=np.complex128)
+        for sector in self.model.sector_labels():
+            for index in self.model.transition_subspace_indices(sector)[1:]:
+                projector[index, index] = 1.0
+        return projector
+
 
 class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
     """GRAPE optimizer using the Ma 2023 Chebyshev phase-rate parameterization.
@@ -356,6 +407,7 @@ class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
     ) -> None:
         super().__init__(model=model, config=config, envelope=envelope)
         self.chebyshev_degree = int(config.chebyshev_degree)
+        self.optimize_phase_origin = bool(config.optimize_phase_origin)
         self.rate_basis, self.phase_basis = self._build_chebyshev_phase_bases()
 
     def optimize(self, initial_variables: np.ndarray | None = None) -> Ma2023SixLevelGRAPEResult:
@@ -377,17 +429,17 @@ class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
                 coefficients0 = np.zeros(coefficient_count, dtype=np.float64)
                 if coefficient_count > 1:
                     coefficients0[1] = float(self.config.chebyshev_init_scale)
-                variables0 = np.concatenate([coefficients0, np.array([0.0, 0.0, 0.0], dtype=np.float64)])
+                variables0 = self._pack_chebyshev_variables(coefficients0, 0.0, 0.0, 0.0)
             else:
                 scale = float(self.config.chebyshev_init_scale)
                 coefficients0 = rng.normal(0.0, scale, size=coefficient_count)
-                variables0 = np.concatenate([coefficients0, np.array([0.0, 0.0, 0.0], dtype=np.float64)])
+                variables0 = self._pack_chebyshev_variables(coefficients0, 0.0, 0.0, 0.0)
             result = minimize(
                 fun=self.objective_and_gradient,
                 x0=variables0,
                 jac=True,
                 method="L-BFGS-B",
-                bounds=coefficient_bounds + [(-np.pi, np.pi), (0.0, 2.0 * np.pi), (0.0, 2.0 * np.pi)],
+                bounds=self._chebyshev_bounds(coefficient_bounds),
                 options={"maxiter": int(self.config.max_iter)},
             )
             candidate = self._result_from_variables(
@@ -433,17 +485,7 @@ class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
         coefficient_gradient = self.phase_basis.T @ objective_phase_gradient
         phase_origin_gradient = float(np.sum(objective_phase_gradient))
         gradient = np.concatenate(
-            [
-                coefficient_gradient,
-                np.array(
-                    [
-                        phase_origin_gradient,
-                        -theta0_grad,
-                        -theta1_grad,
-                    ],
-                    dtype=np.float64,
-                ),
-            ]
+            [coefficient_gradient, self._phase_tail_gradient(phase_origin_gradient, theta0_grad, theta1_grad)]
         )
         objective = 1.0 - fidelity + phase_cost
         return float(objective), gradient
@@ -462,16 +504,15 @@ class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
         theta1: float = 0.0,
     ) -> np.ndarray:
         unwrapped_phases = np.unwrap(np.asarray(phases, dtype=np.float64))
-        design = np.column_stack([self.phase_basis, np.ones(self.phase_basis.shape[0], dtype=np.float64)])
-        solution, *_ = np.linalg.lstsq(design, unwrapped_phases, rcond=None)
-        coefficients = solution[:-1]
-        phase_origin = wrap_phase(np.array([solution[-1]], dtype=np.float64))[0]
-        return np.concatenate(
-            [
-                coefficients,
-                np.array([phase_origin, float(theta0), float(theta1)], dtype=np.float64),
-            ]
-        )
+        if self.optimize_phase_origin:
+            design = np.column_stack([self.phase_basis, np.ones(self.phase_basis.shape[0], dtype=np.float64)])
+            solution, *_ = np.linalg.lstsq(design, unwrapped_phases, rcond=None)
+            coefficients = solution[:-1]
+            phase_origin = wrap_phase(np.array([solution[-1]], dtype=np.float64))[0]
+        else:
+            coefficients, *_ = np.linalg.lstsq(self.phase_basis, unwrapped_phases, rcond=None)
+            phase_origin = 0.0
+        return self._pack_chebyshev_variables(coefficients, phase_origin, theta0, theta1)
 
     def _result_from_variables(
         self,
@@ -515,13 +556,54 @@ class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
         centers = (np.arange(slots, dtype=np.float64) + 0.5) / float(slots)
         chebyshev_x = 2.0 * centers - 1.0
         rate_basis = np.polynomial.chebyshev.chebvander(chebyshev_x, self.chebyshev_degree)
-        phase_basis = self.config.dt * (np.cumsum(rate_basis, axis=0) - 0.5 * rate_basis)
+        phase_basis = self.config.dt * np.vstack(
+            [
+                np.zeros((1, rate_basis.shape[1]), dtype=np.float64),
+                np.cumsum(rate_basis[:-1], axis=0),
+            ]
+        )
         return rate_basis.astype(np.float64), phase_basis.astype(np.float64)
 
     def _unpack_chebyshev_variables(self, variables: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         coefficient_count = self.chebyshev_degree + 1
         coefficients = np.asarray(variables[:coefficient_count], dtype=np.float64)
-        phase_origin = float(variables[coefficient_count])
-        theta0 = float(variables[coefficient_count + 1])
-        theta1 = float(variables[coefficient_count + 2])
+        if self.optimize_phase_origin:
+            phase_origin = float(variables[coefficient_count])
+            theta0 = float(variables[coefficient_count + 1])
+            theta1 = float(variables[coefficient_count + 2])
+        else:
+            phase_origin = 0.0
+            theta0 = float(variables[coefficient_count])
+            theta1 = float(variables[coefficient_count + 1])
         return coefficients, phase_origin, theta0, theta1
+
+    def _pack_chebyshev_variables(
+        self,
+        coefficients: np.ndarray,
+        phase_origin: float,
+        theta0: float,
+        theta1: float,
+    ) -> np.ndarray:
+        if self.optimize_phase_origin:
+            tail = np.array([phase_origin, theta0, theta1], dtype=np.float64)
+        else:
+            tail = np.array([theta0, theta1], dtype=np.float64)
+        return np.concatenate([np.asarray(coefficients, dtype=np.float64), tail])
+
+    def _chebyshev_bounds(
+        self,
+        coefficient_bounds: list[tuple[float | None, float | None]],
+    ) -> list[tuple[float | None, float | None]]:
+        if self.optimize_phase_origin:
+            return coefficient_bounds + [(-np.pi, np.pi), (0.0, 2.0 * np.pi), (0.0, 2.0 * np.pi)]
+        return coefficient_bounds + [(0.0, 2.0 * np.pi), (0.0, 2.0 * np.pi)]
+
+    def _phase_tail_gradient(
+        self,
+        phase_origin_gradient: float,
+        theta0_grad: float,
+        theta1_grad: float,
+    ) -> np.ndarray:
+        if self.optimize_phase_origin:
+            return np.array([phase_origin_gradient, -theta0_grad, -theta1_grad], dtype=np.float64)
+        return np.array([-theta0_grad, -theta1_grad], dtype=np.float64)

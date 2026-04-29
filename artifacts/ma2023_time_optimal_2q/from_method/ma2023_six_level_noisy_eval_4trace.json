@@ -1,0 +1,23 @@
+{
+  "pulse": "artifacts/ma2023_time_optimal_2q/from_method/ma2023_six_level_cheb13_N100_refined_ideal.json",
+  "noise_model": {
+    "rydberg_lifetime_s": 6.5e-05,
+    "rydberg_decay_bright_fraction": 0.5,
+    "doppler_t2_star_s": 5.7e-06,
+    "doppler_detuning_rms_dimensionless": 0.024834941966156522,
+    "phase_noise_rms_rad": 0.002,
+    "intensity_noise_rms_fractional": 0.002
+  },
+  "summary": {
+    "gate_fidelity": 0.5216385264499696,
+    "gate_error": 0.47836147355003045,
+    "process_fidelity": 0.4045194660001384,
+    "leakage": 0.009885231750705437,
+    "active_population": 0.9901147682492946,
+    "bright_erasure": 0.003274112890219221,
+    "dark_leakage": 0.0032741128902192213,
+    "trace_count": 4,
+    "process_fidelity_std": 0.00342415678475858,
+    "leakage_std": 0.003428543934390034
+  }
+}

@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chebyshev-degree", type=int, default=13)
     parser.add_argument("--chebyshev-init-scale", type=float, default=1.0)
     parser.add_argument("--chebyshev-coefficient-bound", type=float, default=20.0)
+    parser.add_argument("--optimize-phase-origin", action="store_true", default=False)
     parser.add_argument(
         "--initial-direct-result",
         type=Path,
@@ -107,6 +108,7 @@ def main() -> None:
             chebyshev_degree=args.chebyshev_degree,
             chebyshev_init_scale=args.chebyshev_init_scale,
             chebyshev_coefficient_bound=args.chebyshev_coefficient_bound,
+            optimize_phase_origin=bool(args.optimize_phase_origin),
             show_progress=args.show_progress,
         ),
         envelope=envelope,
@@ -135,6 +137,11 @@ def main() -> None:
                         float(cheb_payload.get("phase_origin", 0.0)),
                         float(cheb_payload.get("theta0", 0.0)),
                         float(cheb_payload.get("theta1", 0.0)),
+                    ]
+                    if args.optimize_phase_origin
+                    else [
+                        float(cheb_payload.get("theta0", 0.0)),
+                        float(cheb_payload.get("theta1", 0.0)),
                     ],
                     dtype=np.float64,
                 ),
@@ -151,6 +158,7 @@ def main() -> None:
             "model": {
                 "name": "Ma2023PerfectBlockadeSixLevelModel",
                 "phase_parameterization": args.phase_parameterization,
+                "optimize_phase_origin": bool(args.optimize_phase_origin),
                 "basis": list(model.basis_labels()),
                 "delta_r_over_omega": float(model.delta_r),
                 "delta_m_over_omega": float(model.delta_m),

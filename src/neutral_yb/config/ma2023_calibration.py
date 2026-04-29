@@ -39,8 +39,12 @@ class Ma2023ExperimentalCalibration:
     blockade_shift_over_omega: float = 16.0
     nearby_rydberg_detuning_over_omega: float = 5.8
     rydberg_lifetime_s: float = 65e-6
+    rydberg_decay_detected_fraction: float = 0.5
     metastable_lifetime_s: float = 1.0
     rydberg_t2_s: float | None = None
+    doppler_t2_star_s: float = 5.7e-6
+    laser_phase_noise_rms_rad: float = 0.0
+    laser_intensity_noise_rms_fractional: float = 0.0
     uv_pulse_area_fractional_rms: float = 0.0
     quasistatic_detuning_rms_hz: float = 0.0
     differential_detuning_rms_hz: float = 0.0
@@ -203,6 +207,7 @@ def build_ma2023_six_level_model(
                 resolved.rydberg_lifetime_s,
                 effective_rabi_hz,
             ),
+            rydberg_decay_detected_fraction=float(resolved.rydberg_decay_detected_fraction),
             rydberg_dephasing_rate=0.0
             if resolved.rydberg_t2_s is None
             else resolved.dimensionless_rate_from_lifetime(resolved.rydberg_t2_s, effective_rabi_hz),

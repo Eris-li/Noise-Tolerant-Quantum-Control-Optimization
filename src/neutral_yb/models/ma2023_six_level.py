@@ -14,6 +14,7 @@ class Ma2023SixLevelNoiseConfig:
     rydberg_zeeman_offset: float = 0.0
     rabi_amplitude_scale: float = 1.0
     rydberg_decay_rate: float = 0.0
+    rydberg_decay_detected_fraction: float = 0.5
     rydberg_dephasing_rate: float = 0.0
 
 
@@ -42,11 +43,11 @@ class Ma2023PerfectBlockadeSixLevelModel:
         for sector in self.sector_labels():
             labels.extend(self._sector_basis_labels(sector))
         if self.include_loss_state:
-            labels.append("loss")
+            labels.extend(("detected_decay", "undetected_decay"))
         return tuple(labels)
 
     def dimension(self) -> int:
-        return 15 + int(self.include_loss_state)
+        return 15 + 2 * int(self.include_loss_state)
 
     def computational_indices(self) -> tuple[int, int, int]:
         return 0, 5, 10
@@ -56,6 +57,20 @@ class Ma2023PerfectBlockadeSixLevelModel:
 
     def loss_index(self) -> int | None:
         return 15 if self.include_loss_state else None
+
+    def erasure_index(self) -> int | None:
+        return self.detected_decay_index()
+
+    def detected_decay_index(self) -> int | None:
+        return 15 if self.include_loss_state else None
+
+    def undetected_decay_index(self) -> int | None:
+        return 16 if self.include_loss_state else None
+
+    def loss_indices(self) -> tuple[int, ...]:
+        if not self.include_loss_state:
+            return ()
+        return 15, 16
 
     def transition_subspace_indices(self, sector: str) -> tuple[int, int, int, int, int]:
         sector_index = self.sector_labels().index(sector)
@@ -91,15 +106,20 @@ class Ma2023PerfectBlockadeSixLevelModel:
 
     def collapse_operators(self) -> list[qutip.Qobj]:
         c_ops: list[qutip.Qobj] = []
-        loss = self.loss_index()
+        detected_decay = self.detected_decay_index()
+        undetected_decay = self.undetected_decay_index()
         gamma_r = max(float(self.noise.rydberg_decay_rate), 0.0)
+        detected_fraction = float(np.clip(self.noise.rydberg_decay_detected_fraction, 0.0, 1.0))
+        gamma_detected = detected_fraction * gamma_r
+        gamma_undetected = (1.0 - detected_fraction) * gamma_r
         gamma_phi = max(float(self.noise.rydberg_dephasing_rate), 0.0)
-        if gamma_r > 0.0 and loss is not None:
+        if gamma_r > 0.0 and detected_decay is not None and undetected_decay is not None:
             for sector in self.sector_labels():
                 for index in self.transition_subspace_indices(sector)[1:]:
-                    operator = np.zeros((self.dimension(), self.dimension()), dtype=np.complex128)
-                    operator[loss, index] = 1.0
-                    c_ops.append(np.sqrt(gamma_r) * qutip.Qobj(operator))
+                    if gamma_detected > 0.0:
+                        self._append_jump(c_ops, gamma_detected, detected_decay, index)
+                    if gamma_undetected > 0.0:
+                        self._append_jump(c_ops, gamma_undetected, undetected_decay, index)
         if gamma_phi > 0.0:
             projector = np.zeros((self.dimension(), self.dimension()), dtype=np.complex128)
             for sector in self.sector_labels():
@@ -189,6 +209,17 @@ class Ma2023PerfectBlockadeSixLevelModel:
         if rydberg_label in {"r_-1/2", "r_1/2"}:
             return 0.5 / np.sqrt(3.0)
         raise ValueError(f"Unsupported Rydberg label: {rydberg_label}")
+
+    def _append_jump(
+        self,
+        c_ops: list[qutip.Qobj],
+        rate: float,
+        to_index: int,
+        from_index: int,
+    ) -> None:
+        operator = np.zeros((self.dimension(), self.dimension()), dtype=np.complex128)
+        operator[to_index, from_index] = 1.0
+        c_ops.append(np.sqrt(rate) * qutip.Qobj(operator))
 
     @staticmethod
     def _add_quadrature_coupling(

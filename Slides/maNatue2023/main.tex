@@ -1,0 +1,531 @@
+\documentclass[aspectratio=169,11pt]{ctexbeamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{physics}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\title[Ma 2023 六能级复现]{中性 \texorpdfstring{$^{171}\mathrm{Yb}$}{171Yb} 两比特门的噪声容忍量子控制优化}
+\subtitle{从项目版本演进到 Ma 2023 六能级 time-optimal gate 复现}
+\author{Noise-Tolerant Quantum Control Optimization}
+\date{\today}
+
+\newcommand{\ketzero}{\ket{0}}
+\newcommand{\ketone}{\ket{1}}
+\newcommand{\ketr}[1]{\ket{r_{#1}}}
+\newcommand{\OmegaUV}{\Omega_{\mathrm{UV}}}
+\newcommand{\Deltar}{\Delta_r}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{汇报目标}
+  \begin{itemize}
+    \item 说明当前项目在做什么：面向中性 \({}^{171}\mathrm{Yb}\) 的两比特及多比特门控制优化。
+    \item 简要回顾旧版本：从理想闭系统到开放系统、从简化模型到实验相关模型。
+    \item 重点介绍当前 Ma 2023 六能级复现线：
+      \begin{itemize}
+        \item 体系和 Hilbert 空间如何构造；
+        \item Hamiltonian 与控制量如何写；
+        \item 如何用 GRAPE / Chebyshev 相位率优化；
+        \item 下一步如何把噪声模型补全。
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{项目主线概览}
+  \begin{block}{长期目标}
+    构建一套可逐步升级的中性原子量子门仿真与优化框架：先验证理想控制，再加入有限 blockade、泄漏、损耗和实验噪声。
+  \end{block}
+
+  \begin{itemize}
+    \item 核心代码：\texttt{src/neutral\_yb/}
+    \item 模型：\texttt{models/}
+    \item 标定：\texttt{config/}
+    \item 优化：\texttt{optimization/}
+    \item 实验入口：\texttt{experiments/}
+    \item 输出结果：\texttt{artifacts/}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{旧版本技术路线：简略回顾}
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      版本 & 模型目标 & 主要近似 \\
+      \midrule
+      v1 & global CZ 冻结参考 & 4 维、理想闭系统、infinite blockade \\
+      v2 & 闭系统修正版 & 5 维、finite blockade、detuning / 振幅误差 \\
+      v3 & 双光子闭系统 & 9 维、显式中间态 \(\ket{e}\)、two-photon detuning \\
+      v4/v5 & \({}^{171}\mathrm{Yb}\) 开放系统 & clock shelving + UV Rydberg + loss/leakage \\
+      Ma 2023 & metastable qubit time-optimal gate & 六能级单原子结构、完美 blockade 子空间分解 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+  当前汇报重点不是旧版参数细节，而是 Ma 2023 线如何从论文 Methods 走向可优化、可加噪声的仿真模型。
+\end{frame}
+
+\begin{frame}{Ma 2023 复现线的定位}
+  \begin{itemize}
+    \item 目标：复现 Ma et al., \emph{Nature} 622, 279--284 (2023) 中 time-optimal two-qubit gate 的核心物理和控制方法。
+    \item 与 v4/v5 主线不同：
+      \begin{itemize}
+        \item Ma 2023 使用 metastable qubit Rydberg gate；
+        \item 当前实现以论文 Methods 的六能级结构为核心；
+        \item 暂时与 clock-shelving 完整门主线分开维护。
+      \end{itemize}
+    \item 当前相关文件：
+      \begin{itemize}
+        \item \texttt{models/ma2023\_six\_level.py}
+        \item \texttt{optimization/ma2023\_six\_level\_grape.py}
+        \item \texttt{models/ma2023\_noise.py}
+        \item \texttt{experiments/reproduce\_ma2023\_six\_level\_from\_method.py}
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{论文与程序模型的对应关系}
+  Nature 论文中的实验对象是 metastable \({}^{171}\mathrm{Yb}\) qubit：
+  \begin{itemize}
+    \item qubit 编码在长寿命 metastable 态的核自旋自由度；
+    \item 两比特门通过快速 UV Rydberg 激发和 Rydberg blockade 实现；
+    \item Fig. 3 关注 time-optimal two-qubit gate；
+    \item 实验还强调 Rydberg decay 后可通过 mid-circuit detection 转成 erasure error。
+  \end{itemize}
+
+  \begin{block}{当前程序模拟的范围}
+    代码模拟的是 Fig. 3 门的 Methods-level coherent gate model 加上可扩展噪声接口；它不是完整实验装置模拟，也暂未包含 readout / SPAM / randomized benchmarking extraction。
+  \end{block}
+\end{frame}
+
+\begin{frame}{程序模型的核心近似}
+  当前文件 \texttt{ma2023\_six\_level.py} 实现的是：
+
+  \begin{enumerate}
+    \item 单原子保留 \(\ket{0},\ket{1}\) 与四个 Rydberg Zeeman 子能级；
+    \item 两原子动力学在 perfect blockade 极限下展开；
+    \item 删除双 Rydberg 态，避免显式处理 \(\ket{rr}\) manifold；
+    \item 根据初态 \(\ket{00},\ket{01}/\ket{10},\ket{11}\) 分解为三个五维 sector；
+    \item 对 coherent control 使用 slot-wise piecewise-constant Hamiltonian；
+    \item 噪声评估阶段可切换到 density-matrix Liouvillian 传播。
+  \end{enumerate}
+
+  这个模型优先回答的问题是：在论文给定的能级结构和控制族下，是否能数值复现高保真受控相位门。
+\end{frame}
+
+\begin{frame}{单原子六能级结构}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      当前 Methods-level 模型采用单原子基：
+      \[
+      \{\ketzero,\ketone,\ketr{-3/2},\ketr{-1/2},\ketr{1/2},\ketr{3/2}\}.
+      \]
+
+      四个 Rydberg Zeeman 子能级的失谐为：
+      \[
+      -3\Deltar,\quad -2\Deltar,\quad -\Deltar,\quad 0.
+      \]
+
+      当前 Ma 2023 标定采用：
+      \[
+      \Deltar / \Omega = 5.8.
+      \]
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        scale=0.86,
+        every node/.style={font=\small},
+        level/.style={thick},
+        link/.style={-{Latex[length=2mm]}, thick},
+      ]
+        \draw[level] (-0.2,0) -- (1.0,0);
+        \node[left] at (-0.2,0) {\(\ket{0}\)};
+        \draw[level] (2.2,0) -- (3.4,0);
+        \node[right] at (3.4,0) {\(\ket{1}\)};
+
+        \draw[level] (0.2,1.15) -- (2.9,1.15);
+        \node[left] at (0.2,1.15) {\(\ket{r_{-3/2}}\)};
+        \node[right] at (2.9,1.15) {\(-3\Deltar\)};
+
+        \draw[level] (0.2,2.05) -- (2.9,2.05);
+        \node[left] at (0.2,2.05) {\(\ket{r_{-1/2}}\)};
+        \node[right] at (2.9,2.05) {\(-2\Deltar\)};
+
+        \draw[level] (0.2,2.95) -- (2.9,2.95);
+        \node[left] at (0.2,2.95) {\(\ket{r_{1/2}}\)};
+        \node[right] at (2.9,2.95) {\(-\Deltar\)};
+
+        \draw[level] (0.2,3.85) -- (2.9,3.85);
+        \node[left] at (0.2,3.85) {\(\ket{r_{3/2}}\)};
+        \node[right] at (2.9,3.85) {\(0\)};
+
+        \draw[link] (0.4,0.05)
+          .. controls (0.18,0.48) and (0.35,0.86) .. (0.66,1.08);
+        \draw[link] (0.62,0.05)
+          .. controls (0.18,1.05) and (0.55,2.42) .. (0.96,2.88);
+        \draw[link] (2.95,0.05)
+          .. controls (3.20,0.86) and (2.85,1.64) .. (2.40,1.98);
+        \draw[link] (2.72,0.05)
+          .. controls (3.30,1.55) and (2.82,3.25) .. (2.38,3.78);
+        \node at (1.55,4.35) {UV 耦合};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{程序中的两原子状态空间}
+  程序没有直接构造完整 \(6\times 6=36\) 维两原子空间，而是只保留与三个输入 sector 相关的 blockade 子空间：
+
+  \[
+    \mathcal{H}_{\mathrm{sim}}
+    =
+    \mathcal{H}_{00}
+    \oplus
+    \mathcal{H}_{01}
+    \oplus
+    \mathcal{H}_{11}
+    \oplus
+    \mathcal{H}_{\mathrm{sink}}.
+  \]
+
+  \begin{itemize}
+    \item 每个 \(\mathcal{H}_{ab}\) 是 5 维：1 个 computational state 加 4 个单 Rydberg 激发态。
+    \item \(\mathcal{H}_{\mathrm{sink}}\) 当前有两个 bookkeeping 态：
+      \(\ket{\mathrm{detected\_decay}}\) 与 \(\ket{\mathrm{undetected\_decay}}\)。
+    \item 因此默认维度为 \(5+5+5+2=17\)。
+  \end{itemize}
+
+  这种写法把论文中的 blockade 物理假设直接编码进 Hilbert 空间，而不是先写全空间再数值投影。
+\end{frame}
+
+\begin{frame}{三个 sector 的物理含义}
+  \begin{itemize}
+    \item \(\mathcal{H}_{00}\)：两个原子都从 \(\ket{0}\) 出发，允许激发到与 \(\ket{0}\) 相连的 Rydberg Zeeman 支路。
+    \item \(\mathcal{H}_{01}\)：代表 \(\ket{01}\) 与 \(\ket{10}\) 的等价单翻转输入；在 fidelity 中权重为 2。
+    \item \(\mathcal{H}_{11}\)：两个原子都从 \(\ket{1}\) 出发，是产生 CZ 非平庸条件相位的关键 sector。
+  \end{itemize}
+
+  \[
+    \ket{00}\rightarrow z_{00}\ket{00}+\ket{\mathrm{leak}},
+    \quad
+    \ket{01}\rightarrow z_{01}\ket{01}+\ket{\mathrm{leak}},
+    \quad
+    \ket{11}\rightarrow z_{11}\ket{11}+\ket{\mathrm{leak}}.
+  \]
+
+  程序最后只从每个 sector 的 computational basis 分量读取 \(z_{00},z_{01},z_{11}\)，用它们构造 diagonal phase-gate fidelity。
+\end{frame}
+
+\begin{frame}{Clebsch--Gordon 耦合系数}
+  UV 控制写成两个正交 quadrature：
+  \[
+    H(t)=H_d+u_x(t)H_x+u_y(t)H_y,
+  \]
+  其中
+  \[
+    u_x(t)=\Omega(t)\cos\phi(t),\qquad
+    u_y(t)=\Omega(t)\sin\phi(t).
+  \]
+
+  四个 Rydberg 支路的相对耦合强度为：
+  \[
+    C_{r_{-3/2}}=C_{r_{3/2}}=\frac{1}{2},\qquad
+    C_{r_{-1/2}}=C_{r_{1/2}}=\frac{1}{2\sqrt{3}}.
+  \]
+
+  因此优化器虽然只直接给出 \(u_x,u_y\)，物理上等价于同时调制振幅 \(\Omega(t)\) 与相位 \(\phi(t)\)。
+\end{frame}
+
+\begin{frame}{Hamiltonian：drift 项}
+  对每个五维 sector，drift Hamiltonian 是对角的 Rydberg detuning：
+  \[
+    H_d^{(s)}
+    =
+    \mathrm{diag}
+    \left(
+      0,\,
+      \Delta_{r_1},\,
+      \Delta_{r_2},\,
+      \Delta_{r_3},\,
+      \Delta_{r_4}
+    \right).
+  \]
+
+  程序中四条 Rydberg 支路的能量偏移写成：
+  \[
+    \Delta_{r_{-3/2}}=-3\Deltar,\quad
+    \Delta_{r_{-1/2}}=-2\Deltar,\quad
+    \Delta_{r_{1/2}}=-\Deltar,\quad
+    \Delta_{r_{3/2}}=0.
+  \]
+
+  如果打开静态误差，还会加入：
+  \[
+    \Deltar\rightarrow \Deltar+\delta_Z,\qquad
+    H_d\rightarrow H_d-\delta_{\mathrm{common}}P_r.
+  \]
+\end{frame}
+
+\begin{frame}{Hamiltonian：控制项}
+  每个 sector 的 computational state 与四个单 Rydberg state 相连：
+  \[
+    H_c^{(s)}
+    =
+    \sum_j
+    C_j
+    \left(
+      u_x(t)\sigma_x^{(j)}
+      +
+      u_y(t)\sigma_y^{(j)}
+    \right).
+  \]
+
+  在代码里，\(\sigma_x,\sigma_y\) 通过矩阵元实现为：
+  \[
+    H_x[p,q]=H_x[q,p]=C_j\Omega_{\mathrm{ref}},
+  \]
+  \[
+    H_y[p,q]=-iC_j\Omega_{\mathrm{ref}},
+    \qquad
+    H_y[q,p]=iC_j\Omega_{\mathrm{ref}}.
+  \]
+
+  这样 \(u_xH_x+u_yH_y\) 等价于带相位的复 Rabi 耦合，避免在优化变量里直接处理复数控制。
+\end{frame}
+
+\begin{frame}{完美 blockade 下的两原子子空间}
+  完美 blockade 极限中删除双 Rydberg 态，两原子动力学分解为三个五维子空间。
+
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{ll}
+      \toprule
+      初始 sector & 子空间基底 \\
+      \midrule
+      \(\ket{00}\) &
+      \(\ket{00},\ket{0r_{-3/2}},\ket{0r_{1/2}},\ket{r_{-3/2}0},\ket{r_{1/2}0}\) \\
+      \(\ket{01}\) &
+      \(\ket{01},\ket{0r_{-1/2}},\ket{0r_{3/2}},\ket{r_{-3/2}1},\ket{r_{1/2}1}\) \\
+      \(\ket{11}\) &
+      \(\ket{11},\ket{1r_{-1/2}},\ket{1r_{3/2}},\ket{r_{-1/2}1},\ket{r_{3/2}1}\) \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  加上 detected / undetected decay 两个 sink 后，当前实现维度为 \(15+2=17\)。
+\end{frame}
+
+\begin{frame}{时间传播：程序如何推进动力学}
+  对第 \(k\) 个 time slot：
+  \[
+    H_k=H_d+u_{x,k}H_x+u_{y,k}H_y,
+    \qquad
+    U_k=\exp(-iH_k\Delta t).
+  \]
+
+  闭系统优化阶段：
+  \[
+    \ket{\psi(T)}
+    =
+    U_{N-1}\cdots U_1U_0\ket{\psi(0)}.
+  \]
+
+  含 Lindblad 噪声评估阶段：
+  \[
+    \mathrm{vec}[\rho_{k+1}]
+    =
+    \exp(\mathcal{L}_k\Delta t)\,
+    \mathrm{vec}[\rho_k].
+  \]
+
+  其中 \(\mathcal{L}_k\) 包含 Hamiltonian commutator 与 collapse operators。当前优化梯度使用 Frechet derivative 计算每个 slot 对 fidelity 的影响。
+\end{frame}
+
+\begin{frame}{目标门与 fidelity 定义}
+  当前优化只需追踪三个 computational sector 的返回振幅：
+  \[
+  z_{00},\quad z_{01},\quad z_{11}.
+  \]
+
+  目标相位写成：
+  \[
+  U_{\mathrm{target}}
+  =\mathrm{diag}\left(
+    e^{i\theta_0},
+    e^{i(\theta_0+\theta_1)},
+    -e^{i(\theta_0+2\theta_1)}
+  \right),
+  \]
+  其中 \(\theta_0,\theta_1\) 也作为优化变量。
+
+  当前代码使用 Methods Eq. 10 风格的 diagonal perfect-blockade channel fidelity：
+  \[
+  F_{\mathrm{pro}}=\frac{1}{16}
+  \left|
+  z_{00}e^{-i\theta_0}
+  +2z_{01}e^{-i(\theta_0+\theta_1)}
+  -z_{11}e^{-i(\theta_0+2\theta_1)}
+  \right|^2.
+  \]
+\end{frame}
+
+\begin{frame}{优化问题：固定包络，优化相位}
+  当前 method-first reproduction 的核心控制族：
+  \[
+    \Omega(t):\ \text{固定 Gaussian-edge envelope},
+    \qquad
+    \phi(t):\ \text{待优化}.
+  \]
+
+  优化目标：
+  \[
+    \min_{\phi,\theta_0,\theta_1}
+    \left[1-F+\lambda_1 R_{\mathrm{smooth}}(\phi)
+    +\lambda_2 R_{\mathrm{curv}}(\phi)\right].
+  \]
+
+  数值实现：
+  \begin{itemize}
+    \item 每个 time slot 使用矩阵指数传播；
+    \item 使用 \(\mathrm{expm\_frechet}\) 计算 GRAPE 梯度；
+    \item 外层优化器为 SciPy \texttt{L-BFGS-B}；
+    \item 默认 \(N=100\)，\(T\Omega_{\max}\approx 12.3876\)。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Chebyshev 相位率参数化}
+  论文 Methods 中的相位率可写成 Chebyshev 展开：
+  \[
+    \dot{\phi}(t)
+    =
+    \sum_{n=0}^{n_{\max}} c_n
+    T_n\left(2t/T-1\right).
+  \]
+
+  当前实现：
+  \begin{itemize}
+    \item 默认 \(n_{\max}=13\)；
+    \item 先采样 \(\dot{\phi}\)，再积分得到每个 slot 的 \(\phi_k\)；
+    \item 优化变量为 \(\{c_n\},\phi_0,\theta_0,\theta_1\)；
+    \item 支持从 direct phase 高保真脉冲投影到 Chebyshev-13 后继续 refine。
+  \end{itemize}
+
+  这一步的意义是把任意 slot-wise 相位压缩成低维、平滑、实验上更可实现的控制参数。
+\end{frame}
+
+\begin{frame}{当前复现状态}
+  \begin{itemize}
+    \item 使用 Dataverse Fig. 3 脉冲做固定脉冲评估，可作为数据导入和模型传播的 sanity check。
+    \item Direct \(N=100\) phase GRAPE 在理想六能级模型中达到
+      \[
+      F \approx 0.9999999137,
+      \qquad
+      1-F \approx 8.6\times 10^{-8}.
+      \]
+    \item Chebyshev-13 从 direct pulse 投影并 refine 后达到
+      \[
+      F \approx 0.999697,
+      \qquad
+      1-F \approx 3.0\times 10^{-4}.
+      \]
+    \item 当前差距：还未完全复现 Methods 中“\(n_{\max}=13\) 几乎无 fidelity 损失”的结论。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{程序当前没有模拟的部分}
+  为避免把模型说得过满，当前实现的边界需要明确：
+
+  \begin{itemize}
+    \item 未显式模拟完整实验 pulse chain 中的所有 AOM / optical transfer-function 细节；
+    \item 未显式加入有限 blockade 的双 Rydberg 态动力学；
+    \item 未从论文实验噪声谱自动生成 colored noise trace；
+    \item 未包含 benchmark 序列、SPAM、readout correction；
+    \item erasure sink 当前是诊断用 bookkeeping state，不是完整探测光散射过程。
+  \end{itemize}
+
+  因此当前程序最适合称为：\textbf{Ma 2023 Fig. 3 Methods-level 六能级 perfect-blockade gate simulator with extensible noise channels}。
+\end{frame}
+
+\begin{frame}{已实现的噪声接口}
+  当前噪声分三类：
+
+  \begin{enumerate}
+    \item Markovian Rydberg decay：
+      \[
+      L_j=\sqrt{\gamma_j}\ket{\mathrm{sink}}\bra{r_j}.
+      \]
+      decay sink 分为 detected 与 undetected，用于 erasure 诊断。
+
+    \item Coherent static errors：
+      common detuning、Rydberg Zeeman offset、Rabi amplitude scale。
+
+    \item Non-Markovian Monte Carlo trace：
+      \[
+      \delta(t),\quad s_\Omega(t),\quad \delta\phi(t),
+      \]
+      分别对应 slot-wise detuning、强度噪声和相位噪声。
+  \end{enumerate}
+
+  默认 Rydberg lifetime 采用 \(T_{1,r}=65\,\mu\mathrm{s}\)，detected fraction 默认约 \(0.5\)。
+\end{frame}
+
+\begin{frame}{未来噪声建模路线}
+  下一阶段目标是从“接口可用”推进到“实验噪声谱驱动”。
+
+  \begin{itemize}
+    \item Doppler / motional noise：
+      \[
+      \sigma_\delta=\sqrt{2}/T_2^*
+      \]
+      由 Ramsey \(T_2^*\) 转为准静态 detuning RMS，再做 Monte Carlo ensemble。
+    \item Laser phase noise：
+      将实测相位噪声谱采样为 \(\delta\phi(t)\)，直接加到 \(\phi(t)\)。
+    \item Intensity noise：
+      将强度噪声转为 \(\Omega(t)\) 的乘性扰动 \(s_\Omega(t)\)。
+    \item Finite blockade：
+      在完美 blockade 模型之外加入双 Rydberg 态或有效二阶修正。
+    \item Readout / SPAM：
+      物理门模型稳定后，再加入 benchmark 和 readout correction 层。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{工作流：从理想优化到鲁棒评估}
+  \begin{enumerate}
+    \item 导入或生成参考 envelope；
+    \item 在理想六能级模型中优化 \(\phi(t)\)；
+    \item 将 direct phase 脉冲压缩为 Chebyshev phase-rate；
+    \item 对 Chebyshev 脉冲继续 refine；
+    \item 构造噪声 trace ensemble；
+    \item 用密度矩阵 Liouvillian 传播评估平均 fidelity、leakage、erasure。
+  \end{enumerate}
+
+  \vspace{0.7em}
+  关键原则：先把 coherent control 做对，再逐项加入有物理来源的噪声。
+\end{frame}
+
+\begin{frame}{总结}
+  \begin{itemize}
+    \item 项目已经从早期简化 CZ 模型推进到多个实验相关的 \({}^{171}\mathrm{Yb}\) 控制模型。
+    \item Ma 2023 线当前重点是六能级 metastable qubit Rydberg gate 的 Methods-level 复现。
+    \item 当前理想六能级 direct GRAPE 已能达到极高 fidelity。
+    \item Chebyshev-13 参数化和真实噪声谱注入是下一步最关键的技术工作。
+    \item 最终目标是得到既接近论文 time-optimal 脉冲，又能在实验噪声下保持鲁棒性的控制方案。
+  \end{itemize}
+\end{frame}
+
+\end{document}

@@ -49,6 +49,18 @@ The perfect-blockade six-level Hamiltonian now matches the Methods-level coheren
 
 Missing or approximate relative to the full noise model: finite but imperfect van der Waals blockade, Doppler/motional Monte Carlo detuning traces, measured laser phase and intensity noise spectra, tweezer/light-shift noise, measured AOM transfer-function and closed-loop phase correction, atom-position-dependent Rabi and blockade variation, blackbody/branching-resolved Rydberg decay channels, and benchmark/readout/SPAM layers. These should be added before claiming full Methods-level noise-model agreement.
 
+## Noise Model Implementation
+
+The six-level model separates noise into three categories:
+
+- Markovian Rydberg decay: implemented as Lindblad collapse operators from every Rydberg basis state into two sink states, `detected_decay` and `undetected_decay`. These are not optical dark/bright dressed states; they are bookkeeping states for decay products that are detected or not detected by the erasure readout. The total rate is `1 / (Omega_ref * T1,r)`; the default `T1,r = 65 us` comes from Ma 2023. The default detected fraction is `0.5`, matching the Methods statement that only about half of Rydberg decays are detected through `1S0`.
+- Coherent static errors: implemented as Hamiltonian parameters or per-trajectory offsets, including common detuning, Rydberg Zeeman offset, and Rabi amplitude scaling.
+- Non-Markovian errors: represented by Monte Carlo traces in `src/neutral_yb/models/ma2023_noise.py`. A trace contains slot-wise `common_detuning`, `rabi_scale`, and `phase_offset`. The six-level optimizer can evolve density matrices with these traces using exact slot-wise Lindblad propagators.
+
+For Doppler/quasistatic detuning, the helper `doppler_detuning_rms_from_t2_star()` converts a Gaussian Ramsey `T2*` into a dimensionless RMS detuning using `sigma_delta = sqrt(2) / T2*`. Ma 2023 reports `T2* = 5.7 us`; the resulting dimensionless RMS should be used as the Monte Carlo `quasistatic_detuning_rms`.
+
+Laser phase noise should be simulated as a sampled phase offset added to `phi(t)` before forming `u_x = Omega cos(phi)` and `u_y = Omega sin(phi)`. Laser intensity noise should be simulated as a multiplicative Rabi scale applied to the pulse amplitude. The current code supports white or quasistatic trace injection; measured spectra can be converted to colored time traces later without changing the simulator interface.
+
 ## Run Commands
 
 Import/normalize the local Dataverse CSV files:
