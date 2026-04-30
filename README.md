@@ -57,6 +57,7 @@ python3 -m venv .venv
 
 ```bash
 ./.venv/bin/python -m pip install -e '.[rydcalc]'
+./.venv/bin/python scripts/build_rydcalc_extension.py
 ```
 
 ### Windows PowerShell
@@ -103,7 +104,7 @@ Docker:
 docker compose run --rm test
 ```
 
-当前本地基线为 `42` 个 `unittest` 测试通过。
+当前本地基线为 `43` 个 `unittest` 测试通过。
 
 ## 典型入口
 
@@ -171,10 +172,12 @@ git submodule status --recursive
 Python 3.12 / NumPy 2 本地验证时需要先临时应用兼容 patch：
 
 ```bash
-git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
-PYTHONPATH=rydcalc MPLCONFIGDIR=/tmp/matplotlib-rydcalc ./.venv/bin/python -c "import rydcalc; yb=rydcalc.Ytterbium171(use_db=False); print(yb.get_state((60,0,0.5,0.5)))"
-git -C rydcalc apply -R ../patches/rydcalc-python312-numpy2.patch
+./.venv/bin/python -m pip install -e '.[rydcalc]'
+./.venv/bin/python scripts/build_rydcalc_extension.py
+./.venv/bin/python -c "from neutral_yb.external.rydcalc_adapter import build_yb171_atom; yb = build_yb171_atom(use_db=False); print(yb.get_state((60,0,0.5,0.5)))"
 ```
+
+本地编译需要当前 Python 解释器对应的开发头文件，例如 Ubuntu/WSL 上的 `python3.12-dev`。Docker 镜像会在 build 阶段安装编译工具并构建该扩展。
 
 更多说明见 [docs/rydcalc-integration.md](docs/rydcalc-integration.md)。
 

@@ -76,15 +76,18 @@ Record generated artifact paths in PRs or notes. If a command is expensive, incl
 
 `rydcalc/` is managed as a Git submodule pinned to the upstream ThompsonLabPrinceton repository. Do not casually edit files inside `rydcalc/`. Prefer adding adapters under `src/neutral_yb/` or documenting local compatibility patches under `patches/`.
 
-For Python 3.12 / NumPy 2 local validation, apply the compatibility patch temporarily:
+For Python 3.12 local validation, prefer building the ARC C extension for the active interpreter and importing `rydcalc` through the project adapter:
+
+```bash
+./.venv/bin/python -m pip install -e '.[rydcalc]'
+./.venv/bin/python scripts/build_rydcalc_extension.py
+./.venv/bin/python -c "from neutral_yb.external.rydcalc_adapter import build_yb171_atom; print(build_yb171_atom(use_db=False).name)"
+```
+
+The adapter in `neutral_yb.external.rydcalc_adapter` provides the NumPy 2 compatibility shim without editing the submodule. Use `patches/rydcalc-python312-numpy2.patch` only as a temporary fallback when explicitly testing a no-extension path, and reverse it afterward:
 
 ```bash
 git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
-```
-
-After validation, restore the clean submodule state:
-
-```bash
 git -C rydcalc apply -R ../patches/rydcalc-python312-numpy2.patch
 ```
 

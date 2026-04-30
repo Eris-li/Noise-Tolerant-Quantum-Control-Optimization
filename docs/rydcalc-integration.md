@@ -15,17 +15,18 @@
 
 ## 初始化状态
 
-已在本地完成以下验证。注意：Python 3.12 / NumPy 2 环境需要先应用 `patches/rydcalc-python312-numpy2.patch`，或成功编译 C Numerov 扩展。
+已在本地完成以下验证。注意：Python 3.12 / NumPy 2 环境的推荐路径是为当前解释器编译 C Numerov 扩展，并通过项目适配层导入。
 
-- 当前主项目 `.venv` 为 Python 3.12.3，应用兼容 patch 后可通过 `PYTHONPATH=rydcalc` 导入 `rydcalc`。
+- 当前主项目 `.venv` 为 Python 3.12.3；本机缺少 `/usr/include/python3.12/Python.h` 时无法直接编译 C 扩展，需要先安装匹配的 Python 开发头文件。
 - 上游 `tests/unit_tests.py` 的 Hydrogen norm 和 circular multipole 测试通过。
 - `Ytterbium171(use_db=False)` 可实例化，并能计算示例态 `|171Yb:60.18,L=0,F=0.5,0.5>`。
 
 当前验证命令：
 
 ```bash
-git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
-PYTHONPATH=rydcalc MPLCONFIGDIR=/tmp/matplotlib-rydcalc ./.venv/bin/python -c "import rydcalc; yb=rydcalc.Ytterbium171(use_db=False); print(yb.get_state((60,0,0.5,0.5)))"
+./.venv/bin/python -m pip install -e '.[rydcalc]'
+./.venv/bin/python scripts/build_rydcalc_extension.py
+./.venv/bin/python -c "from neutral_yb.external.rydcalc_adapter import build_yb171_atom; yb = build_yb171_atom(use_db=False); print(yb.get_state((60,0,0.5,0.5)))"
 PYTHONPATH=.. MPLCONFIGDIR=/tmp/matplotlib-rydcalc ../.venv/bin/python -m unittest tests.unit_tests -v
 ```
 
@@ -41,7 +42,13 @@ PYTHONPATH=.. MPLCONFIGDIR=/tmp/matplotlib-rydcalc ../.venv/bin/python -m unitte
 
 ## 本地兼容修复
 
-为了让上游代码能在本项目 Python 3.12 / NumPy 2 环境里运行，验证时对 `rydcalc` 做过三处小修复。由于 `rydcalc/` 按 submodule 管理，默认保留上游工作树；这些修复记录在 `patches/rydcalc-python312-numpy2.patch`，需要本地验证 Python 3.12 环境时再应用：
+为了让上游代码能在本项目 Python 3.12 / NumPy 2 环境里运行，项目侧新增了 `neutral_yb.external.rydcalc_adapter`：
+
+- 自动把 `rydcalc/` submodule 加入 import path。
+- 检查当前 Python 解释器是否有对应的 `arc_c_extensions` C 扩展。
+- 在导入 `rydcalc` 前补上 NumPy 2 兼容别名 `np.product = np.prod`，避免改动 submodule。
+
+验证早期也做过三处上游小修复。由于 `rydcalc/` 按 submodule 管理，默认保留上游工作树；这些修复记录在 `patches/rydcalc-python312-numpy2.patch`，仅作为 no-extension fallback 或 upstream patch 参考：
 
 ```bash
 git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
@@ -79,16 +86,15 @@ git submodule status --recursive
 
 ## C 扩展说明
 
-`rydcalc` 带有 ARC Numerov C 扩展 `arc_c_extensions.c`。当前主项目 `.venv` 缺少 Python 3.12 开发头文件，所以不能在 `.venv` 里编译该扩展；应用兼容 patch 后会回退到纯 Python 路径。
+`rydcalc` 带有 ARC Numerov C 扩展 `arc_c_extensions.c`。当前推荐为项目 Python 3.12 解释器直接编译该扩展：
 
 如果需要高性能径向波函数计算，先安装 Python 3.12 headers，再运行：
 
 ```bash
-cd rydcalc/rydcalc
-../../.venv/bin/python setupc.py build_ext --inplace
+./.venv/bin/python scripts/build_rydcalc_extension.py
 ```
 
-生成的 `.so` 和 `build/` 已被上游 `.gitignore` 忽略，不应提交。
+生成的 `.so` 和 `build/` 已被上游 `.gitignore` 忽略，不应提交。当前 Dockerfile 会安装编译工具、安装 `.[rydcalc]`，并在 build 阶段运行这个脚本。
 
 ## 建议集成方式
 
