@@ -64,24 +64,40 @@ def noisy_channel_summary(
     model = optimizer.model
     computational = model.computational_indices()
     weights = np.array([1.0, 2.0, 1.0], dtype=np.float64)
-    signs = np.array([1.0, 1.0, -1.0], dtype=np.complex128)
-    target_conj = np.array(
-        [
-            np.exp(-1j * theta0),
-            np.exp(-1j * (theta0 + theta1)),
-            np.exp(-1j * (theta0 + 2.0 * theta1)),
-        ],
-        dtype=np.complex128,
-    )
     trace_values = []
     population_values = []
     erasure_values = []
     undetected_values = []
+    target_phases = np.array(
+        [
+            np.exp(1j * theta0),
+            np.exp(1j * (theta0 + theta1)),
+            -np.exp(1j * (theta0 + 2.0 * theta1)),
+        ],
+        dtype=np.complex128,
+    )
     for trace in traces:
-        diagonal_response = []
+        process_trace = 0.0j
         population_sum = 0.0
         erasure_sum = 0.0
         undetected_sum = 0.0
+        for row, row_index in enumerate(computational):
+            for col, col_index in enumerate(computational):
+                operator = np.zeros((model.dimension(), model.dimension()), dtype=np.complex128)
+                operator[row_index, col_index] = 1.0
+                rho_t = optimizer.evolve_density_matrix(
+                    ctrl_x,
+                    ctrl_y,
+                    operator,
+                    noise_trace=trace,
+                )
+                process_trace += (
+                    weights[row]
+                    * weights[col]
+                    * np.conj(target_phases[row])
+                    * target_phases[col]
+                    * rho_t[row_index, col_index]
+                )
         for basis_index, weight in zip(computational, weights):
             rho_t = optimizer.evolve_density_matrix(
                 ctrl_x,
@@ -89,19 +105,17 @@ def noisy_channel_summary(
                 computational_density(model, basis_index),
                 noise_trace=trace,
             )
-            diagonal_response.append(rho_t[basis_index, basis_index])
             population_sum += float(weight * np.real(rho_t[basis_index, basis_index]))
             if model.erasure_index() is not None:
                 erasure_sum += float(weight * np.real(rho_t[model.erasure_index(), model.erasure_index()]))
             if model.undetected_decay_index() is not None:
                 undetected_sum += float(weight * np.real(rho_t[model.undetected_decay_index(), model.undetected_decay_index()]))
-        channel_trace = np.sum(weights * signs * target_conj * np.asarray(diagonal_response))
-        trace_values.append(channel_trace)
+        trace_values.append(process_trace)
         population_values.append(population_sum / 4.0)
         erasure_values.append(erasure_sum / 4.0)
         undetected_values.append(undetected_sum / 4.0)
 
-    process_fidelities = [float(abs(value) ** 2 / 16.0) for value in trace_values]
+    process_fidelities = [float(np.real(value) / 16.0) for value in trace_values]
     active_populations = np.asarray(population_values, dtype=np.float64)
     leakage = 1.0 - active_populations
     process_fidelity = float(np.mean(process_fidelities))

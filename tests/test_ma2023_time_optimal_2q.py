@@ -34,6 +34,7 @@ from neutral_yb.optimization.ma2023_six_level_grape import (
     Ma2023SixLevelGRAPEConfig,
     Ma2023SixLevelPhaseOptimizer,
 )
+from experiments.evaluate_ma2023_six_level_noisy import noisy_channel_summary
 
 
 class Ma2023TimeOptimal2QModelTest(unittest.TestCase):
@@ -223,6 +224,54 @@ class Ma2023TimeOptimal2QModelTest(unittest.TestCase):
         self.assertAlmostEqual(float(np.trace(rho_t).real), 1.0, places=9)
         sigma = doppler_detuning_rms_from_t2_star(t2_star_s=5.7e-6, omega_ref_rad_s=2.0 * np.pi * 1.59e6)
         self.assertGreater(sigma, 0.0)
+
+    def test_lindblad_scoring_preserves_diagonal_gate_phase(self) -> None:
+        class FakeModel:
+            def dimension(self) -> int:
+                return 3
+
+            def computational_indices(self) -> tuple[int, int, int]:
+                return 0, 1, 2
+
+            def erasure_index(self):
+                return None
+
+            def undetected_decay_index(self):
+                return None
+
+        class FakeTrace:
+            def validate(self, _num_tslots: int) -> None:
+                return None
+
+        class FakeOptimizer:
+            model = FakeModel()
+
+            def __init__(self, phases: np.ndarray) -> None:
+                self.unitary = np.diag(phases)
+
+            def evolve_density_matrix(self, _ctrl_x, _ctrl_y, rho0, *, noise_trace=None):
+                return self.unitary @ rho0 @ self.unitary.conj().T
+
+        theta0 = 0.3
+        theta1 = -0.2
+        target = np.array(
+            [
+                np.exp(1j * theta0),
+                np.exp(1j * (theta0 + theta1)),
+                -np.exp(1j * (theta0 + 2.0 * theta1)),
+            ],
+            dtype=np.complex128,
+        )
+        summary = noisy_channel_summary(
+            FakeOptimizer(target),
+            np.zeros(1),
+            np.zeros(1),
+            theta0,
+            theta1,
+            [FakeTrace()],
+        )
+        self.assertAlmostEqual(summary["process_fidelity"], 1.0)
+        self.assertAlmostEqual(summary["gate_fidelity"], 1.0)
 
     def test_open_system_optimizer_objective_runs(self) -> None:
         model = build_ma2023_model(include_noise=True)
