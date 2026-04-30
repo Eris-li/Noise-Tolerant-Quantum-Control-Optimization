@@ -1,0 +1,3 @@
+[submodule "rydcalc"]
+	path = rydcalc
+	url = https://github.com/ThompsonLabPrinceton/rydcalc.git

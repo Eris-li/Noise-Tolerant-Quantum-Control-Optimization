@@ -1,6 +1,6 @@
 # rydcalc 初始化记录
 
-`rydcalc/` 是从 `https://github.com/ThompsonLabPrinceton/rydcalc.git` 导入的独立上游仓库，当前 HEAD 为 `d17b981 Fixed 3P2 MQDT perturbers in 171Yb models`。
+`rydcalc/` 是从 `https://github.com/ThompsonLabPrinceton/rydcalc.git` 导入的 Git submodule，当前 pin 到 `d17b981 Fixed 3P2 MQDT perturbers in 171Yb models`。
 
 ## 作用
 
@@ -15,15 +15,16 @@
 
 ## 初始化状态
 
-已在本地完成以下验证：
+已在本地完成以下验证。注意：Python 3.12 / NumPy 2 环境需要先应用 `patches/rydcalc-python312-numpy2.patch`，或成功编译 C Numerov 扩展。
 
-- 当前主项目 `.venv` 为 Python 3.12.3，可通过 `PYTHONPATH=rydcalc` 导入 `rydcalc`。
+- 当前主项目 `.venv` 为 Python 3.12.3，应用兼容 patch 后可通过 `PYTHONPATH=rydcalc` 导入 `rydcalc`。
 - 上游 `tests/unit_tests.py` 的 Hydrogen norm 和 circular multipole 测试通过。
 - `Ytterbium171(use_db=False)` 可实例化，并能计算示例态 `|171Yb:60.18,L=0,F=0.5,0.5>`。
 
 当前验证命令：
 
 ```bash
+git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
 PYTHONPATH=rydcalc MPLCONFIGDIR=/tmp/matplotlib-rydcalc ./.venv/bin/python -c "import rydcalc; yb=rydcalc.Ytterbium171(use_db=False); print(yb.get_state((60,0,0.5,0.5)))"
 PYTHONPATH=.. MPLCONFIGDIR=/tmp/matplotlib-rydcalc ../.venv/bin/python -m unittest tests.unit_tests -v
 ```
@@ -40,15 +41,45 @@ PYTHONPATH=.. MPLCONFIGDIR=/tmp/matplotlib-rydcalc ../.venv/bin/python -m unitte
 
 ## 本地兼容修复
 
-为了让上游代码能在本项目 Python 3.12 / NumPy 2 环境里运行，已对 `rydcalc` 做了三处小修复：
+为了让上游代码能在本项目 Python 3.12 / NumPy 2 环境里运行，验证时对 `rydcalc` 做过三处小修复。由于 `rydcalc/` 按 submodule 管理，默认保留上游工作树；这些修复记录在 `patches/rydcalc-python312-numpy2.patch`，需要本地验证 Python 3.12 环境时再应用：
+
+```bash
+git -C rydcalc apply ../patches/rydcalc-python312-numpy2.patch
+```
 
 - `rydcalc/setupc.py`：从已移除的 `distutils` / `numpy.distutils` 改为 `setuptools` + `numpy.get_include()`。
 - `rydcalc/MQDTclass.py`：将 NumPy 2 中已移除的 `np.product` 改为 `np.prod`。
 - `rydcalc/alkali.py`：请求 C Numerov 扩展但扩展不存在时，自动回退到纯 Python Numerov，避免 Python 开发头文件缺失时无法导入。
 
+如需撤销该兼容 patch 并恢复干净 submodule：
+
+```bash
+git -C rydcalc apply -R ../patches/rydcalc-python312-numpy2.patch
+```
+
+## Submodule 操作
+
+首次 clone 主项目后拉取 `rydcalc`：
+
+```bash
+git submodule update --init --recursive
+```
+
+更新到主项目记录的版本：
+
+```bash
+git submodule update --recursive
+```
+
+查看当前 pin：
+
+```bash
+git submodule status --recursive
+```
+
 ## C 扩展说明
 
-`rydcalc` 带有 ARC Numerov C 扩展 `arc_c_extensions.c`。当前主项目 `.venv` 缺少 Python 3.12 开发头文件，所以不能在 `.venv` 里编译该扩展；代码会回退到纯 Python 路径。
+`rydcalc` 带有 ARC Numerov C 扩展 `arc_c_extensions.c`。当前主项目 `.venv` 缺少 Python 3.12 开发头文件，所以不能在 `.venv` 里编译该扩展；应用兼容 patch 后会回退到纯 Python 路径。
 
 如果需要高性能径向波函数计算，先安装 Python 3.12 headers，再运行：
 
@@ -67,4 +98,3 @@ cd rydcalc/rydcalc
 - 只暴露本项目需要的函数，例如 `get_yb171_state_energy_hz()`、`estimate_blockade_shift_hz()` 或 pair potential 扫描入口。
 - 适配层负责 `PYTHONPATH` / import 失败提示、单位转换和缓存策略。
 - 数值结果先落到新的版本化 `artifacts/rydcalc_*` 子目录，避免覆盖现有扫描产物。
-

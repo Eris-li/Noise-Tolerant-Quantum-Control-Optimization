@@ -1,0 +1,46 @@
+diff --git a/rydcalc/MQDTclass.py b/rydcalc/MQDTclass.py
+index d9d2267..0a58c76 100644
+--- a/rydcalc/MQDTclass.py
++++ b/rydcalc/MQDTclass.py
+@@ -40,7 +40,7 @@ class mqdt_class:
+         N = len(sigma)
+         g = np.tile(sigma, N)
+         g[::(N + 1)] = 1
+-        G = np.diag(np.product(np.reshape(g, (N, N)), 1))
++        G = np.diag(np.prod(np.reshape(g, (N, N)), 1))
+         return np.linalg.det(U)*np.linalg.det(Vt.T)*U @ G @ Vt
+ 
+     def sinfunc(self, x, A, phi, b):
+diff --git a/rydcalc/alkali.py b/rydcalc/alkali.py
+index 6547643..f398d40 100644
+--- a/rydcalc/alkali.py
++++ b/rydcalc/alkali.py
+@@ -65,8 +65,12 @@ class AlkaliAtom(Hydrogen):
+         self.cpp_numerov = cpp_numerov
+ 
+         if self.cpp_numerov:
+-            from .arc_c_extensions import NumerovWavefunction
+-            self.NumerovWavefunction = NumerovWavefunction
++            try:
++                from .arc_c_extensions import NumerovWavefunction
++            except ModuleNotFoundError:
++                self.cpp_numerov = False
++            else:
++                self.NumerovWavefunction = NumerovWavefunction
+ 
+         self.mass_kg = cs.physical_constants['atomic mass constant'][0] * self.mass
+ 
+diff --git a/rydcalc/setupc.py b/rydcalc/setupc.py
+index 15fe23b..1ee58fe 100755
+--- a/rydcalc/setupc.py
++++ b/rydcalc/setupc.py
+@@ -1,6 +1,6 @@
+-from distutils.core import setup, Extension
+-from numpy.distutils.misc_util import get_numpy_include_dirs
++from setuptools import Extension, setup
++import numpy as np
+ 
+ setup(ext_modules=[Extension("arc_c_extensions", ["arc_c_extensions.c"],
+                              extra_compile_args = ['-Wall', '-O3'],
+-      include_dirs=get_numpy_include_dirs())])
++      include_dirs=[np.get_include()])])
