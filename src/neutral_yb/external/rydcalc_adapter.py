@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import math
 import sys
 import sysconfig
 from pathlib import Path
@@ -8,6 +9,7 @@ from types import ModuleType
 from typing import Any
 
 import numpy as np
+import scipy.special as sp_special
 
 
 def _project_root() -> Path:
@@ -31,6 +33,18 @@ def _ensure_import_path() -> None:
 def _ensure_numpy2_compat() -> None:
     if not hasattr(np, "product"):
         np.product = np.prod  # type: ignore[attr-defined]
+    if not hasattr(np, "trapz"):
+        np.trapz = np.trapezoid  # type: ignore[attr-defined]
+    if not hasattr(np, "math"):
+        np.math = math  # type: ignore[attr-defined]
+
+
+def _ensure_scipy_compat() -> None:
+    if not hasattr(sp_special, "sph_harm") and hasattr(sp_special, "sph_harm_y"):
+        def _sph_harm(m: int, n: int, theta: float, phi: float) -> complex:
+            return sp_special.sph_harm_y(n, m, phi, theta)
+
+        sp_special.sph_harm = _sph_harm  # type: ignore[attr-defined]
 
 
 def has_arc_c_extension() -> bool:
@@ -55,6 +69,7 @@ def load_rydcalc(*, require_c_extension: bool = True) -> ModuleType:
         )
 
     _ensure_numpy2_compat()
+    _ensure_scipy_compat()
     _ensure_import_path()
     return importlib.import_module("rydcalc")
 
