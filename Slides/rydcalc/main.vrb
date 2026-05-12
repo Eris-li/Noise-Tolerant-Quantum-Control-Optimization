@@ -1,0 +1,23 @@
+\frametitle{total\_decay 的关键代码逻辑}
+\small
+  \begin{verbatim}
+gamma_tot = 0
+sb = single_basis()
+
+nmax = st.n + 10
+sb.fill(st, {
+    'dn': st.n,
+    'dl': 1,
+    'dm': 1,
+    'include_fn': lambda s, s0: True if s.n < nmax else False,
+})
+
+for s in sb.states:
+    pd = self.partial_decay(st, s, env)
+    gamma_tot += pd
+
+return gamma_tot
+  \end{verbatim}
+
+  \vspace{-0.5em}
+  这段逻辑说明：\texttt{total\_decay} 的物理核心不在传播动力学，而在“列出终态 + 对所有 E1 partial rate 求和”。

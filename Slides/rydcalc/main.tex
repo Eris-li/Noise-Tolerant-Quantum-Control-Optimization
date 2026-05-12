@@ -1,0 +1,408 @@
+\documentclass[aspectratio=169,11pt]{ctexbeamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\title[rydcalc 与寿命计算]{rydcalc 功能简介与 Rydberg 态寿命计算}
+\subtitle{重点：\texttt{total\_decay} 如何从态、环境和偶极矩阵元得到寿命}
+\author{Noise-Tolerant Quantum Control Optimization}
+\date{\today}
+
+\newcommand{\ket}[1]{\left|#1\right\rangle}
+\newcommand{\bra}[1]{\left\langle#1\right|}
+\newcommand{\Hz}{\mathrm{Hz}}
+\newcommand{\GHz}{\mathrm{GHz}}
+\newcommand{\au}{\mathrm{a.u.}}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{这份 slides 讲什么}
+  \begin{itemize}
+    \item \texttt{rydcalc} 是项目中用于 Rydberg 原子结构、矩阵元、Stark 图、pair interaction 和寿命估算的外部子模块。
+    \item 本项目主要通过 \texttt{neutral\_yb.external.rydcalc\_adapter} 调用它，避免直接改子模块。
+    \item 本报告重点解释：
+      \begin{itemize}
+        \item \texttt{rydcalc} 能提供哪些原子物理量；
+        \item \texttt{total\_decay(st, env)} 如何自动构造终态并求和；
+        \item \texttt{partial\_decay} 中黑体辐射和自发辐射因子如何进入；
+        \item 对 \({}^{171}\mathrm{Yb}\) MQDT 态使用时需要注意哪些数值细节。
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{rydcalc 在项目中的位置}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item 子模块位置：\texttt{rydcalc/}
+        \item 项目适配层：
+          \texttt{src/neutral\_yb/external/rydcalc\_adapter.py}
+        \item 当前 notebook 示例：
+          \begin{itemize}
+            \item \texttt{notebooks/yb171\_uv\_rydberg\_power\_estimate.ipynb}
+            \item \texttt{notebooks/yb171\_rydcalc\_c3\_c6\_estimate.ipynb}
+            \item \texttt{notebooks/yb171\_65s3\_lifetime\_rydcalc.ipynb}
+          \end{itemize}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{block}{适配层的主要职责}
+        \begin{itemize}
+          \item 检查 \texttt{rydcalc} 子模块存在；
+          \item 检查 ARC C extension 是否为当前 Python 构建；
+          \item 为 NumPy 2 / SciPy API 差异提供兼容 shim；
+          \item 提供 \texttt{build\_yb171\_atom()} 入口。
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{rydcalc 能做什么}
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      功能 & 典型 API & 本项目用途 \\
+      \midrule
+      原子对象 & \texttt{Ytterbium171}, \texttt{Rubidium} & 构造物种和能级模型 \\
+      态构造 & \texttt{atom.get\_state(...)} & 生成 Rydberg / NIST 态对象 \\
+      矩阵元 & \texttt{get\_multipole\_me} & UV Rabi、跃迁强度、衰变率 \\
+      Stark 图 & \texttt{analysis\_stark} & 电场混合、能级位移 \\
+      Pair interaction & \texttt{analysis\_pair\_interaction} & \(C_3,C_6\)、blockade 估计 \\
+      寿命 & \texttt{total\_decay}, \texttt{partial\_decay} & Rydberg decay / blackbody rate \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+  对 \({}^{171}\mathrm{Yb}\) 而言，核心价值是 MQDT 模型：Rydberg 态不是单一氢样态，而是多个 channel 的线性组合。
+\end{frame}
+
+\begin{frame}{基本调用流程}
+  \begin{block}{典型代码}
+    \small
+    \texttt{rydcalc = load\_rydcalc(require\_c\_extension=True)}\\
+    \texttt{yb = build\_yb171\_atom(cpp\_numerov=True, use\_db=False)}\\
+    \texttt{st = yb.get\_state((65, 0, 1.5, -1.5), tt="vlfm")}\\
+    \texttt{env = rydcalc.environment(T\_K=300)}\\
+    \texttt{tau = 1 / yb.total\_decay(st, env)}
+  \end{block}
+
+  \begin{itemize}
+    \item \texttt{tt="vlfm"} 对 Yb171 Rydberg MQDT 态表示 \((\nu/L/F/m_F)\) 输入格式。
+    \item \texttt{environment} 包含温度、电磁场、LDOS 等外部环境参数。
+    \item \texttt{total\_decay} 返回总衰变率 \(\Gamma\)，寿命是 \(\tau = 1/\Gamma\)。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{态对象里保存了什么}
+  \begin{itemize}
+    \item 能量：\texttt{state.get\_energy\_Hz()}。
+    \item 角动量量子数：例如 \(L,F,m_F\) 或 \(n,l,j,m\)。
+    \item MQDT channel 列表：\texttt{state.channels}。
+    \item channel 权重：\texttt{state.Ai} 和相关 MQDT 系数。
+    \item 径向波函数信息：需要时由 Numerov 或 Whittaker 方法生成。
+  \end{itemize}
+
+  \begin{block}{对寿命计算最关键的接口}
+    \[
+      \texttt{state.get\_multipole\_me(other, k=1)}
+      \quad\Rightarrow\quad
+      \bra{\mathrm{other}} er_q \ket{\mathrm{state}}
+    \]
+    这里返回的是原子单位下的电偶极矩阵元；\texttt{partial\_decay} 会再转成 SI 单位进入速率公式。
+  \end{block}
+\end{frame}
+
+\begin{frame}{environment 对寿命的作用}
+  \texttt{rydcalc.environment} 当前保存：
+  \begin{itemize}
+    \item \texttt{T\_K}：温度，决定黑体光子占据数；
+    \item \texttt{Bz\_Gauss}, \texttt{Ez\_Vcm}：场参数，主要给 Stark / Zeeman 分析使用；
+    \item \texttt{ldos(f, q)}：局域光学态密度修正，默认恒等于 1；
+    \item \texttt{diamagnetism}：是否包含抗磁项。
+  \end{itemize}
+
+  \begin{block}{寿命计算中真正用到的两项}
+    \[
+      T \Rightarrow n_{\mathrm{th}}(\omega,T),
+      \qquad
+      \mathrm{LDOS}(f,q) \Rightarrow \mathrm{Purcell/geometry\ correction}.
+    \]
+  \end{block}
+\end{frame}
+
+\begin{frame}{total\_decay 的总体结构}
+  \begin{columns}[T]
+    \begin{column}{0.49\textwidth}
+      \begin{enumerate}
+        \item 初始化总速率：
+          \[
+            \Gamma_{\mathrm{tot}}=0.
+          \]
+        \item 构造一个 \texttt{single\_basis()}。
+        \item 自动填充可能衰变到的终态。
+        \item 对每个终态 \(s_f\) 调用：
+          \[
+            \Gamma_{i\rightarrow f}
+            =
+            \texttt{partial\_decay}(s_i,s_f,\mathrm{env}).
+          \]
+        \item 累加：
+          \[
+            \Gamma_{\mathrm{tot}}=\sum_f\Gamma_{i\rightarrow f}.
+          \]
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{返回值}
+        \begin{itemize}
+          \item \texttt{printstates=False}：返回 \(\Gamma_{\mathrm{tot}}\)。
+          \item \texttt{printstates=True}：返回非零 partial decay 列表。
+          \item 寿命不直接返回，要手动取倒数：
+            \[
+              \tau = 1/\Gamma_{\mathrm{tot}}.
+            \]
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{total\_decay 的关键代码逻辑}
+  \small
+  \begin{verbatim}
+gamma_tot = 0
+sb = single_basis()
+
+nmax = st.n + 10
+sb.fill(st, {
+    'dn': st.n,
+    'dl': 1,
+    'dm': 1,
+    'include_fn': lambda s, s0: True if s.n < nmax else False,
+})
+
+for s in sb.states:
+    pd = self.partial_decay(st, s, env)
+    gamma_tot += pd
+
+return gamma_tot
+  \end{verbatim}
+
+  \vspace{-0.5em}
+  这段逻辑说明：\texttt{total\_decay} 的物理核心不在传播动力学，而在“列出终态 + 对所有 E1 partial rate 求和”。
+\end{frame}
+
+\begin{frame}{终态是如何被选出来的}
+  \begin{itemize}
+    \item \texttt{single\_basis.fill} 调用初态所属 atom 的 \texttt{get\_nearby}。
+    \item 对氢样 / 碱金属态，附近态按 \(\Delta n,\Delta l,\Delta m\) 枚举。
+    \item 对 Yb171 MQDT 态，\texttt{get\_nearby} 会：
+      \begin{itemize}
+        \item 按 \(L,F,m_F\) 扫描附近的 MQDT model；
+        \item 调用 \texttt{solver.boundstatesinrange} 找对应有效量子数区间内的束缚态；
+        \item 计算每个束缚态的 channel contribution；
+        \item 构造 \texttt{state\_mqdt} 终态对象。
+      \end{itemize}
+    \item 在当前 \texttt{total\_decay} 中，终态范围大致是：
+      \[
+        \Delta L\le 1,\quad \Delta m_F\le 1,\quad n_f < n_i+10.
+      \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{一个容易忽略的实现细节}
+  \begin{block}{函数签名}
+    \texttt{total\_decay(self, st, env, printstates=False, include\_fn=lambda s: True)}
+  \end{block}
+
+  \begin{itemize}
+    \item 签名里有 \texttt{include\_fn} 参数。
+    \item 但当前实现中，传给 \texttt{sb.fill} 的是内部固定 lambda：
+      \[
+        s.n < st.n + 10.
+      \]
+    \item 因此外部传入的 \texttt{include\_fn} 在当前代码路径下没有真正生效。
+    \item 如果要严格控制终态范围，当前更稳妥的方法是显式构造终态列表，然后逐项调用 \texttt{partial\_decay}。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{partial\_decay 计算的物理量}
+  对一个初态 \(i\) 和终态 \(f\)，先计算角频率：
+  \[
+    \omega = 2\pi(E_i-E_f).
+  \]
+
+  \begin{itemize}
+    \item \(\omega>0\)：向低能态辐射，包含自发辐射与受激辐射因子 \(1+n_{\mathrm{th}}\)。
+    \item \(\omega<0\)：向高能态吸收黑体光子，只有热光子因子 \(n_{\mathrm{th}}\)。
+    \item \(\omega=0\)：代码用一个很大的占据数兜底，正常物理通道中应避免这种情况。
+  \end{itemize}
+
+  黑体占据数：
+  \[
+    n_{\mathrm{th}}(\omega,T)
+    =
+    \frac{1}{\exp\left(\frac{\hbar|\omega|}{k_B T}\right)-1}.
+  \]
+\end{frame}
+
+\begin{frame}{partial\_decay 的速率公式}
+  电偶极矩阵元由
+  \[
+    d_{if}=\texttt{st.get\_multipole\_me(other,k=1)}
+  \]
+  给出，单位是 \(ea_0\)。代码中的速率为：
+
+  \[
+    \Gamma_{i\rightarrow f}
+    =
+    \rho_{\mathrm{LDOS}}\left(\frac{|\omega|}{2\pi}, q\right)
+    \cdot
+    \eta(\omega,T)
+    \cdot
+    |\omega|^3
+    |d_{if}|^2
+    \frac{(e a_0)^2}{3\pi\epsilon_0\hbar c^3}.
+  \]
+
+  其中
+  \[
+    q=m_f-m_i,\qquad
+    \eta(\omega,T)=
+    \begin{cases}
+      1+n_{\mathrm{th}}, & \omega>0,\\
+      n_{\mathrm{th}}, & \omega<0.
+    \end{cases}
+  \]
+\end{frame}
+
+\begin{frame}{矩阵元内部如何处理 MQDT 态}
+  \texttt{get\_multipole\_me} 对 MQDT 态不是简单查表，而是对 channel 逐项求和：
+  \[
+    \ket{i}=\sum_\alpha A_\alpha^{(i)}\ket{\alpha},
+    \qquad
+    \ket{f}=\sum_\beta A_\beta^{(f)}\ket{\beta}.
+  \]
+
+  对每对 channel：
+  \begin{itemize}
+    \item 检查 core state 是否相容；
+    \item 用 Wigner \(3j/6j\) 系数处理角动量约化矩阵元；
+    \item 用径向积分 \(\langle R_f|r^k|R_i\rangle\) 给出 radial part；
+    \item 对所有 channel pair 加权求和。
+  \end{itemize}
+
+  因此寿命结果同时依赖能级、角动量代数、径向波函数和 MQDT channel mixing。
+\end{frame}
+
+\begin{frame}{total\_decay 与显式终态求和的关系}
+  两者使用相同的 partial rate 公式：
+  \[
+    \Gamma_{\mathrm{tot}}=\sum_f\Gamma_{i\rightarrow f}.
+  \]
+
+  差别只在“终态集合”：
+  \begin{itemize}
+    \item \texttt{total\_decay}：内部自动调用 \texttt{single\_basis.fill}，终态范围由当前实现固定。
+    \item 显式求和：用户自己构造 \(\{f\}\)，再逐项调用 \texttt{partial\_decay}。
+  \end{itemize}
+
+  \begin{block}{什么时候应该显式构造终态}
+    当自动终态搜索过大、过慢、扫到数值病态区，或者需要明确报告截断条件时，显式构造终态更可控。
+    但这只解决“可控性”，不自动保证“完备性”；漏掉低能或其它 manifold 会直接导致寿命偏长。
+  \end{block}
+\end{frame}
+
+\begin{frame}{对 \({}^{171}\mathrm{Yb}\) 寿命计算的经验}
+  以
+  \[
+    \ket{r}=\ket{65\,{}^3S_1,F=3/2,m_F=-3/2}
+  \]
+  为例：
+
+  \begin{itemize}
+    \item 态构造应使用：
+      \[
+        \texttt{get\_state((65, 0, 1.5, -1.5), tt="vlfm")}.
+      \]
+    \item 原生 \texttt{total\_decay} 会从很低的有效量子数区域开始自动生成终态。
+    \item 在当前本地环境中，直接调用曾出现长时间不返回和低 \(\nu\) 插值 / 非有限系数问题。
+    \item notebook 中采用的显式 P 态终态范围：
+      \[
+        \nu_{\min}=3.0,\qquad
+        \nu_{\max}=\nu_i+10.
+      \]
+    \item 这个范围会漏掉低 \(\nu\) P 态，因此只能作为诊断性 subset，不能作为完整寿命。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{示例结果：65 \({}^3S_1\) 态的诊断性 subset}
+  当前 notebook 的 \(\nu_{\min}=3.0\) 显式终态求和结果：
+  \begin{table}
+    \centering
+    \begin{tabular}{lrrr}
+      \toprule
+      温度 & 候选终态数 & \(\Gamma_{\mathrm{tot}}\) / s\(^{-1}\) & \(\tau\) / \(\mu\)s \\
+      \midrule
+      0 K & 1680 & \(1.554823\times 10^3\) & 643.160 \\
+      300 K & 1680 & \(5.596472\times 10^3\) & 178.684 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{itemize}
+    \item 这些寿命明显偏长，说明这个终态集合少算了 channel。
+    \item 把下限放到 \(\nu_{\min}=1.0\) 并跳过非有限 MQDT 系数时，0 K 速率升至约 \(2.32\times10^3\,\mathrm{s}^{-1}\)，300 K 升至约 \(6.37\times10^3\,\mathrm{s}^{-1}\)。
+    \item 单独枚举 NIST 低 \(n\,{}^3P_J\) 终态时，0 K 低态通道贡献约 \(3.04\times10^3\,\mathrm{s}^{-1}\)。
+    \item 300 K 还包含相邻 Rydberg P 态之间的黑体诱导吸收 / 受激跃迁。
+    \item 因此当前数值只能说明计算链条和通道贡献量级，不能替代实验或完整 decay model。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{实用建议}
+  \begin{enumerate}
+    \item 先确认态标记格式：Yb171 Rydberg MQDT 态优先用 \texttt{vlfm}。
+    \item 记录环境参数：至少写明 \(T\)、LDOS 是否为默认值。
+    \item 如果使用 \texttt{total\_decay}，先用 \texttt{printstates=True} 或小范围测试检查终态集合。
+    \item 对 Yb171 低 \(\nu\) MQDT 终态，警惕非有限 channel contribution 和径向插值错误。
+    \item 发表或 PR 中报告寿命时，同时报告：
+      \begin{itemize}
+        \item 初态；
+        \item 终态截断；
+        \item 是否包含 BBR；
+        \item \(\Gamma\) 与 \(\tau\)；
+        \item 主要 partial decay channels。
+      \end{itemize}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{总结}
+  \begin{itemize}
+    \item \texttt{rydcalc} 提供从原子结构到相互作用、矩阵元和寿命的统一计算接口。
+    \item \texttt{total\_decay} 的本质是：
+      \[
+        \text{自动生成终态}\quad+\quad
+        \sum_f \texttt{partial\_decay}(i,f).
+      \]
+    \item \texttt{partial\_decay} 使用标准电偶极辐射速率公式，并加入温度相关的黑体光子占据数。
+    \item 对复杂 MQDT 体系，寿命计算的可靠性不只取决于公式，还取决于终态集合是否数值稳定且物理完备。
+    \item 对当前 \({}^{171}\mathrm{Yb}\) 65S 寿命估算，显式终态求和更透明，但必须系统补全低态和相关 decay manifold 后才能给最终寿命。
+  \end{itemize}
+\end{frame}
+
+\end{document}
