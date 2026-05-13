@@ -126,9 +126,34 @@
 - 当前 fidelity 仍然只依赖 active `{|01>, |11>}` 分支上的 paper Eq.(7) 特殊态公式，不是完整 4 维逻辑子空间直接构造出的 noisy process fidelity
 - 开放系统优化比闭系统慢很多，因此当前主线先采用粗扫描，再决定是否进入更细的局部扫描
 
+## `evered2023_parallel_cz`: Evered/Bluvstein/Kalinowski Nature 2023 独立复现线
+
+### 目标
+
+按 `ma2023_time_optimal_2q` 的方式单独开线，用 Evered et al. Nature 622, 268-272 (2023) 的并行高保真 CZ 门控制作为 GRAPE 算法验证基准。第一阶段从随机参数重启出发，验证 parameterized GRAPE 是否能在两原子 9D 双光子 Hamiltonian 中找回 Methods Eq.(1) 的固定振幅 time-optimal 相位轮廓，并把 Methods Eq.(2) 的三能级 dark-state Hamiltonian 放进代码。
+
+### 物理假设
+
+- `87Rb` 实验背景，默认使用无量纲两光子 ladder，标定记录 `Omega/2pi = 4.6 MHz`、`Delta/2pi = 7.8 GHz`
+- 固定振幅全局 Rydberg 脉冲
+- 相位轮廓 `phi(t) = A cos(omega t - phi0) + delta0 t`
+- `A = 2pi * 0.1122`, `omega = 1.0431 Omega`, `phi0 = -0.7318`, `delta0 = 0`, `Omega T / 2pi = 1.215`
+- 额外实现单原子 `|1>, |e>, |r>` 三能级 Hamiltonian，用于后续 dark/bright population 和 scattering 诊断
+
+### 对应文件
+
+- 模型与脉冲：[evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+- 实验：[reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
+- 文档：[evered2023-parallel-cz.md](evered2023-parallel-cz.md)
+
+### 状态
+
+新开线。当前已覆盖解析 fixed-amplitude profile 作为对照、9D 双光子 Hamiltonian 上的随机重启 parameterized GRAPE 时间扫描、summary PNG、dark-state 三能级 Hamiltonian 和基础实验尺度记录。完整论文级噪声/实验复现仍需加入 intermediate scattering、Rydberg decay、Doppler/laser noise 和 benchmarking/SPAM 层。
+
 ## 如何理解这些版本
 
 - `v1` 是冻结参考，不能丢
 - `v2` 是闭系统含误差基线
 - `v3` 是当前最成熟的闭系统双光子主线
 - `v4` 是当前最重要的新主线
+- `evered2023_parallel_cz` 和 `ma2023_time_optimal_2q` 是独立文献复现线，不并入 numbered `v*` 主线

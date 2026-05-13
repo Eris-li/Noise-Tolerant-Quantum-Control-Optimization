@@ -1,23 +1,24 @@
-\frametitle{total\_decay 的关键代码逻辑}
+\frametitle{改进一：分窗 \texttt {get\_nearby}}
 \small
+  原生 \texttt{total\_decay} 一次请求：
+  \[
+    \nu\in[0.00106363,129.12106363].
+  \]
+
+  notebook-local 修复是构造一个浅拷贝 \texttt{proxy\_state}：
   \begin{verbatim}
-gamma_tot = 0
-sb = single_basis()
-
-nmax = st.n + 10
-sb.fill(st, {
-    'dn': st.n,
-    'dl': 1,
-    'dm': 1,
-    'include_fn': lambda s, s0: True if s.n < nmax else False,
+proxy.nub = window_center
+atom.get_nearby(proxy, {
+    "dn": window_half_width,
+    "dl": 1,
+    "df": 1,
+    "dm": 1,
 })
-
-for s in sb.states:
-    pd = self.partial_decay(st, s, env)
-    gamma_tot += pd
-
-return gamma_tot
   \end{verbatim}
 
-  \vspace{-0.5em}
-  这段逻辑说明：\texttt{total\_decay} 的物理核心不在传播动力学，而在“列出终态 + 对所有 E1 partial rate 求和”。
+  \begin{itemize}
+    \item 仍然由 \texttt{get\_nearby} 动态找 MQDT 终态；
+    \item 不再一次扫到极低 \(\nu\) 病态区域；
+    \item 相邻窗口有 overlap，再用 \((E,F,m_F,\mathrm{parity})\) 去重；
+    \item 对 65S 目标态，窗口法可稳定生成 \(1680\) 个 MQDT P 态候选。
+  \end{itemize}

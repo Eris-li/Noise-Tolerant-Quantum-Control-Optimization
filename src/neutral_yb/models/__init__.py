@@ -1,6 +1,12 @@
 """Physical models for neutral 171Yb control simulations."""
 
 from neutral_yb.models.finite_blockade_cz_5d import FiniteBlockadeCZ5DModel
+from neutral_yb.models.evered2023_parallel_cz import (
+    Evered2023DarkStateConfig,
+    Evered2023ParallelCZCalibration,
+    Evered2023TimeOptimalPulse,
+    Evered2023TwoPhotonCZ9DDetuningModel,
+)
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
 from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonCZOpen10DModel,
@@ -13,6 +19,10 @@ from neutral_yb.models.yb171_clock_rydberg_cz_open import (
 )
 
 __all__ = [
+    "Evered2023DarkStateConfig",
+    "Evered2023ParallelCZCalibration",
+    "Evered2023TimeOptimalPulse",
+    "Evered2023TwoPhotonCZ9DDetuningModel",
     "FiniteBlockadeCZ5DModel",
     "GlobalCZ4DModel",
     "TwoPhotonCZ9DModel",

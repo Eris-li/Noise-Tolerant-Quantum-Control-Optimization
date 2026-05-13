@@ -16,6 +16,9 @@
 
 - 链接: https://www.nature.com/articles/s41586-023-06481-y
 - 在项目中的作用:
+  - 新增 `evered2023_parallel_cz` 独立复现线
+  - Methods Eq.(1) fixed-amplitude time-optimal CZ 相位轮廓
+  - Methods Eq.(2) 三能级 dark-state Hamiltonian
   - `v3` 的双光子门物理背景
   - `v4` 早期 ladder surrogate 的历史背景
   - lower-leg 振幅加相位控制的实验图像
@@ -88,3 +91,5 @@
   主要对应 Evered 2023、Day 2022、Jiang 2023、Peper 2025，加上 `^171Yb` decay / erasure 相关文献
 - `ma2023_time_optimal_2q`
   主要对应 Ma et al. 2023 的 Fig. 3 和 Jandura-Pupillo 2022 的 time-optimal global CZ 方法
+- `evered2023_parallel_cz`
+  主要对应 Evered et al. 2023 的 fixed-amplitude time-optimal CZ、dark-state two-photon ladder 和并行 CZ 实验尺度

@@ -55,6 +55,10 @@ def ma2023_time_optimal_2q_dir(root: Path) -> Path:
     return artifact_root(root) / "ma2023_time_optimal_2q"
 
 
+def evered2023_parallel_cz_dir(root: Path) -> Path:
+    return artifact_root(root) / "evered2023_parallel_cz"
+
+
 def ensure_artifact_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path

@@ -28,6 +28,8 @@
   `v4` 当前主线模型，使用 `^171Yb` 的有效 `clock -> Rydberg` 完整门开放系统表示；固定前后 `clock` 脉冲并入传播，中间 `UV` 段作为优化变量。
 - [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
   Ma et al. Nature 2023 Fig. 3 复现线的 metastable-qubit Rydberg gate 模型，保留有限 blockade、loss/leak sink 和开放系统噪声接口。
+- [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+  Evered et al. Nature 2023 并行 CZ 独立复现线，包含 fixed-amplitude time-optimal 相位轮廓、实验尺度记录、三能级 dark-state Hamiltonian 和 9D 两原子双光子 Hamiltonian。
 
 ### `src/neutral_yb/optimization`
 
@@ -46,6 +48,8 @@
   `v1` 冻结参考实验。
 - [reproduce_ma2023_time_optimal_2q_gate.py](../experiments/reproduce_ma2023_time_optimal_2q_gate.py)
   Ma et al. Nature 2023 Fig. 3 time-optimal two-qubit gate 的独立复现起点；先跑理想 infinite-blockade global CZ。
+- [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
+  Evered et al. Nature 2023 fixed-amplitude time-optimal CZ 的 GRAPE 验证入口；从随机参数重启做时间扫描，检查是否能独立找回论文 Eq.(1) 相位轮廓。
 - [scan_ma2023_time_optimal_2q_open_system.py](../experiments/scan_ma2023_time_optimal_2q_open_system.py)
   Ma et al. Nature 2023 Fig. 3 的开放系统 time scan，输出 fidelity、active population 和 erasure/leakage 诊断。
 - [evaluate_ma2023_fig3_pulse.py](../experiments/evaluate_ma2023_fig3_pulse.py)
@@ -106,6 +110,8 @@
   闭系统和开放系统耗时比较
 - `ma2023_time_optimal_2q`
   Ma et al. Nature 2023 time-optimal two-qubit gate 复现输出，暂时独立于 `v4/v5`
+- `evered2023_parallel_cz`
+  Evered et al. Nature 2023 并行 CZ 复现输出，独立于 numbered `v*` 主线
 
 ### `tests`
 
@@ -140,6 +146,10 @@
   - [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
   - [ma2023_calibration.py](../src/neutral_yb/config/ma2023_calibration.py)
   - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
+- `evered2023_parallel_cz` 独立复现线：
+  - [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+  - [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
+  - [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
 
 ## 迁移到 WSL 后先做什么
 

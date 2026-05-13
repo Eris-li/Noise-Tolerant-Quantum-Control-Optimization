@@ -46,13 +46,14 @@
     \begin{column}{0.52\textwidth}
       \begin{itemize}
         \item 子模块位置：\texttt{rydcalc/}
-        \item 项目适配层：
-          \texttt{src/neutral\_yb/external/rydcalc\_adapter.py}
+        \item 项目适配层：\texttt{rydcalc\_adapter.py}
         \item 当前 notebook 示例：
           \begin{itemize}
-            \item \texttt{notebooks/yb171\_uv\_rydberg\_power\_estimate.ipynb}
-            \item \texttt{notebooks/yb171\_rydcalc\_c3\_c6\_estimate.ipynb}
-            \item \texttt{notebooks/yb171\_65s3\_lifetime\_rydcalc.ipynb}
+            \item UV Rabi / power estimate notebook；
+            \item \(C_3/C_6\) estimate notebook；
+            \item 65S lifetime diagnostic notebook；
+            \item windowed \texttt{get\_nearby} repair notebook；
+            \item hybrid + residual recalculation notebook。
           \end{itemize}
       \end{itemize}
     \end{column}
@@ -183,7 +184,7 @@
 \end{frame}
 
 \begin{frame}[fragile]{total\_decay 的关键代码逻辑}
-  \small
+  \scriptsize
   \begin{verbatim}
 gamma_tot = 0
 sb = single_basis()
@@ -207,21 +208,73 @@ return gamma_tot
   这段逻辑说明：\texttt{total\_decay} 的物理核心不在传播动力学，而在“列出终态 + 对所有 E1 partial rate 求和”。
 \end{frame}
 
-\begin{frame}{终态是如何被选出来的}
+\begin{frame}{自动终态生成的调用链}
   \begin{itemize}
-    \item \texttt{single\_basis.fill} 调用初态所属 atom 的 \texttt{get\_nearby}。
-    \item 对氢样 / 碱金属态，附近态按 \(\Delta n,\Delta l,\Delta m\) 枚举。
-    \item 对 Yb171 MQDT 态，\texttt{get\_nearby} 会：
-      \begin{itemize}
-        \item 按 \(L,F,m_F\) 扫描附近的 MQDT model；
-        \item 调用 \texttt{solver.boundstatesinrange} 找对应有效量子数区间内的束缚态；
-        \item 计算每个束缚态的 channel contribution；
-        \item 构造 \texttt{state\_mqdt} 终态对象。
-      \end{itemize}
-    \item 在当前 \texttt{total\_decay} 中，终态范围大致是：
+    \item \texttt{total\_decay} 本身不直接知道有哪些终态。
+    \item 它先构造 \texttt{single\_basis()}，再调用：
       \[
-        \Delta L\le 1,\quad \Delta m_F\le 1,\quad n_f < n_i+10.
+        \texttt{single\_basis.fill(st, include\_opts)}.
       \]
+    \item \texttt{fill} 再调用初态所属 atom 的：
+      \[
+        \texttt{st.atom.get\_nearby(st, include\_opts)}.
+      \]
+    \item 对氢样 / 普通碱金属态，\texttt{get\_nearby} 的直觉是按
+      \(\Delta n,\Delta l,\Delta m\) 枚举附近主量子数。
+    \item 对 \({}^{171}\mathrm{Yb}\) MQDT 态，实际逻辑变成按有效量子数 \(\nu\) 做 MQDT 求根。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Yb171 \texttt{get\_nearby} 的关键代码}
+  \tiny
+  \begin{verbatim}
+o = {'dn': 2, 'dl': 2, 'dm': 1, 'ds': 0}
+for k, v in include_opts.items():
+    o[k] = v
+if 'df' not in o.keys():
+    o['df'] = o['dl']
+
+nu0 = st.nub
+
+for l in np.arange(st.channels[0].l - o['dl'],
+                   st.channels[0].l + o['dl'] + 1):
+    if l < 0:
+        continue
+    for f in np.arange(st.f - o['df'], st.f + o['df'] + 1):
+        if f < 0:
+            continue
+        solver = [d for d in self.mqdt_models
+                  if d['L'] == l and d['F'] == f][0]['model']
+
+        boundstatesinrange = solver.boundstatesinrange([
+            nu0 - o['dn'],
+            nu0 + o['dn'],
+        ])
+  \end{verbatim}
+
+  \vspace{-0.7em}
+  这段代码说明：\texttt{dn} 在 Yb171 路径中直接成为 \(\nu\) 的搜索半宽；
+  \texttt{include\_fn} 不参与这里的 \texttt{boundstatesinrange} 区间构造。
+\end{frame}
+
+\begin{frame}{Yb171 MQDT 终态如何生成}
+  对 \({}^{171}\mathrm{Yb}\) MQDT 态，\texttt{get\_nearby} 会：
+  \begin{itemize}
+    \item 从初态 channel 读出 \(L_i\)，从初态对象读出 \(F_i,m_F\)；
+    \item 按输入的 \texttt{dl}, \texttt{df}, \texttt{dm} 扫描：
+      \[
+        L=L_i-\Delta L,\ldots,L_i+\Delta L,
+        \qquad
+        F=F_i-\Delta F,\ldots,F_i+\Delta F.
+      \]
+    \item 对每个 \((L,F)\) 选择对应 MQDT model；
+    \item 调用
+      \begin{itemize}
+        \item \texttt{solver.boundstatesinrange([...])} 找该 \((L,F)\) manifold 里的束缚态；
+        \item \texttt{solver.channelcontributions(nub)} 计算 MQDT channel mixing；
+        \item 对允许的 \(m_F=m_i-1,m_i,m_i+1\) 构造 \texttt{state\_mqdt}。
+      \end{itemize}
+    \item 因此瓶颈不是最后的求和，而是“先把候选终态全部生成出来”。
   \end{itemize}
 \end{frame}
 
@@ -239,6 +292,340 @@ return gamma_tot
     \item 因此外部传入的 \texttt{include\_fn} 在当前代码路径下没有真正生效。
     \item 如果要严格控制终态范围，当前更稳妥的方法是显式构造终态列表，然后逐项调用 \texttt{partial\_decay}。
   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{问题一：\texttt{st.n} 的语义变了}
+  \small
+  输入目标态时，我们写的是：
+  \begin{verbatim}
+initial_state = yb.get_state((65, 0, 1.5, -1.5), tt="vlfm")
+  \end{verbatim}
+
+  \vspace{-0.5em}
+  物理上想表达：
+  \[
+    \ket{r}=\ket{65\,{}^3S_1,F=3/2,m_F=-3/2}.
+  \]
+
+  但 \texttt{Ytterbium171.get\_state} 会先求 MQDT 根：
+  \begin{verbatim}
+nutheor = solver.boundstates(nuexp)
+nuapprox = round(nutheor * 100) / 100
+st = state_mqdt(..., (nuapprox, (-1)**l, f, m), tt="vpfm")
+  \end{verbatim}
+
+  \vspace{-0.5em}
+  对 \texttt{tt="vpfm"}，\texttt{state\_mqdt} 设置：
+  \[
+    \texttt{st.n}=\texttt{qn[0]}=\nu_{\mathrm{approx}},
+    \qquad
+    \texttt{st.v}=\nu_{\mathrm{approx}}.
+  \]
+  所以这里的 \texttt{st.n} 已经不是整数主量子数 65。
+\end{frame}
+
+\begin{frame}{目标态对象的实际数值}
+  本地 notebook 中目标态对象打印为：
+  \[
+    \texttt{|171Yb:64.56,L=0,F=1.5,-1.5>}.
+  \]
+
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{ll}
+      \toprule
+      属性 & 数值 / 含义 \\
+      \midrule
+      输入标签 & \(65\,{}^3S_1,F=3/2,m_F=-3/2\) \\
+      \texttt{st.qn} & \texttt{(64.56, 1, 1.5, -1.5)} \\
+      \texttt{st.n} & \(64.56\) \\
+      \texttt{st.v} & \(64.56\) \\
+      \texttt{st.nub} & \(64.56106363\) \\
+      \texttt{st.v\_exact} & \(64.56106363\) \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{block}{关键错位}
+    通用 \texttt{total\_decay} 把 \texttt{st.n} 当“主量子数 \(n\)”使用；
+    但 \({}^{171}\mathrm{Yb}\) MQDT 态里，\texttt{st.n} 是四舍五入后的有效量子数 \(\nu\)。
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{问题二：\texttt{total\_decay} 把 \texttt{st.n} 当搜索半宽}
+  \scriptsize
+  \texttt{total\_decay} 中的关键代码是：
+  \begin{verbatim}
+nmax = st.n + 10
+sb.fill(st, {
+    'dn': st.n,
+    'dl': 1,
+    'dm': 1,
+    'include_fn': lambda s, s0: True if s.n < nmax else False,
+})
+  \end{verbatim}
+
+  原始设计意图是：
+  \begin{itemize}
+    \item 若初态是 \(n=65\)，取 \texttt{dn=65}；
+    \item 这样就能“从低 \(n\) 到高 \(n\)”自动扫一遍可能衰变终态；
+    \item 再用 \(\texttt{s.n}<\texttt{st.n}+10\) 限制最高终态。
+  \end{itemize}
+
+  对普通主量子数模型，这个写法虽然粗，但语义还算一致。
+  对 Yb171 MQDT，\texttt{dn=st.n} 实际变成：
+  \[
+    \Delta\nu = 64.56.
+  \]
+\end{frame}
+
+\begin{frame}[fragile]{问题三：\texttt{get\_nearby} 直接把 \texttt{dn} 用在 \(\nu\) 上}
+  \small
+  \({}^{171}\mathrm{Yb}\) 的 \texttt{get\_nearby} 里：
+  \begin{verbatim}
+nu0 = st.nub
+...
+boundstatesinrange = solver.boundstatesinrange([
+    nu0 - o['dn'],
+    nu0 + o['dn'],
+])
+  \end{verbatim}
+
+  因此对当前态：
+  \[
+    \nu_0=64.56106363,
+    \qquad
+    \Delta\nu=\texttt{st.n}=64.56.
+  \]
+
+  自动搜索区间变成：
+  \[
+    [\nu_0-\Delta\nu,\nu_0+\Delta\nu]
+    =
+    [0.00106363,129.12106363].
+  \]
+
+  这就是搜索范围被扩大的直接代码原因：\texttt{total\_decay} 的“从 \(n=0\) 扫到附近态”意图，在 MQDT 表示中变成了“从 \(\nu\simeq0\) 扫到 \(\nu\simeq129\)”。
+\end{frame}
+
+\begin{frame}[fragile]{问题四：过滤发生得太晚}
+  \small
+  \texttt{single\_basis.fill} 的顺序是：
+  \begin{verbatim}
+st_list = s0.atom.get_nearby(self.s0, include_opts=self.opts)
+
+for newst in st_list:
+    dipole_ok = s0.allowed_multipole(newst, k=1)
+    fn_ok = self.opts['include_fn'](newst, s0)
+    if (fn_ok) and (dipole_ok or (not self.opts['dipole_allowed'])):
+        self.add(newst)
+  \end{verbatim}
+
+  \begin{itemize}
+    \item \texttt{include\_fn} 只在 \texttt{get\_nearby} 返回之后才执行。
+    \item 因此即使最终过滤条件是
+      \[
+        \texttt{s.n < st.n + 10}\approx 74.56,
+      \]
+      \(\nu>74.56\) 的候选也已经被 MQDT 求根、去重和构造过了。
+    \item \texttt{dipole\_allowed} 默认是 \texttt{False}，所以 basis 生成阶段也没有只保留 E1 允许终态。
+  \end{itemize}
+
+  结论：过滤条件控制的是“最后加入 basis 的状态”，不是“MQDT 求根的搜索范围”。
+\end{frame}
+
+\begin{frame}[fragile]{问题五：MQDT 求根本身按细网格扫区间}
+  \scriptsize
+  \texttt{boundstatesinrange} 的核心循环是：
+  \begin{verbatim}
+for nubguess in np.arange(range[0], range[1], 0.01):
+    nutheorb.append(np.round(self.boundstates(nubguess), decimals=accuracy))
+...
+nutheorb = [
+    item for item in nutheorb
+    if channelcontributions(item) passes the l <= nu_i filter
+]
+  \end{verbatim}
+
+  \begin{itemize}
+    \item 区间长度越大，\texttt{boundstates} 调用次数线性增加。
+    \item 原生区间长度约为：
+      \[
+        129.12106363-0.00106363 \simeq 129.12,
+      \]
+      步长 \(0.01\)，也就是每个 MQDT model 约 \(1.3\times10^4\) 个初始点。
+    \item 后续还要对候选根反复调用 \texttt{channelcontributions}。
+    \item 低 \(\nu\) 区域会触发 \texttt{sqrt} / fractional power 的非有限数值问题。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{本地重跑的诊断结果}
+  只测试候选生成，不完整求和，原生 \texttt{total\_decay} 搜索区间为：
+  \[
+    [0.00106363,129.12106363].
+  \]
+
+  \begin{table}
+    \centering
+    \scriptsize
+    \begin{tabular}{lrrl}
+      \toprule
+      manifold & 候选根数 & 用时 & 备注 \\
+      \midrule
+      \(L=0,F=1/2\) & -- & \(>25\) s & 单个 solver 超时 \\
+      \(L=0,F=3/2\) & 1041 & 0.09 s & 出现极端非物理 \(\nu\) \\
+      \(L=1,F=1/2\) & 395 & 10.99 s & P 态通道 \\
+      \(L=1,F=3/2\) & 563 & 18.26 s & P 态通道 \\
+      \(L=1,F=5/2\) & 516 & 19.96 s & P 态通道 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{itemize}
+    \item 这还没有进入所有终态的 \texttt{partial\_decay} 求和。
+    \item notebook 中直接调用 \texttt{yb.total\_decay(initial\_state, env)} 在 0 K 和 300 K 都 60 s 超时。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{问题本质}
+  \begin{block}{不是 \texttt{partial\_decay} 公式失败}
+    给定一个初态和一个终态，\texttt{partial\_decay} 仍然可以正常使用电偶极速率公式计算 partial rate。
+  \end{block}
+
+  \begin{block}{真正的问题是自动终态集合}
+    \texttt{total\_decay} 的自动 basis 生成逻辑来自更通用的氢样 / 碱金属模型；
+    它把 \texttt{st.n} 当作主量子数和搜索半宽。
+    在 \({}^{171}\mathrm{Yb}\) MQDT 态中，\texttt{st.n} 实际是有效量子数近似值。
+  \end{block}
+
+  \begin{itemize}
+    \item 语义错位导致搜索区间从 \(\nu\simeq0\) 到 \(\nu\simeq129\)。
+    \item 过滤条件在 MQDT 求根之后才生效，不能减少前端成本。
+    \item 低 \(\nu\) MQDT 区域数值病态，容易出现非有限系数或非物理解。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{第一版处理方式：显式 P 态 subset}
+  初始 notebook 没有继续依赖原生 \texttt{total\_decay}，而是显式构造候选终态：
+  \begin{itemize}
+    \item 第一组诊断：只扫 \(P\) 态 MQDT subset，
+      \[
+        \nu_{\min}=3.0,\qquad \nu_{\max}=\nu_i+10.
+      \]
+    \item 第二组诊断：把低 \(n\,{}^3P_J\) 的 NIST 态和高 \(\nu\) MQDT \(P\) 态合并；
+    \item 对每个候选终态单独调用：
+      \[
+        \Gamma_{i\rightarrow f}
+        =
+        \texttt{partial\_decay}(i,f,\mathrm{env});
+      \]
+    \item 最后按 partial rate 排序，检查主要贡献通道和截断误差。
+  \end{itemize}
+
+  这种方法换来了可控的终态范围和可诊断的主要 decay channels；
+  但用户指出寿命明显偏长，说明第一版仍漏掉了重要 channel。
+\end{frame}
+
+\begin{frame}{在 rydcalc 基础上做的改进}
+  后续 notebook 没有修改 \texttt{rydcalc} 子模块源码，而是在调用层补了三层逻辑：
+  \begin{enumerate}
+    \item \textbf{分窗 \texttt{get\_nearby}}：
+      保留 \texttt{total\_decay} 的“动态生成终态”思想，但把 MQDT \(\nu\) 区间切成小窗口。
+    \item \textbf{NIST 低态补充}：
+      把 \texttt{Yb171\_NIST.txt} / \texttt{Yb174\_NIST.txt} 中的低 lying E1 终态加入候选池。
+    \item \textbf{residual sink}：
+      对文献有总寿命的情形，把有限 channel 仍未解释的 rate 作为有效损失通道单独报告。
+  \end{enumerate}
+
+  \begin{block}{原则}
+    \[
+      \Gamma_{\mathrm{model}}
+      =
+      \Gamma_{\mathrm{NIST}}
+      +
+      \Gamma_{\mathrm{MQDT}}
+      +
+      \Gamma_{\mathrm{res}}.
+    \]
+    其中 \(\Gamma_{\mathrm{res}}\) 只用于总损失校准，不当作真实 resolved final state。
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{改进一：分窗 \texttt{get\_nearby}}
+  \small
+  原生 \texttt{total\_decay} 一次请求：
+  \[
+    \nu\in[0.00106363,129.12106363].
+  \]
+
+  notebook-local 修复是构造一个浅拷贝 \texttt{proxy\_state}：
+  \begin{verbatim}
+proxy.nub = window_center
+atom.get_nearby(proxy, {
+    "dn": window_half_width,
+    "dl": 1,
+    "df": 1,
+    "dm": 1,
+})
+  \end{verbatim}
+
+  \begin{itemize}
+    \item 仍然由 \texttt{get\_nearby} 动态找 MQDT 终态；
+    \item 不再一次扫到极低 \(\nu\) 病态区域；
+    \item 相邻窗口有 overlap，再用 \((E,F,m_F,\mathrm{parity})\) 去重；
+    \item 对 65S 目标态，窗口法可稳定生成 \(1680\) 个 MQDT P 态候选。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{改进二：NIST 低态补充与去重}
+  第一版只靠 MQDT \(P\) 态时，低 lying 态贡献不足或能级不够可靠。
+
+  \begin{itemize}
+    \item 对 \({}^{171}\mathrm{Yb}\) 65S：
+      \begin{itemize}
+        \item 显式加入 \texttt{Yb171\_NIST.txt} 中低 \(nP\) 态；
+        \item 对每个低 \(P\) 态枚举允许的 \(F,m_F\)；
+        \item 使用 \texttt{allowed\_multipole(..., k=1)} 保留 E1 通道；
+        \item 高 Rydberg \(P\) 态使用 MQDT，实际取 \(\nu\ge 12\)。
+      \end{itemize}
+    \item 对 \({}^{174}\mathrm{Yb}\) Fang benchmark：
+      \begin{itemize}
+        \item 使用 \texttt{Yb174\_NIST.txt} 中的 singlet 低态；
+        \item 与 windowed MQDT 高态合并。
+      \end{itemize}
+  \end{itemize}
+
+  \begin{block}{去重策略}
+    相同或近似相同终态按 \((E,F,m,\mathrm{parity})\) 合并；
+    低能区优先使用 NIST 能级，高能 Rydberg 区使用 MQDT 态。
+  \end{block}
+\end{frame}
+
+\begin{frame}{改进三：residual sink}
+  有限候选池即使加入 NIST 低态，仍可能少算：
+  \begin{itemize}
+    \item 其它未解析 manifold；
+    \item perturber / configuration-interaction 相关通道；
+    \item 实验条件下的 trap-induced loss 或 ionization；
+    \item 当前模型没有显式表示的黑体诱导转移。
+  \end{itemize}
+
+  因此如果有文献总寿命 \(\tau_{\mathrm{ref}}\)，定义：
+  \[
+    \Gamma_{\mathrm{ref}}=\frac{1}{\tau_{\mathrm{ref}}},
+    \qquad
+    \Gamma_{\mathrm{res}}
+    =
+    \max\left(0,\Gamma_{\mathrm{ref}}-\Gamma_{\mathrm{explicit}}\right).
+  \]
+
+  \begin{block}{在动力学模型中的含义}
+    \[
+      L_{\mathrm{res}}=\sqrt{\Gamma_{\mathrm{res}}}\ket{\mathrm{sink}}\bra{r}.
+    \]
+    它只保证总人口损失率正确，不提供真实 branching ratio。
+  \end{block}
 \end{frame}
 
 \begin{frame}{partial\_decay 计算的物理量}
@@ -351,8 +738,8 @@ return gamma_tot
   \end{itemize}
 \end{frame}
 
-\begin{frame}{示例结果：65 \({}^3S_1\) 态的诊断性 subset}
-  当前 notebook 的 \(\nu_{\min}=3.0\) 显式终态求和结果：
+\begin{frame}{早期结果：65 \({}^3S_1\) 态的诊断性 subset}
+  第一版 \(\nu_{\min}=3.0\) MQDT-only 终态求和结果：
   \begin{table}
     \centering
     \begin{tabular}{lrrr}
@@ -367,10 +754,121 @@ return gamma_tot
 
   \begin{itemize}
     \item 这些寿命明显偏长，说明这个终态集合少算了 channel。
-    \item 把下限放到 \(\nu_{\min}=1.0\) 并跳过非有限 MQDT 系数时，0 K 速率升至约 \(2.32\times10^3\,\mathrm{s}^{-1}\)，300 K 升至约 \(6.37\times10^3\,\mathrm{s}^{-1}\)。
-    \item 单独枚举 NIST 低 \(n\,{}^3P_J\) 终态时，0 K 低态通道贡献约 \(3.04\times10^3\,\mathrm{s}^{-1}\)。
-    \item 300 K 还包含相邻 Rydberg P 态之间的黑体诱导吸收 / 受激跃迁。
-    \item 因此当前数值只能说明计算链条和通道贡献量级，不能替代实验或完整 decay model。
+    \item 后续改进的目标不是改变 \texttt{partial\_decay} 公式，而是补全终态集合。
+    \item 这个表应理解为“缺 channel 前”的 baseline。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Fang 2001 benchmark：低 \(n\) Yb 寿命}
+  用 \({}^{174}\mathrm{Yb}\) 的 \(6sns\,{}^1S_0\) 和 \(6snd\,{}^1D_2\) 序列做验证。
+  Fang et al. 给出了室温 \(\tau=1/(A+B\rho)\) 计算值。
+
+  \begin{table}
+    \centering
+    \scriptsize
+    \begin{tabular}{lrrrr}
+      \toprule
+      态 & hybrid 显式 \(\tau_{300K}\) & Fang \(\tau_{300K}\) & \(\Gamma_{\mathrm{res}}\) / s\(^{-1}\) & 校准后 \(\tau\) \\
+      \midrule
+      \(6s21s\) & 7.424 & 6.8 & \(1.235\times10^4\) & 6.800 \\
+      \(6s22s\) & 8.417 & 8.3 & \(1.671\times10^3\) & 8.300 \\
+      \(6s27s\) & 14.508 & 16.9 & 0 & 14.508 \\
+      \(6s21d\) & 15.218 & 7.8 & \(6.249\times10^4\) & 7.800 \\
+      \(6s27d\) & 28.090 & 18.2 & \(1.934\times10^4\) & 18.200 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{itemize}
+    \item \(s\) 系列在加入 NIST 低态后已接近 Fang 的量级和趋势；
+    \item \(d\) 系列仍需要较大的 residual，说明低 \(n\) perturbation / configuration mixing 仍未被显式模型完整覆盖。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{最终目标态：explicit hybrid 结果}
+  对
+  \[
+    \ket{r}=\ket{65\,{}^3S_1,F=3/2,m_F=-3/2}
+  \]
+  使用 NIST low \(P\) states + MQDT \(P\) states with \(\nu\ge12\)：
+
+  \begin{table}
+    \centering
+    \begin{tabular}{lrr}
+      \toprule
+      项目 & 0 K & 300 K \\
+      \midrule
+      候选终态数 & \multicolumn{2}{c}{1542 = 84 NIST + 1458 MQDT} \\
+      \(\Gamma_{\mathrm{NIST}}\) / s\(^{-1}\) & -- & \(3.041537\times10^3\) \\
+      \(\Gamma_{\mathrm{MQDT}}\) / s\(^{-1}\) & -- & \(4.261963\times10^3\) \\
+      \(\Gamma_{\mathrm{explicit}}\) / s\(^{-1}\) & \(3.262577\times10^3\) & \(7.303500\times10^3\) \\
+      \(\tau_{\mathrm{explicit}}\) / \(\mu\)s & 306.506 & 136.921 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{itemize}
+    \item 相比 MQDT-only subset，300 K 显式速率从 \(5.60\times10^3\) 升到 \(7.30\times10^3\,\mathrm{s}^{-1}\)。
+    \item 寿命仍长于实验值，说明还存在未解析损失。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{目标态：与实验寿命的 residual 校准}
+  Muniz et al. 对相同 Rydberg 态在 typical tweezer depth 下给出：
+  \[
+    \tau_{\mathrm{exp}}\simeq65(3)\,\mu\mathrm{s}.
+  \]
+
+  因此：
+  \[
+    \Gamma_{\mathrm{ref}}
+    =
+    \frac{1}{65\,\mu\mathrm{s}}
+    =
+    1.538462\times10^4\,\mathrm{s}^{-1}.
+  \]
+
+  \begin{table}
+    \centering
+    \begin{tabular}{lr}
+      \toprule
+      贡献 & rate / s\(^{-1}\) \\
+      \midrule
+      explicit hybrid & \(7.303500\times10^3\) \\
+      residual sink & \(8.081115\times10^3\) \\
+      calibrated total & \(1.538462\times10^4\) \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{block}{使用建议}
+    做 branching 分析时看 explicit NIST/MQDT channels；
+    做 gate loss / erasure 模型时再加入 residual sink，使总寿命匹配实验。
+  \end{block}
+\end{frame}
+
+\begin{frame}{主要 300 K explicit 通道}
+  \begin{table}
+    \centering
+    \scriptsize
+    \begin{tabular}{rllr}
+      \toprule
+      排名 & 来源 & 终态 & \(\Gamma\) / s\(^{-1}\) \\
+      \midrule
+      1 & NIST & \(6\,{}^3P_2,F=5/2,m_F=-5/2\) & 544.428 \\
+      2 & MQDT & \(\nu=65.08,L=1,F=5/2,m_F=-5/2\) & 510.435 \\
+      3 & MQDT & \(\nu=64.08,L=1,F=5/2,m_F=-5/2\) & 483.589 \\
+      4 & NIST & \(6\,{}^3P_1,F=3/2,m_F=-3/2\) & 277.815 \\
+      5 & MQDT & \(\nu=65.27,L=1,F=3/2,m_F=-3/2\) & 256.884 \\
+      6 & MQDT & \(\nu=65.34,L=1,F=1/2,m_F=-1/2\) & 218.292 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \begin{itemize}
+    \item NIST low \(P\) 态负责大能量差的 spontaneous decay；
+    \item 相邻 Rydberg \(P\) 态负责 300 K 下显著的 BBR-induced redistribution；
+    \item 这两类通道必须同时保留，才能接近真实 lifetime scale。
   \end{itemize}
 \end{frame}
 
@@ -378,8 +876,10 @@ return gamma_tot
   \begin{enumerate}
     \item 先确认态标记格式：Yb171 Rydberg MQDT 态优先用 \texttt{vlfm}。
     \item 记录环境参数：至少写明 \(T\)、LDOS 是否为默认值。
-    \item 如果使用 \texttt{total\_decay}，先用 \texttt{printstates=True} 或小范围测试检查终态集合。
-    \item 对 Yb171 低 \(\nu\) MQDT 终态，警惕非有限 channel contribution 和径向插值错误。
+    \item 对 Yb171 MQDT 态，不直接依赖原生 \texttt{total\_decay} 的一次性大范围搜索。
+    \item 优先使用 windowed \texttt{get\_nearby} 构造高 Rydberg 终态，并显式报告 \(\nu\) 范围。
+    \item 对低 lying final states，优先使用 NIST 能级并与 MQDT 候选去重。
+    \item 如果要匹配实验总寿命，把未解析部分作为 residual sink 单独列出。
     \item 发表或 PR 中报告寿命时，同时报告：
       \begin{itemize}
         \item 初态；
@@ -401,7 +901,10 @@ return gamma_tot
       \]
     \item \texttt{partial\_decay} 使用标准电偶极辐射速率公式，并加入温度相关的黑体光子占据数。
     \item 对复杂 MQDT 体系，寿命计算的可靠性不只取决于公式，还取决于终态集合是否数值稳定且物理完备。
-    \item 对当前 \({}^{171}\mathrm{Yb}\) 65S 寿命估算，显式终态求和更透明，但必须系统补全低态和相关 decay manifold 后才能给最终寿命。
+    \item 我们在不改 \texttt{rydcalc} 源码的前提下，引入了分窗 \texttt{get\_nearby}、NIST 低态补充和 residual sink 校准。
+    \item 对当前 \({}^{171}\mathrm{Yb}\) 65S 目标态，explicit hybrid 给出
+      \(\tau_{300K}=136.921\,\mu\mathrm{s}\)；
+      加 residual sink 后可匹配 \(65\,\mu\mathrm{s}\) 实验总寿命。
   \end{itemize}
 \end{frame}
 
