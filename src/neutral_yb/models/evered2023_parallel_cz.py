@@ -6,6 +6,12 @@ import numpy as np
 import qutip
 
 from neutral_yb.config.species import NeutralYb171Species
+from neutral_yb.models.evered2023_benchmarking import (
+    Evered2023ExponentialBenchmarkResult,
+    diagonal_cz_average_gate_fidelity,
+    diagonal_cz_process_fidelity,
+    evered2023_exponential_decay_fidelity_from_diagonal_map,
+)
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
 
@@ -113,6 +119,8 @@ class Evered2023ParallelCZCalibration:
     atom_species: str = "87Rb"
     rydberg_state_n: int = 53
     omega_over_2pi_hz: float = 4.6e6
+    blue_rabi_hz: float = 237.0e6
+    red_rabi_hz: float = 303.0e6
     intermediate_detuning_hz: float = 7.8e9
     blockade_shift_hz: float = 450.0e6
     gate_fidelity_parallel_cz: float = 0.995
@@ -129,6 +137,10 @@ class Evered2023ParallelCZCalibration:
             "atom_species": self.atom_species,
             "rydberg_state_n": int(self.rydberg_state_n),
             "omega_over_2pi_hz": float(self.omega_over_2pi_hz),
+            "blue_rabi_hz": float(self.blue_rabi_hz),
+            "blue_rabi_over_omega": float(self.blue_rabi_hz / self.omega_over_2pi_hz),
+            "red_rabi_hz": float(self.red_rabi_hz),
+            "red_rabi_over_omega": float(self.red_rabi_hz / self.omega_over_2pi_hz),
             "intermediate_detuning_hz": float(self.intermediate_detuning_hz),
             "intermediate_detuning_over_omega": float(self.intermediate_detuning_hz / self.omega_over_2pi_hz),
             "blockade_shift_hz": float(self.blockade_shift_hz),
@@ -169,6 +181,8 @@ class Evered2023TwoPhotonCZ9DDetuningModel:
     red_rabi: float
     intermediate_detuning: float
     blockade_shift: float
+    static_resonance_shift: float = 0.0
+    use_leading_order_dressed_basis: bool = False
 
     def basis_labels(self) -> tuple[str, ...]:
         return ("01", "0e", "0r", "11", "W_e", "ee", "W_r", "E_er", "rr")
@@ -180,9 +194,25 @@ class Evered2023TwoPhotonCZ9DDetuningModel:
         return 0, 3
 
     def initial_state(self) -> qutip.Qobj:
-        return qutip.Qobj(
-            np.array([1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.complex128)
-        )
+        branch_01, branch_11 = self.phase_gate_branch_projectors()
+        return qutip.Qobj(branch_01 + branch_11)
+
+    def leading_order_blue_dressing_epsilon(self) -> float:
+        return float(self.blue_rabi / (2.0 * self.intermediate_detuning))
+
+    def phase_gate_branch_projectors(self) -> tuple[np.ndarray, np.ndarray]:
+        branch_01 = np.zeros(9, dtype=np.complex128)
+        branch_11 = np.zeros(9, dtype=np.complex128)
+        branch_01[0] = 1.0
+        branch_11[3] = 1.0
+        if self.use_leading_order_dressed_basis:
+            epsilon = self.leading_order_blue_dressing_epsilon()
+            branch_01[1] = epsilon
+            branch_11[4] = np.sqrt(2.0) * epsilon
+            branch_11[5] = epsilon**2
+            branch_01 /= np.linalg.norm(branch_01)
+            branch_11 /= np.linalg.norm(branch_11)
+        return branch_01, branch_11
 
     def drift_hamiltonian(self) -> qutip.Qobj:
         h_d = np.zeros((9, 9), dtype=np.complex128)
@@ -211,11 +241,40 @@ class Evered2023TwoPhotonCZ9DDetuningModel:
         return self.drift_hamiltonian() + float(two_photon_detuning) * self.detuning_control_hamiltonian()
 
     def phase_gate_fidelity(self, state: np.ndarray, theta: float) -> float:
-        alpha = complex(state[0])
-        beta = complex(state[3])
-        phased_sum = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
-        population_sum = 1.0 + 2.0 * abs(alpha) ** 2 + abs(beta) ** 2
-        return float((abs(phased_sum) ** 2 + population_sum) / 20.0)
+        branch_01, branch_11 = self.phase_gate_branch_projectors()
+        alpha = complex(np.vdot(branch_01, state))
+        beta = complex(np.vdot(branch_11, state))
+        return diagonal_cz_process_fidelity(alpha, beta, theta)
+
+    def phase_gate_average_fidelity(self, state: np.ndarray, theta: float) -> float:
+        branch_01, branch_11 = self.phase_gate_branch_projectors()
+        alpha = complex(np.vdot(branch_01, state))
+        beta = complex(np.vdot(branch_11, state))
+        return diagonal_cz_average_gate_fidelity(alpha, beta, theta)
+
+    def optimize_theta_for_state(self, state: np.ndarray) -> tuple[float, float]:
+        from scipy.optimize import minimize_scalar
+
+        result = minimize_scalar(
+            lambda theta: -self.phase_gate_fidelity(state, theta),
+            bounds=(0.0, 2.0 * np.pi),
+            method="bounded",
+            options={"xatol": 1e-10},
+        )
+        theta = float(np.mod(result.x, 2.0 * np.pi))
+        return theta, self.phase_gate_fidelity(state, theta)
+
+    def evered2023_exponential_decay_fidelity(
+        self,
+        state: np.ndarray,
+        theta: float,
+        gate_counts: tuple[int, ...] | None = None,
+    ) -> Evered2023ExponentialBenchmarkResult:
+        branch_01, branch_11 = self.phase_gate_branch_projectors()
+        alpha = complex(np.vdot(branch_01, state))
+        beta = complex(np.vdot(branch_11, state))
+        counts = tuple(range(0, 21, 2)) if gate_counts is None else gate_counts
+        return evered2023_exponential_decay_fidelity_from_diagonal_map(alpha, beta, theta, counts)
 
     @staticmethod
     def _add_quadrature_coupling(
@@ -286,6 +345,10 @@ def build_evered2023_two_photon_detuning_model(
     intermediate_detuning_over_effective_rabi: float | None = None,
     blockade_shift_over_effective_rabi: float | None = None,
     alpha: float = 1.0,
+    blue_rabi_over_effective_rabi: float | None = None,
+    red_rabi_over_effective_rabi: float | None = None,
+    static_resonance_shift: float = 0.0,
+    use_leading_order_dressed_basis: bool = False,
 ) -> Evered2023TwoPhotonCZ9DDetuningModel:
     """Build the two-photon detuning-gauge model in units of the effective Rabi rate."""
 
@@ -300,12 +363,20 @@ def build_evered2023_two_photon_detuning_model(
         if blockade_shift_over_effective_rabi is None
         else float(blockade_shift_over_effective_rabi)
     )
-    red_rabi = np.sqrt(2.0 * detuning_ratio * effective_rabi**2 / max(float(alpha), 1e-12))
-    blue_rabi = float(alpha) * red_rabi
+    if blue_rabi_over_effective_rabi is not None or red_rabi_over_effective_rabi is not None:
+        if blue_rabi_over_effective_rabi is None or red_rabi_over_effective_rabi is None:
+            raise ValueError("blue_rabi_over_effective_rabi and red_rabi_over_effective_rabi must be provided together")
+        blue_rabi = float(blue_rabi_over_effective_rabi) * effective_rabi
+        red_rabi = float(red_rabi_over_effective_rabi) * effective_rabi
+    else:
+        red_rabi = np.sqrt(2.0 * detuning_ratio * effective_rabi**2 / max(float(alpha), 1e-12))
+        blue_rabi = float(alpha) * red_rabi
     return Evered2023TwoPhotonCZ9DDetuningModel(
         species=species,
         blue_rabi=float(blue_rabi),
         red_rabi=float(red_rabi),
         intermediate_detuning=float(detuning_ratio * effective_rabi),
         blockade_shift=float(blockade_ratio * effective_rabi),
+        static_resonance_shift=float(static_resonance_shift),
+        use_leading_order_dressed_basis=bool(use_leading_order_dressed_basis),
     )

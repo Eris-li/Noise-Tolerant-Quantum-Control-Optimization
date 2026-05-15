@@ -7,6 +7,12 @@ import qutip
 from scipy.optimize import minimize_scalar
 
 from neutral_yb.config.species import NeutralYb171Species
+from neutral_yb.models.evered2023_benchmarking import (
+    Evered2023ExponentialBenchmarkResult,
+    diagonal_cz_average_gate_fidelity,
+    diagonal_cz_process_fidelity,
+    evered2023_exponential_decay_fidelity_from_diagonal_map,
+)
 
 
 @dataclass(frozen=True)
@@ -39,9 +45,12 @@ class GlobalCZ4DModel:
     def phase_gate_fidelity(self, state: np.ndarray, theta: float) -> float:
         alpha = complex(state[0])
         beta = complex(state[2])
-        phased_sum = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
-        population_sum = 1.0 + 2.0 * abs(alpha) ** 2 + abs(beta) ** 2
-        return float((abs(phased_sum) ** 2 + population_sum) / 20.0)
+        return diagonal_cz_process_fidelity(alpha, beta, theta)
+
+    def phase_gate_average_fidelity(self, state: np.ndarray, theta: float) -> float:
+        alpha = complex(state[0])
+        beta = complex(state[2])
+        return diagonal_cz_average_gate_fidelity(alpha, beta, theta)
 
     def optimize_theta_for_state(self, state: np.ndarray) -> tuple[float, float]:
         result = minimize_scalar(
@@ -52,6 +61,17 @@ class GlobalCZ4DModel:
         )
         theta = float(np.mod(result.x, 2.0 * np.pi))
         return theta, self.phase_gate_fidelity(state, theta)
+
+    def evered2023_exponential_decay_fidelity(
+        self,
+        state: np.ndarray,
+        theta: float,
+        gate_counts: tuple[int, ...] | None = None,
+    ) -> Evered2023ExponentialBenchmarkResult:
+        alpha = complex(state[0])
+        beta = complex(state[2])
+        counts = tuple(range(0, 21, 2)) if gate_counts is None else gate_counts
+        return evered2023_exponential_decay_fidelity_from_diagonal_map(alpha, beta, theta, counts)
 
     def target_state(self, theta: float) -> qutip.Qobj:
         return qutip.Qobj(

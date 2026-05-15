@@ -7,6 +7,7 @@ import qutip
 from scipy.optimize import minimize_scalar
 
 from neutral_yb.config.species import NeutralYb171Species
+from neutral_yb.models.evered2023_benchmarking import diagonal_cz_process_fidelity
 
 
 @dataclass(frozen=True)
@@ -61,9 +62,7 @@ class FiniteBlockadeCZ5DModel:
     def phase_gate_fidelity(self, state: np.ndarray, theta: float) -> float:
         alpha = complex(state[0])
         beta = complex(state[2])
-        phased_sum = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
-        population_sum = 1.0 + 2.0 * abs(alpha) ** 2 + abs(beta) ** 2
-        return float((abs(phased_sum) ** 2 + population_sum) / 20.0)
+        return diagonal_cz_process_fidelity(alpha, beta, theta)
 
     def optimize_theta_for_state(self, state: np.ndarray) -> tuple[float, float]:
         result = minimize_scalar(

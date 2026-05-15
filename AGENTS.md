@@ -70,6 +70,8 @@ When changing open-system dynamics or gradients, prefer at least one small shape
 
 Do not overwrite committed artifacts casually. Write new scan outputs to descriptive, versioned subdirectories under `artifacts/`, usually through `neutral_yb.config.artifact_paths`.
 
+Every experiment that produces numerical results must also produce human-readable plots in the same artifact directory. At minimum, include a summary figure showing the key physics outcome, such as fidelity/infidelity versus gate time, threshold markers, relevant population or leakage diagnostics, and pulse amplitude/phase or other optimized controls when applicable. JSON outputs are for detailed machine-readable records, parameter provenance, and reproducibility; they are not a substitute for plots.
+
 Record generated artifact paths in PRs or notes. If a command is expensive, include the exact command and important numerical assumptions in the surrounding docs or PR description.
 
 ## Submodule Policy

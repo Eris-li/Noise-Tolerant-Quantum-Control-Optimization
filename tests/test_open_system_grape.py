@@ -95,6 +95,32 @@ class OpenSystemGRAPETest(unittest.TestCase):
         self.assertLessEqual(result.probe_fidelity, 1.0)
         self.assertGreaterEqual(result.probe_fidelity, 0.6 - 1e-6)
 
+    def test_gaussian_edge_envelope_zeroes_effective_uv_edges(self) -> None:
+        optimizer = self.build_optimizer()
+        optimizer.reconfigure(
+            replace(
+                optimizer.config,
+                control_envelope="GAUSSIAN_EDGE",
+                gaussian_edge_fraction=0.2,
+                gaussian_edge_sigma_fraction=0.08,
+            )
+        )
+        raw_ctrl_x = np.array([0.2, 0.3, 0.4, 0.5], dtype=np.float64)
+        raw_ctrl_y = np.array([-0.1, -0.2, 0.1, 0.2], dtype=np.float64)
+        result = optimizer._result_from_variables(
+            np.concatenate([raw_ctrl_x, raw_ctrl_y, np.array([0.1])]),
+            num_iter=0,
+            num_fid_func_calls=1,
+            wall_time=0.0,
+            termination_reason="test",
+            success=True,
+        )
+        self.assertAlmostEqual(float(result.amplitudes[0]), 0.0)
+        self.assertAlmostEqual(float(result.amplitudes[-1]), 0.0)
+        self.assertEqual(result.raw_ctrl_x.shape, result.ctrl_x.shape)
+        self.assertEqual(result.raw_ctrl_y.shape, result.ctrl_y.shape)
+        self.assertGreater(np.linalg.norm(result.raw_ctrl_x) + np.linalg.norm(result.raw_ctrl_y), 0.0)
+
     def test_special_state_formula_matches_model_method(self) -> None:
         optimizer = self.build_optimizer()
         ctrl_x = np.array([0.01, -0.02, 0.03, -0.01], dtype=np.float64)
@@ -161,6 +187,19 @@ class OpenSystemGRAPETest(unittest.TestCase):
         target = optimizer._target_channel_superoperator(theta)
         expected = float(np.real(np.vdot(target, superoperator)) / 4.0)
         self.assertAlmostEqual(optimizer.channel_fidelity(ctrl_x, ctrl_y, theta), expected, places=12)
+
+    def test_unitary_channel_fidelity_matches_trace_formula(self) -> None:
+        optimizer = self.build_active_channel_optimizer()
+        theta = 0.37
+        implemented = np.diag([np.exp(0.12j), -np.exp(0.81j)])
+        target = np.diag([np.exp(1j * theta), -np.exp(2j * theta)])
+        superoperator = np.kron(np.conjugate(implemented), implemented)
+        expected = abs(np.trace(target.conj().T @ implemented)) ** 2 / 4.0
+        self.assertAlmostEqual(
+            optimizer._channel_fidelity_from_superoperator(superoperator, theta),
+            float(expected),
+            places=12,
+        )
 
     def test_active_channel_objective_gradient_matches_finite_difference(self) -> None:
         optimizer = self.build_active_channel_optimizer()

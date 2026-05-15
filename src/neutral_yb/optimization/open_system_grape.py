@@ -10,6 +10,8 @@ import qutip
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize, minimize_scalar
 
+from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope
+
 
 @dataclass(frozen=True)
 class OpenSystemGRAPEConfig:
@@ -30,6 +32,9 @@ class OpenSystemGRAPEConfig:
     radial_amplitude_bound_weight: float = 0.0
     amplitude_diff_threshold: float = 0.01
     phase_diff_threshold: float = 0.1
+    control_envelope: str = "NONE"
+    gaussian_edge_fraction: float = 0.20
+    gaussian_edge_sigma_fraction: float = 0.08
     target_theta: float = 0.0
     fidelity_target: float = 0.995
     objective_metric: str = "special_state"
@@ -45,6 +50,8 @@ class OpenSystemGRAPEConfig:
 class OpenSystemGRAPEResult:
     ctrl_x: np.ndarray
     ctrl_y: np.ndarray
+    raw_ctrl_x: np.ndarray
+    raw_ctrl_y: np.ndarray
     amplitudes: np.ndarray
     phases: np.ndarray
     target_theta: float
@@ -71,6 +78,8 @@ class OpenSystemGRAPEResult:
         return {
             "ctrl_x": [float(x) for x in self.ctrl_x],
             "ctrl_y": [float(x) for x in self.ctrl_y],
+            "raw_ctrl_x": [float(x) for x in self.raw_ctrl_x],
+            "raw_ctrl_y": [float(x) for x in self.raw_ctrl_y],
             "amplitudes": [float(x) for x in self.amplitudes],
             "phases": [float(x) for x in self.phases],
             "target_theta": float(self.target_theta),
@@ -82,7 +91,10 @@ class OpenSystemGRAPEResult:
             if self.active_channel_fidelity is None
             else float(self.active_channel_fidelity),
             "phase_gate_fidelity": float(self.probe_fidelity),
-            "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+            "process_fidelity": None
+            if self.active_channel_fidelity is None
+            else float(self.active_channel_fidelity),
+            "fidelity_metric": self.objective_metric,
             "objective_metric": self.objective_metric,
             "objective": float(self.objective),
             "num_iter": int(self.num_iter),
@@ -248,22 +260,52 @@ class OpenSystemGRAPEOptimizer:
                 )
 
             started_at = time.perf_counter()
-            result = minimize(
-                fun=self.objective_and_gradient,
-                x0=variables0,
-                jac=True,
-                method="L-BFGS-B",
-                bounds=bounds,
-                options={"maxiter": self.config.max_iter},
-            )
+            last_variables = np.array(variables0, copy=True)
+            callback_iter = 0
+
+            def callback(xk: np.ndarray) -> None:
+                nonlocal callback_iter, last_variables
+                callback_iter += 1
+                last_variables = np.asarray(xk, dtype=np.float64).copy()
+                elapsed = time.perf_counter() - started_at
+                if self.config.show_progress:
+                    print(
+                        f"[open-grape] restart {restart + 1}/{self.config.num_restarts} "
+                        f"iter={callback_iter:03d} elapsed={elapsed:7.1f}s",
+                        flush=True,
+                    )
+                if elapsed >= self.config.max_wall_time:
+                    raise TimeoutError("OpenSystemGRAPE max_wall_time reached")
+
+            try:
+                result = minimize(
+                    fun=self.objective_and_gradient,
+                    x0=variables0,
+                    jac=True,
+                    method="L-BFGS-B",
+                    bounds=bounds,
+                    callback=callback,
+                    options={"maxiter": self.config.max_iter},
+                )
+                result_variables = result.x
+                num_iter = int(result.nit)
+                num_fid_func_calls = int(result.nfev)
+                termination_reason = str(result.message)
+                success = bool(result.success)
+            except TimeoutError as exc:
+                result_variables = last_variables
+                num_iter = int(callback_iter)
+                num_fid_func_calls = -1
+                termination_reason = str(exc)
+                success = False
             wall_time = time.perf_counter() - started_at
             candidate = self._result_from_variables(
-                result.x,
-                num_iter=int(result.nit),
-                num_fid_func_calls=int(result.nfev),
+                result_variables,
+                num_iter=num_iter,
+                num_fid_func_calls=num_fid_func_calls,
                 wall_time=wall_time,
-                termination_reason=str(result.message),
-                success=bool(result.success),
+                termination_reason=termination_reason,
+                success=success,
             )
             if self.config.show_progress:
                 print(
@@ -435,7 +477,9 @@ class OpenSystemGRAPEOptimizer:
         return self._objective_and_gradient_active_channel(variables)
 
     def _objective_and_gradient_special_state(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
-        ctrl_x, ctrl_y, theta = self._unpack(variables)
+        raw_ctrl_x, raw_ctrl_y, theta = self._unpack(variables)
+        ctrl_x, ctrl_y = self._apply_control_envelope(raw_ctrl_x, raw_ctrl_y)
+        envelope = self.control_envelope()
         dt = self.config.dt
         fidelity = 0.0
         fidelity_theta_grad = 0.0
@@ -513,11 +557,13 @@ class OpenSystemGRAPEOptimizer:
             ctrl_x_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_x
             ctrl_y_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_y
 
-        gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
+        gradient = np.concatenate([envelope * ctrl_x_grad, envelope * ctrl_y_grad, np.array([-fidelity_theta_grad])])
         return float(objective), gradient
 
     def _objective_and_gradient_active_channel(self, variables: np.ndarray) -> tuple[float, np.ndarray]:
-        ctrl_x, ctrl_y, theta = self._unpack(variables)
+        raw_ctrl_x, raw_ctrl_y, theta = self._unpack(variables)
+        ctrl_x, ctrl_y = self._apply_control_envelope(raw_ctrl_x, raw_ctrl_y)
+        envelope = self.control_envelope()
         dt = self.config.dt
         fidelity = 0.0
         fidelity_theta_grad = 0.0
@@ -595,7 +641,7 @@ class OpenSystemGRAPEOptimizer:
             ctrl_x_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_x
             ctrl_y_grad += self.config.radial_amplitude_bound_weight * radial_bound_grad_y
 
-        gradient = np.concatenate([ctrl_x_grad, ctrl_y_grad, np.array([-fidelity_theta_grad])])
+        gradient = np.concatenate([envelope * ctrl_x_grad, envelope * ctrl_y_grad, np.array([-fidelity_theta_grad])])
         return float(objective), gradient
 
     def _result_from_variables(
@@ -607,12 +653,13 @@ class OpenSystemGRAPEOptimizer:
         termination_reason: str,
         success: bool,
     ) -> OpenSystemGRAPEResult:
-        ctrl_x, ctrl_y, theta = self._unpack(variables)
+        raw_ctrl_x, raw_ctrl_y, theta = self._unpack(variables)
+        ctrl_x, ctrl_y = self._apply_control_envelope(raw_ctrl_x, raw_ctrl_y)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
-        probe_fidelity = self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
+        probe_fidelity = self.phase_gate_fidelity(raw_ctrl_x, raw_ctrl_y, theta)
         active_channel_fidelity: float | None = None
         if self._resolve_objective_metric() == "active_channel" or self.config.benchmark_active_channel:
-            active_channel_fidelity = self.channel_fidelity(ctrl_x, ctrl_y, theta)
+            active_channel_fidelity = self.channel_fidelity(raw_ctrl_x, raw_ctrl_y, theta)
         objective_fidelity = (
             probe_fidelity
             if self._resolve_objective_metric() == "special_state"
@@ -631,6 +678,8 @@ class OpenSystemGRAPEOptimizer:
         return OpenSystemGRAPEResult(
             ctrl_x=ctrl_x,
             ctrl_y=ctrl_y,
+            raw_ctrl_x=raw_ctrl_x,
+            raw_ctrl_y=raw_ctrl_y,
             amplitudes=amplitudes,
             phases=phases,
             target_theta=float(self.config.target_theta),
@@ -655,20 +704,23 @@ class OpenSystemGRAPEOptimizer:
         )
 
     def _zero_control_baseline_result(self) -> OpenSystemGRAPEResult:
-        ctrl_x = np.zeros(self.config.num_tslots, dtype=np.float64)
-        ctrl_y = np.zeros(self.config.num_tslots, dtype=np.float64)
+        raw_ctrl_x = np.zeros(self.config.num_tslots, dtype=np.float64)
+        raw_ctrl_y = np.zeros(self.config.num_tslots, dtype=np.float64)
+        ctrl_x, ctrl_y = self._apply_control_envelope(raw_ctrl_x, raw_ctrl_y)
         if self._resolve_objective_metric() == "special_state":
-            theta, objective_fidelity = self.optimize_theta_for_phase_fidelity(ctrl_x, ctrl_y)
+            theta, objective_fidelity = self.optimize_theta_for_phase_fidelity(raw_ctrl_x, raw_ctrl_y)
         else:
-            theta, objective_fidelity = self.optimize_theta_for_channel(ctrl_x, ctrl_y)
-        probe_fidelity = self.phase_gate_fidelity(ctrl_x, ctrl_y, theta)
+            theta, objective_fidelity = self.optimize_theta_for_channel(raw_ctrl_x, raw_ctrl_y)
+        probe_fidelity = self.phase_gate_fidelity(raw_ctrl_x, raw_ctrl_y, theta)
         active_channel_fidelity: float | None = None
         if self._resolve_objective_metric() == "active_channel" or self.config.benchmark_active_channel:
-            active_channel_fidelity = self.channel_fidelity(ctrl_x, ctrl_y, theta)
+            active_channel_fidelity = self.channel_fidelity(raw_ctrl_x, raw_ctrl_y, theta)
         amplitudes, phases = self.model.control_cartesian_to_polar(ctrl_x, ctrl_y)
         return OpenSystemGRAPEResult(
             ctrl_x=ctrl_x,
             ctrl_y=ctrl_y,
+            raw_ctrl_x=raw_ctrl_x,
+            raw_ctrl_y=raw_ctrl_y,
             amplitudes=amplitudes,
             phases=phases,
             target_theta=float(self.config.target_theta),
@@ -697,6 +749,7 @@ class OpenSystemGRAPEOptimizer:
 
     def final_phase_state_member(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
         member = self.ensemble_data[member_index]
+        ctrl_x, ctrl_y = self._apply_control_envelope(ctrl_x, ctrl_y)
         current_state = member["phase_prefix"] @ self.initial_phase_state
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             g_k = member["g_d"] + float(x_value) * member["g_x"] + float(y_value) * member["g_y"]
@@ -725,6 +778,7 @@ class OpenSystemGRAPEOptimizer:
 
     def channel_superoperator(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray, member_index: int = 0) -> np.ndarray:
         member = self.ensemble_data[member_index]
+        ctrl_x, ctrl_y = self._apply_control_envelope(ctrl_x, ctrl_y)
         current_batch = member["liou_prefix"] @ self.active_operator_basis
         for x_value, y_value in zip(ctrl_x, ctrl_y):
             l_k = member["l_d"] + float(x_value) * member["l_x"] + float(y_value) * member["l_y"]
@@ -994,6 +1048,24 @@ class OpenSystemGRAPEOptimizer:
         )
         theta = float(np.mod(variables[-1], 2.0 * np.pi))
         return ctrl_x, ctrl_y, theta
+
+    def control_envelope(self) -> np.ndarray:
+        if self.config.control_envelope.upper() in {"", "NONE", "FLAT"}:
+            return np.ones(self.config.num_tslots, dtype=np.float64)
+        if self.config.control_envelope.upper() == "GAUSSIAN_EDGE":
+            return gaussian_edge_envelope(
+                self.config.num_tslots,
+                self.config.gaussian_edge_fraction,
+                self.config.gaussian_edge_sigma_fraction,
+            )
+        raise ValueError(f"Unsupported control envelope: {self.config.control_envelope}")
+
+    def _apply_control_envelope(self, ctrl_x: np.ndarray, ctrl_y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        envelope = self.control_envelope()
+        return (
+            envelope * np.asarray(ctrl_x, dtype=np.float64),
+            envelope * np.asarray(ctrl_y, dtype=np.float64),
+        )
 
     def _jitter_controls(self, base: np.ndarray, restart: int, axis: int) -> np.ndarray:
         rng = np.random.default_rng(self.config.seed + 1000 * restart + axis)

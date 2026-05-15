@@ -465,7 +465,12 @@ def summarize_yb171_v4_result(
     return {
         **result.to_json(),
         "phase_gate_fidelity": float(result.probe_fidelity),
-        "fidelity_metric": "paper_eq7_special_state_phase_gate_fidelity",
+        "process_fidelity": (
+            None
+            if result.active_channel_fidelity is None
+            else float(result.active_channel_fidelity)
+        ),
+        "fidelity_metric": str(result.objective_metric),
         "uv_segment_time_ns": float(gate_time_ns),
         "uv_segment_time_us": float(gate_time_ns / 1000.0),
         "gate_time_ns": float(gate_time_ns),

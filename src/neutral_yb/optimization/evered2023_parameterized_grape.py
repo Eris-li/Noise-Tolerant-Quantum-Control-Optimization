@@ -20,6 +20,7 @@ class Evered2023ParameterizedGRAPEConfig:
     max_iter: int = 260
     num_restarts: int = 20
     seed: int = 73
+    include_paper_seed: bool = False
     fix_static_detuning: bool = True
     static_detuning_value: float = 0.0
     fidelity_target: float = 0.9999
@@ -131,7 +132,7 @@ class Evered2023ParameterizedGRAPEOptimizer:
         best: Evered2023ParameterizedGRAPEResult | None = None
         started_at = time.perf_counter()
         for restart in range(int(self.config.num_restarts)):
-            variables0 = self._initial_variables(rng)
+            variables0 = self._paper_initial_variables() if restart == 0 and self.config.include_paper_seed else self._initial_variables(rng)
             result = minimize(
                 fun=self.objective_and_gradient,
                 x0=variables0,
@@ -225,6 +226,27 @@ class Evered2023ParameterizedGRAPEOptimizer:
         base.append(float(rng.uniform(0.0, 2.0 * np.pi)))
         return np.asarray(base, dtype=np.float64)
 
+    def _paper_initial_variables(self) -> np.ndarray:
+        pulse = Evered2023TimeOptimalPulse(omega_t_over_2pi=self.omega_t_over_2pi)
+        full = np.array(
+            [
+                pulse.amplitude_phase_modulation,
+                pulse.phase_rate,
+                pulse.phase_offset,
+                pulse.static_detuning,
+                0.0,
+            ],
+            dtype=np.float64,
+        )
+        phases = self._phases(full)
+        state = self.slot_optimizer.final_state(phases)
+        theta = 0.0
+        if hasattr(self.model, "optimize_theta_for_state"):
+            theta, _fidelity = self.model.optimize_theta_for_state(state)
+        if self.config.fix_static_detuning:
+            return np.array([full[0], full[1], full[2], theta], dtype=np.float64)
+        return np.array([full[0], full[1], full[2], full[3], theta], dtype=np.float64)
+
     def _bounds(self) -> list[tuple[float, float]]:
         bounds = [
             (0.0, 2.0 * np.pi),
@@ -297,13 +319,24 @@ class Evered2023TwoPhotonDetuningGRAPEOptimizer:
         self.initial_state = np.asarray(model.initial_state().full(), dtype=np.complex128).ravel()
         self.dimension = int(self.initial_state.size)
         self.phase_gate_indices = tuple(int(index) for index in model.phase_gate_state_indices())
+        if hasattr(model, "phase_gate_branch_projectors"):
+            self.branch_projectors = tuple(
+                np.asarray(vector, dtype=np.complex128).ravel()
+                for vector in model.phase_gate_branch_projectors()
+            )
+        else:
+            branch_01 = np.zeros(self.dimension, dtype=np.complex128)
+            branch_11 = np.zeros(self.dimension, dtype=np.complex128)
+            branch_01[self.phase_gate_indices[0]] = 1.0
+            branch_11[self.phase_gate_indices[1]] = 1.0
+            self.branch_projectors = (branch_01, branch_11)
 
     def optimize(self) -> Evered2023ParameterizedGRAPEResult:
         rng = np.random.default_rng(self.config.seed)
         best: Evered2023ParameterizedGRAPEResult | None = None
         started_at = time.perf_counter()
         for restart in range(int(self.config.num_restarts)):
-            variables0 = self._initial_variables(rng)
+            variables0 = self._paper_initial_variables() if restart == 0 and self.config.include_paper_seed else self._initial_variables(rng)
             result = minimize(
                 fun=self.objective_and_gradient,
                 x0=variables0,
@@ -350,8 +383,9 @@ class Evered2023TwoPhotonDetuningGRAPEOptimizer:
             state_prefix.append(state)
 
         final_state = state_prefix[-1]
-        alpha = final_state[self.phase_gate_indices[0]]
-        beta = final_state[self.phase_gate_indices[1]]
+        branch_01, branch_11 = self.branch_projectors
+        alpha = np.vdot(branch_01, final_state)
+        beta = np.vdot(branch_11, final_state)
         s_value = 1.0 + 2.0 * np.exp(-1j * theta) * alpha - np.exp(-2j * theta) * beta
         fidelity = self.model.phase_gate_fidelity(final_state, theta)
         objective = 1.0 - fidelity
@@ -369,15 +403,14 @@ class Evered2023TwoPhotonDetuningGRAPEOptimizer:
             h_k = self.h_d + float(detuning) * self.h_delta
             du_k = expm_frechet(-1j * self.dt * h_k, -1j * self.dt * self.h_delta, compute_expm=False)
             d_state = suffix_unitaries[index] @ du_k @ state_prefix[index]
-            d_alpha = d_state[self.phase_gate_indices[0]]
-            d_beta = d_state[self.phase_gate_indices[1]]
+            d_alpha = np.vdot(branch_01, d_state)
+            d_beta = np.vdot(branch_11, d_state)
             d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
-            d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
-            d_fidelity = (2.0 * np.real(np.conj(s_value) * d_s) + d_pop) / 20.0
+            d_fidelity = np.real(np.conj(s_value) * d_s) / 8.0
             detuning_gradient[index] = -float(d_fidelity)
 
         d_s_theta = -2j * np.exp(-1j * theta) * alpha + 2j * np.exp(-2j * theta) * beta
-        d_fidelity_theta = 2.0 * np.real(np.conj(s_value) * d_s_theta) / 20.0
+        d_fidelity_theta = np.real(np.conj(s_value) * d_s_theta) / 8.0
 
         argument = phase_rate * self.times - phase_offset
         gradients = [
@@ -428,7 +461,8 @@ class Evered2023TwoPhotonDetuningGRAPEOptimizer:
     def _detunings(self, full_variables: np.ndarray) -> np.ndarray:
         amplitude, phase_rate, phase_offset, static_detuning, _theta = full_variables
         argument = phase_rate * self.times - phase_offset
-        return amplitude * phase_rate * np.sin(argument) - static_detuning
+        resonance_shift = float(getattr(self.model, "static_resonance_shift", 0.0))
+        return amplitude * phase_rate * np.sin(argument) - static_detuning + resonance_shift
 
     def _unpack_variables(self, variables: np.ndarray) -> np.ndarray:
         variables = np.asarray(variables, dtype=np.float64)
@@ -455,6 +489,42 @@ class Evered2023TwoPhotonDetuningGRAPEOptimizer:
             base.append(float(rng.uniform(-0.3, 0.3)))
         base.append(float(rng.uniform(0.0, 2.0 * np.pi)))
         return np.asarray(base, dtype=np.float64)
+
+    def _paper_initial_variables(self) -> np.ndarray:
+        pulse = Evered2023TimeOptimalPulse(omega_t_over_2pi=self.omega_t_over_2pi)
+        full = np.array(
+            [
+                pulse.amplitude_phase_modulation,
+                pulse.phase_rate,
+                pulse.phase_offset,
+                pulse.static_detuning,
+                0.0,
+            ],
+            dtype=np.float64,
+        )
+        result = Evered2023ParameterizedGRAPEResult(
+            omega_t_over_2pi=self.omega_t_over_2pi,
+            amplitude_phase_modulation=float(full[0]),
+            phase_rate=float(full[1]),
+            phase_offset=float(full[2]),
+            static_detuning=float(full[3]),
+            theta=0.0,
+            fidelity=0.0,
+            objective=0.0,
+            iterations=0,
+            success=True,
+            message="paper seed",
+            num_tslots=int(self.config.num_tslots),
+            num_restarts=int(self.config.num_restarts),
+            wall_time=0.0,
+        )
+        state = self.final_state(result)
+        theta = 0.0
+        if hasattr(self.model, "optimize_theta_for_state"):
+            theta, _fidelity = self.model.optimize_theta_for_state(state)
+        if self.config.fix_static_detuning:
+            return np.array([full[0], full[1], full[2], theta], dtype=np.float64)
+        return np.array([full[0], full[1], full[2], full[3], theta], dtype=np.float64)
 
     def _bounds(self) -> list[tuple[float, float]]:
         bounds = [

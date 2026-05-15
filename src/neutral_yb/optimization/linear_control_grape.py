@@ -309,12 +309,11 @@ class LinearControlGRAPEOptimizer:
                 d_alpha = d_state[self.phase_gate_indices[0]]
                 d_beta = d_state[self.phase_gate_indices[1]]
                 d_s = 2.0 * np.exp(-1j * theta) * d_alpha - np.exp(-2j * theta) * d_beta
-                d_pop = 4.0 * np.real(np.conj(alpha) * d_alpha) + 2.0 * np.real(np.conj(beta) * d_beta)
-                d_fidelity = (2.0 * np.real(np.conj(s) * d_s) + d_pop) / 20.0
+                d_fidelity = np.real(np.conj(s) * d_s) / 8.0
                 control_gradient[control_index, slot_index] = -d_fidelity
 
         d_s_theta = -2j * np.exp(-1j * theta) * alpha + 2j * np.exp(-2j * theta) * beta
-        d_fidelity_theta = 2.0 * np.real(np.conj(s) * d_s_theta) / 20.0
+        d_fidelity_theta = np.real(np.conj(s) * d_s_theta) / 8.0
 
         if self.config.smoothness_weight > 0.0:
             control_gradient += self.config.smoothness_weight * self._smoothness_gradient(controls)
