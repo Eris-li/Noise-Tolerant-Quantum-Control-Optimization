@@ -72,7 +72,6 @@ def main() -> None:
         model=build_yb171_v5_calibrated_model(
             include_noise=True,
             effective_rabi_hz=float(best["omega_max_hz"]),
-            profile=str(summary["profile_name"]),
         ),
         config=OpenSystemGRAPEConfig(
             num_tslots=len(ctrl_x),
@@ -103,7 +102,7 @@ def main() -> None:
     ax.set_xlabel("UV Segment Time (ns)")
     ax.set_ylabel("Phase-Gate Fidelity")
     ax.set_ylim(0.35, 1.001)
-    ax.set_title(f"v5 coarse scan: {summary['profile_name']}")
+    ax.set_title("v5 coarse scan")
     ax.legend()
 
     ax = axes[0, 1]
@@ -195,7 +194,7 @@ def main() -> None:
     ax.set_title("UV-segment population dynamics")
     ax.legend()
 
-    fig.suptitle(f"^171Yb v5 coarse scan at 10 MHz ({summary['profile_name']})")
+    fig.suptitle("^171Yb v5 coarse scan at 10 MHz")
     fig.tight_layout()
 
     stem = summary_path.stem.removesuffix("_summary")
@@ -217,7 +216,7 @@ def main() -> None:
     pulse_axes[1].set_ylim(-np.pi, np.pi)
     pulse_axes[1].set_title("Optimized phase")
 
-    pulse_fig.suptitle(f"^171Yb v5 optimized UV control ({summary['profile_name']})")
+    pulse_fig.suptitle("^171Yb v5 optimized UV control")
     pulse_fig.tight_layout()
     pulse_output_path = artifacts / f"{stem}_optimized_pulse.png"
     pulse_fig.savefig(pulse_output_path, dpi=180)

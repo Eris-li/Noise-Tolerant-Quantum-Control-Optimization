@@ -43,12 +43,8 @@ def v5_artifacts_dir(root: Path) -> Path:
     return artifact_root(root) / "v5"
 
 
-def v5_profile_dir(root: Path, profile: str) -> Path:
-    return v5_artifacts_dir(root) / profile
-
-
-def v5_coarse_10mhz_dir(root: Path, profile: str) -> Path:
-    return v5_profile_dir(root, profile) / "coarse_0_300ns_10mhz"
+def v5_coarse_10mhz_dir(root: Path) -> Path:
+    return v5_artifacts_dir(root) / "coarse_0_300ns_10mhz"
 
 
 def ma2023_time_optimal_2q_dir(root: Path) -> Path:

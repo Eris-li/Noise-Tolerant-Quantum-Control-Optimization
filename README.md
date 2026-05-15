@@ -38,7 +38,7 @@
 - `v2`：闭系统 5D 有限 blockade 修正模型。
 - `v3`：闭系统双光子 9D 模型，显式包含中间态 `|e>`。
 - `v4`：开放系统 `^171Yb clock -> Rydberg` 有效完整门模型，固定前后 shelving/unshelving，优化中间 UV 段。
-- `v5`：当前更清晰的 `^171Yb` 标定扫描线，区分 `strict_literature_minimal` 与 `experimental_surrogate_full` profile。
+- `v5`：当前 profile-free 的 `^171Yb` 标定扫描线，保留完整门核心模型，噪声假设从单一 baseline 重新整理。
 - `ma2023_time_optimal_2q`：独立复现 Ma et al., Nature 622, 279-284 (2023) Fig. 3 的 metastable-qubit Rydberg gate，不并入 `v4/v5` 主线。
 
 ## 快速开始

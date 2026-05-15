@@ -15,9 +15,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neutral_yb.config.artifact_paths import ensure_artifact_dir, v5_profile_dir
+from neutral_yb.config.artifact_paths import ensure_artifact_dir, v5_coarse_10mhz_dir
 from neutral_yb.config.yb171_calibration import (
-    Yb171CalibrationProfile,
     build_yb171_v5_calibrated_model,
     build_yb171_v5_quasistatic_ensemble,
     summarize_yb171_v5_result,
@@ -48,23 +47,14 @@ UV_GAUSSIAN_EDGE_SIGMA_FRACTION = 0.08
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--profile",
-        choices=["strict_literature_minimal", "experimental_surrogate_full"],
-        required=True,
-    )
     parser.add_argument("--ensemble-size", type=int, default=3)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--run-label", default=None)
     return parser.parse_args()
 
 
-def profile_slug(profile: str) -> str:
-    return profile.replace("-", "_")
-
-
-def output_prefix(profile: str) -> str:
-    return f"yb171_v5_{profile_slug(profile)}_0_300ns_10mhz"
+def output_prefix() -> str:
+    return "yb171_v5_0_300ns_10mhz"
 
 
 def resolve_run_label(value: str | None) -> str:
@@ -171,17 +161,15 @@ def noise_config_payload(noise) -> dict[str, object]:
 
 def physical_system_parameters(
     *,
-    profile: Yb171CalibrationProfile,
     model,
     ensemble_models: list,
 ) -> dict[str, object]:
-    calibration = yb171_experimental_calibration(profile=profile)
+    calibration = yb171_experimental_calibration()
     calibration_summary = calibration.summary(effective_rabi_hz=OMEGA_MAX_HZ)
     resolved_uv_detuning_hz = float(calibration_summary["resolved_quasistatic_uv_detuning_rms_hz"])
     return {
         "model_version": "v5",
         "model_kind": calibration_summary["model_kind"],
-        "profile_name": profile,
         "basis_labels": list(model.basis_labels()),
         "active_gate_indices": list(model.active_gate_indices()),
         "drive_parameters": {
@@ -382,23 +370,20 @@ def detailed_results_payload(*, points: list[dict[str, object]]) -> dict[str, ob
 
 def main() -> None:
     args = parse_args()
-    profile: Yb171CalibrationProfile = args.profile
     run_label = resolve_run_label(args.run_label)
-    artifacts = ensure_artifact_dir(v5_profile_dir(ROOT, profile) / run_label / "coarse_0_300ns_10mhz")
-    prefix = output_prefix(profile)
+    artifacts = ensure_artifact_dir(v5_coarse_10mhz_dir(ROOT) / run_label)
+    prefix = output_prefix()
 
-    print(f"[v5] building model and ensemble for profile={profile}", flush=True)
+    print("[v5] building model and ensemble", flush=True)
     model = build_yb171_v5_calibrated_model(
         include_noise=True,
         effective_rabi_hz=OMEGA_MAX_HZ,
-        profile=profile,
     )
     ensemble_models = build_yb171_v5_quasistatic_ensemble(
         ensemble_size=max(int(args.ensemble_size), 1),
         seed=int(args.seed),
         include_noise=True,
         effective_rabi_hz=OMEGA_MAX_HZ,
-        profile=profile,
     )
     optimizer = OpenSystemGRAPEOptimizer(
         model=model,
@@ -412,7 +397,7 @@ def main() -> None:
     total_started_at = time.perf_counter()
 
     for gate_time_ns in COARSE_TIMES_NS[1:]:
-        print(f"[v5:{profile}] coarse point {gate_time_ns:.1f} ns", flush=True)
+        print(f"[v5] coarse point {gate_time_ns:.1f} ns", flush=True)
         optimizer.reconfigure(
             build_config(
                 gate_time_ns=gate_time_ns,
@@ -447,7 +432,6 @@ def main() -> None:
         )
         summary["scan_stage"] = "coarse"
         summary["ensemble_size"] = int(args.ensemble_size)
-        summary["profile_name"] = profile
         summary["omega_mode"] = "yb171_default_10mhz"
         summary["wall_clock_scan_s"] = time.perf_counter() - started_at
         previous_summary = summary
@@ -457,7 +441,7 @@ def main() -> None:
             encoding="utf-8",
         )
         print(
-            f"[v5:{profile}] coarse {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
+            f"[v5] coarse {gate_time_ns:.1f} ns F={summary['probe_fidelity']:.6f} "
             f"theta={summary['optimized_theta']:.6f}",
             flush=True,
         )
@@ -466,7 +450,6 @@ def main() -> None:
 
     total_wall_clock_s = time.perf_counter() - total_started_at
     physical_payload = physical_system_parameters(
-        profile=profile,
         model=model,
         ensemble_models=ensemble_models,
     )
@@ -491,7 +474,6 @@ def main() -> None:
         "optimization_parameters": opt_payload,
         "optimization_summary": summary_payload,
         "model_version": "v5",
-        "profile_name": profile,
         "run_label": run_label,
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
@@ -528,7 +510,6 @@ def main() -> None:
         "optimization_parameters": opt_payload,
         "optimization_summary": summary_payload,
         "model_version": "v5",
-        "profile_name": profile,
         "run_label": run_label,
         "omega_max_hz": OMEGA_MAX_HZ,
         "omega_max_mhz": OMEGA_MAX_HZ / 1e6,
@@ -544,7 +525,6 @@ def main() -> None:
     print(
         json.dumps(
             {
-                "profile_name": profile,
                 "run_label": run_label,
                 "summary_path": str(artifacts / f"{prefix}_summary.json"),
             },

@@ -57,35 +57,23 @@ class Yb171CalibrationTests(unittest.TestCase):
         )
         self.assertTrue(different_from_nominal)
 
-    def test_default_v4_noise_matches_current_yb171_assumptions(self) -> None:
+    def test_default_v4_noise_uses_profile_free_baseline(self) -> None:
         calibration = yb171_experimental_calibration()
         model = build_yb171_v4_calibrated_model()
         self.assertEqual(model.noise.common_clock_detuning, 0.0)
         self.assertEqual(model.noise.common_uv_detuning, 0.0)
-        self.assertIsNotNone(calibration.markovian_rydberg_dephasing_t2_s)
-        self.assertGreater(model.noise.rydberg_dephasing_rate, 0.0)
-        self.assertEqual(model.noise.clock_decay_rate, 0.0)
-        self.assertGreater(model.noise.clock_scattering_rate, 0.0)
-        self.assertGreater(model.noise.clock_loss_rate, 0.0)
-
-    def test_strict_literature_profile_disables_surrogate_terms(self) -> None:
-        calibration = yb171_experimental_calibration(profile="strict_literature_minimal")
-        self.assertEqual(calibration.profile_name, "strict_literature_minimal")
-        self.assertEqual(calibration.quasistatic_uv_detuning_rms_hz, 0.0)
-        self.assertEqual(calibration.clock_phase_noise_psd_level_rad2_per_hz, 0.0)
-        self.assertTrue(calibration.clock_decay_as_single_loss_channel)
         self.assertIsNone(calibration.markovian_rydberg_dephasing_t2_s)
-
-        model = build_yb171_v4_calibrated_model(profile="strict_literature_minimal")
+        self.assertEqual(model.noise.rydberg_dephasing_rate, 0.0)
         self.assertGreater(model.noise.clock_decay_rate, 0.0)
         self.assertEqual(model.noise.clock_scattering_rate, 0.0)
         self.assertEqual(model.noise.clock_loss_rate, 0.0)
-        self.assertEqual(model.noise.rydberg_dephasing_rate, 0.0)
+        self.assertEqual(calibration.quasistatic_uv_detuning_rms_hz, 0.0)
+        self.assertEqual(calibration.clock_phase_noise_psd_level_rad2_per_hz, 0.0)
+        self.assertTrue(calibration.clock_decay_as_single_loss_channel)
 
         ensemble = build_yb171_v4_quasistatic_ensemble(
             ensemble_size=1,
             seed=5,
-            profile="strict_literature_minimal",
         )
         self.assertEqual(ensemble[0].noise.common_uv_detuning, 0.0)
         self.assertTrue(all(value == 0.0 for value in ensemble[0].noise.clock_phase_trace_prefix))

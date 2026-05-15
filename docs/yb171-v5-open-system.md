@@ -268,17 +268,20 @@ Markovian 噪声通过 `collapse_operators()` 进入 Lindblad 主方程。
 - `rydberg_dephasing_rate`
 - `neighboring_mf_leakage_rate`
 
-#### clock scattering 与 trap loss
+#### clock 衰减、scattering 与 trap loss
 
-当前源码里，`clock` 相关的不可逆项已经拆成两类：
+当前模型支持三类 `clock` 相关不可逆率：
 
+- `clock_decay_rate`
 - `clock_scattering_rate`
 - `clock_loss_rate`
 
-其中：
+当前 profile-free baseline 只启用 `clock_decay_rate` 这一条单一总衰减通道。`clock_scattering_rate` 与 `clock_loss_rate` 保留为可选拆分项，但默认都是 `0.0`。
 
-- `clock_scattering_rate` 默认对应文献中 `clock` 态在 trap 中的有限寿命，当前把它建模成从 `clock` 相关态跳到 `|leak>`
-- `clock_loss_rate` 默认对应文献中更慢的原子损失，当前把它建模成跳到 `|loss>`
+如果后续重新启用拆分：
+
+- `clock_scattering_rate` 可用于把 `clock` 相关态跳到 `|leak>`
+- `clock_loss_rate` 可用于把 `clock` 相关态跳到 `|loss>`
 
 如果这些率大于零，代码会对以下 `clock` 相关态加 jump：
 
@@ -448,19 +451,19 @@ clock_phase_trace_suffix
 - 对每个离散 step，原本的 `X/Y` quadrature 会被一个随机相位 `phi_k` 旋转
 - 前缀和后缀各自使用一条长度等于 `clock_num_steps` 的 phase trace
 
-当前默认实现不是直接读取实验原始 PSD 数据文件，因为论文没有给出完整可复现的数据表；但它采用了与论文 Appendix G 同一类的频谱采样形式：
+该机制当前保留为可选实现，但默认关闭。若后续重新启用，它采用与论文 Appendix G 同一类的频谱采样形式：
 
 ```math
 \phi(t)=2\sum_k \sqrt{S_\phi(f_k)\Delta f}\cos(2\pi f_k t+\varphi_k)
 ```
 
-当前默认参数是一个实验锚定的 surrogate：
+当前保留的参数口径是：
 
 - 频率范围 `10 Hz – 50 kHz`
 - 默认 `128` 个频率 bin
-- 平坦 PSD level `2.0e-8 rad^2/Hz`
+- 平坦 PSD level 默认 `0.0 rad^2/Hz`
 
-它的作用是给 `clock` 脉冲加入与实验 Appendix G 同类型的低频 phase-noise 轨迹，而不是把这部分误差粗暴地塞成一个 Markovian dephasing 率。
+因此默认不会生成非零 phase-noise 轨迹。
 
 #### `uv_pulse_area_fractional_rms`
 
@@ -497,44 +500,21 @@ uv_amplitude_scale ~ Normal(1.0, 0.004)
 
 源码默认：
 
-- `quasistatic_uv_detuning_rms_hz = None`
+- `quasistatic_uv_detuning_rms_hz = 0.0`
 
-这并不是“没有这项噪声”，而是表示：
-
-- 如果不手工指定，就由 `T2*` 自动反推
-
-当前代码用的是：
-
-```math
-\sigma_{\Delta,\mathrm{UV}} = \frac{1}{2 \pi T_2^*}
-```
-
-代入当前默认：
-
-- `T2* = 3.4 us`
-
-得到：
-
-- `quasistatic_uv_detuning_rms_hz ≈ 46810.277 Hz`
-- 也就是约 `46.8 kHz`
-
-在 `10 MHz` 参考频率下，对应无量纲量级：
-
-```math
-46810.277 / 10^7 \approx 4.68 \times 10^{-3}
-```
+这表示 baseline 默认不把 `T2*` 自动折算成 UV 准静态失谐。代码仍保留 `quasistatic_uv_detuning_rms_hz = None` 的计算路径；如果后续显式设为 `None`，才会由 `T2*` 与 `T2_echo` 的量级关系反推慢失谐尺度。
 
 采样方式：
 
 ```python
-common_uv_detuning ~ Normal(0, 46.8 kHz)
+common_uv_detuning ~ Normal(0, quasistatic_uv_detuning_rms_hz)
 ```
 
 含义：
 
 - 这表示中间 UV 段的**共模准静态失谐**
-- 它是当前默认 quasistatic 噪声里最重要的一项
-- 代码把实验测得的 `T2*` 解释成“主要来自低频 detuning / 相位噪声”，再折算成一个 shot-to-shot 固定的 detuning 分布
+- 当前默认值为 `0.0`，所以 baseline 不加入这项噪声
+- 后续若重新启用，应明确记录从实验相干时间到失谐 rms 的换算假设
 
 物理上它对应：
 
@@ -624,11 +604,11 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 
 | 参数 | 当前默认值 | 代码字段 | 用法 | 主要来源 |
 | --- | ---: | --- | --- | --- |
-| Clock 态寿命 | `1.06 s` | `clock_state_lifetime_s` | 转成 `clock_scattering_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
-| Clock trap loss 寿命 | `5.0 s` | `clock_trap_loss_lifetime_s` | 转成 `clock_loss_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| Clock 态寿命 | `1.06 s` | `clock_state_lifetime_s` | 转成单一 `clock_decay_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| Clock trap loss 寿命 | `inf` | `clock_trap_loss_lifetime_s` | 默认关闭额外 trap-loss 通道 | 当前 baseline 默认关闭 |
 | Rydberg 态寿命 | `65 us` | `rydberg_lifetime_s` | 转成 `rydberg_decay_rate` | Muniz et al., PRX Quantum 6, 020334 (2025) |
-| `T2*` | `3.4 us` | `rydberg_t2_star_s` | 用于估计慢失谐/慢相位噪声对应的准静态 UV detuning 尺度 | Muniz et al., PRX Quantum 6, 020334 (2025) |
-| `T2_echo` | `5.1 us` | `rydberg_t2_echo_s` | 用于反推残余快纯退相干的有效 `T_\phi` | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| `T2*` | `3.4 us` | `rydberg_t2_star_s` | 保留为可选失谐估计输入，默认不自动加入噪声 | Muniz et al., PRX Quantum 6, 020334 (2025) |
+| `T2_echo` | `5.1 us` | `rydberg_t2_echo_s` | 保留为可选 `T_\phi` 估计输入，默认不自动加入噪声 | Muniz et al., PRX Quantum 6, 020334 (2025) |
 
 ### 6.3 幅度、失谐与泄漏参数
 
@@ -641,165 +621,46 @@ common_uv_detuning ~ Normal(0, 46.8 kHz)
 | Clock 准静态共模失谐 rms | `33 Hz` | `quasistatic_clock_detuning_rms_hz` | ensemble 采样 | Muniz et al. Appendix G |
 | Clock 准静态差分失谐 rms | `0.0 Hz` | `differential_clock_detuning_rms_hz` | ensemble 采样 | 当前默认关闭 |
 | Clock phase-noise 频段 | `10 Hz – 50 kHz` | `clock_phase_noise_psd_fmin_hz`, `clock_phase_noise_psd_fmax_hz` | 构造 `clock_phase_trace_*` | Muniz et al. Appendix G 频段口径 |
-| Clock phase-noise PSD surrogate | `2.0e-8 rad^2/Hz` | `clock_phase_noise_psd_level_rad2_per_hz` | phase trace 采样 | 基于实验 Appendix G 的 surrogate |
-| UV 准静态共模失谐 rms | `\sqrt{(2\pi T2^*)^{-2}-(2\pi T2_{\mathrm{echo}})^{-2}}` | `quasistatic_uv_detuning_rms_hz = None` | 若未手工指定，则由 `T2*` 与 `T2_echo` 共同推得慢噪声尺度 | 当前代码定义 |
+| Clock phase-noise PSD surrogate | `0.0 rad^2/Hz` | `clock_phase_noise_psd_level_rad2_per_hz` | 默认关闭 phase trace 采样 | 当前 baseline 默认关闭 |
+| UV 准静态共模失谐 rms | `0.0 Hz` | `quasistatic_uv_detuning_rms_hz` | ensemble 采样，默认关闭 | 当前 baseline 默认关闭 |
 | UV 准静态差分失谐 rms | `0.0 Hz` | `differential_uv_detuning_rms_hz` | ensemble 采样 | 当前默认关闭 |
 | Blockade 抖动 rms | `0.0 Hz` | `blockade_shift_jitter_hz` | ensemble 采样 `blockade_shift_offset` | 当前默认关闭 |
 | 邻近 `m_F` 泄漏/门 | `0.0` | `neighboring_mf_leakage_per_gate` | 转成 Lindblad leakage 率 | 当前默认关闭 |
 
-### 6.4 默认 Markovian dephasing 设置
+### 6.4 当前 profile-free baseline
 
-当前两套 profile 的 dephasing 默认值不同。
+当前源码已经移除旧的两套显式噪声 profile。`yb171_experimental_calibration()`、`build_yb171_v5_calibrated_model()` 和 `build_yb171_v5_quasistatic_ensemble()` 都不再接受 `profile=` 参数。
 
-`strict_literature_minimal`：
+这条 baseline 的目标是保留 v5 完整门核心动力学，同时把容易混淆的 surrogate 分叉清空，后续重新逐项加入并验证噪声假设。
 
-- `markovian_clock_dephasing_t2_s = None`
-- `markovian_rydberg_dephasing_t2_s = None`
-- 因此 `clock_dephasing_rate = 0`
-- 因此 `rydberg_dephasing_rate = 0`
+当前默认噪声口径是：
 
-`experimental_surrogate_full`：
+| 噪声项 | 当前默认 | 模拟方式 | 进入位置 |
+| --- | --- | --- | --- |
+| `clock` 有限寿命 | 开启，单一总衰减通道 | Lindblad 跳跃 | `collapse_operators()` |
+| `clock_scattering -> |leak>` 拆分 | 关闭 | Lindblad 跳跃 | `collapse_operators()` |
+| 额外 `clock_loss -> |loss>` | 关闭 | Lindblad 跳跃 | `collapse_operators()` |
+| `clock` Markovian dephasing | 关闭 | Lindblad 纯退相干 | `collapse_operators()` |
+| `Rydberg T1` | 开启 | Lindblad 跳跃到 `|loss>` | `collapse_operators()` |
+| `Rydberg` Markovian pure dephasing | 关闭 | Lindblad 纯退相干 | `collapse_operators()` |
+| `clock` 热分布 carrier 波动 | 开启 | 每个 realization 随机采样 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
+| `clock` 额外 pulse-area 漂移 | 关闭 | 每个 realization 高斯采样后乘到 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
+| `clock` 共模准静态失谐 | 开启 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| `clock` 差分准静态失谐 | 关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| `clock` phase-noise 轨迹 | 关闭 | 采样相位轨迹并旋转 `clock` 控制矢量 | `clock_segment_controls()` |
+| UV 幅度 repeatability | 开启 | 每个 realization 随机采样 `uv_amplitude_scale` | `sample_quasistatic_noise()` |
+| UV 共模准静态失谐 | 关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| UV 差分准静态失谐 | 关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
+| Blockade 抖动 | 关闭 | 每个 realization 采样 `blockade_shift_offset` | `drift_hamiltonian()` |
+| 邻近 `m_F` leakage | 关闭 | Lindblad 跳跃到 `|leak>` | `collapse_operators()` |
 
-- `markovian_clock_dephasing_t2_s = None`
-- `markovian_rydberg_dephasing_t2_s = T_\phi^{(r)}`
+这里的“关闭”不是否认相应物理机制，而是表示它们不再作为默认 profile 假设自动混入。后续如果需要重新加入，应作为明确的校准项或实验假设单独提交。
 
-其中 `T_\phi^{(r)}` 用实验给出的 `T2_echo` 与 `T1` 反推：
+### 6.5 有效建模近似
 
-```math
-\frac{1}{T_2}=\frac{1}{2T_1}+\frac{1}{T_\phi}
-```
+下面保留的是当前 baseline 仍然启用、或作为可选字段保留的有效建模近似。
 
-代入 `T_2=T2_{\mathrm{echo}}`、`T_1=\tau_r` 得：
-
-```math
-\frac{1}{T_\phi^{(r)}}=\frac{1}{T2_{\mathrm{echo}}}-\frac{1}{2\tau_r}
-```
-
-在当前默认值
-
-- `T2_echo = 5.1 us`
-- `tau_r = 65 us`
-
-下，有：
-
-```math
-T_\phi^{(r)} \approx 5.52\ \mu s
-```
-
-并进一步映射成 Lindblad 纯退相干率：
-
-```math
-\gamma_{\phi,r} = \frac{1}{2\pi \Omega_{\mathrm{ref}} T_\phi^{(r)}}
-```
-
-在 `\Omega_{\mathrm{ref}}/2\pi = 10 MHz` 下，对应当前无量纲 `rydberg_dephasing_rate \approx 2.88\times 10^{-3}`。
-
-因此，当前的实验扩展 profile 里，dephasing **已经加进去了**，但只加了 `Rydberg` 的快纯退相干；`clock` 的 Markovian dephasing 仍然默认关闭。
-
-### 6.5 两套噪声 profile
-
-当前源码提供两套显式 profile：
-
-- `strict_literature_minimal`
-- `experimental_surrogate_full`
-
-代码入口：
-
-- `yb171_experimental_calibration(profile=...)`
-- `build_yb171_v5_calibrated_model(profile=...)`
-- `build_yb171_v5_quasistatic_ensemble(profile=...)`
-
-### 6.5.0 当前实际加入的噪声总表
-
-下面这张表只回答一个问题：**当前代码到底把哪些噪声加进去了，它们是怎么进入演化方程的。**
-
-| 噪声项 | `strict_literature_minimal` | `experimental_surrogate_full` | 模拟方式 | 进入位置 |
-| --- | --- | --- | --- | --- |
-| `clock` 有限寿命 | 开启 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
-| `clock_scattering -> |leak>` | 关闭 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
-| `clock_loss -> |loss>` | 关闭 | 开启 | Lindblad 跳跃 | `collapse_operators()` |
-| `clock` Markovian dephasing | 关闭 | 关闭 | Lindblad 纯退相干 | `collapse_operators()` |
-| `Rydberg T1` | 开启 | 开启 | Lindblad 跳跃到 `|loss>` | `collapse_operators()` |
-| `Rydberg` Markovian pure dephasing | 关闭 | 开启 | Lindblad 纯退相干 | `collapse_operators()` |
-| `clock` 热分布 carrier 波动 | 开启 | 开启 | 每个 realization 随机采样 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
-| `clock` 额外 pulse-area 漂移 | 默认关闭 | 默认关闭 | 每个 realization 高斯采样后乘到 `clock_amplitude_scale` | `sample_quasistatic_noise()` |
-| `clock` 共模准静态失谐 | 开启 | 开启 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
-| `clock` 差分准静态失谐 | 默认关闭 | 默认关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
-| `clock` phase-noise 轨迹 | 关闭 | 开启 | 先采样相位轨迹，再逐步旋转 `clock` 控制矢量 | `clock_segment_controls()` |
-| UV 幅度 repeatability | 开启 | 开启 | 每个 realization 随机采样 `uv_amplitude_scale` | `sample_quasistatic_noise()` |
-| UV 共模准静态失谐 | 关闭 | 开启 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
-| UV 差分准静态失谐 | 默认关闭 | 默认关闭 | 每个 realization 采样常数 detuning | `drift_hamiltonian()` |
-| Blockade 抖动 | 关闭 | 关闭 | 每个 realization 采样 `blockade_shift_offset` | `drift_hamiltonian()` |
-| 邻近 `m_F` leakage | 关闭 | 关闭 | Lindblad 跳跃到 `|leak>` | `collapse_operators()` |
-
-换句话说：
-
-- `strict_literature_minimal` 只保留最保守、最直接可由文献支撑的主噪声
-- `experimental_surrogate_full` 在此基础上再加入：
-  - `clock` phase-noise 轨迹
-  - `clock_scattering / clock_loss` 拆分
-  - UV 慢失谐
-  - `Rydberg` 快纯退相干
-
-其中：
-
-- **Lindblad 类噪声**会在门内持续作用
-- **quasistatic 类噪声**会在每个 realization 开始时随机采样一次，然后在整次门内固定不变
-
-#### `strict_literature_minimal`
-
-这套 profile 的目标是：
-
-- 只保留能在文献里直接锚定的主要量级
-- 尽量避免把“为了数值模拟方便而额外引入的 surrogate”混进默认噪声
-
-它的取舍是：
-
-- 保留：
-  - `blockade = 160 MHz`
-  - `clock pi time = 130 us`
-  - `clock` 态寿命
-  - `Rydberg` 态寿命
-  - `clock` 热分布 carrier-coupling 采样
-  - `clock` 小共模 detuning
-  - `UV` pulse repeatability
-- 关闭：
-  - `UV T2* -> quasistatic detuning` surrogate
-  - `clock` phase-noise PSD surrogate
-  - 额外 `clock trap loss` surrogate
-
-并且对 `clock` 有限寿命只保留**单个总衰减通道**：
-
-```math
-\gamma_c = \frac{1}{2\pi \Omega_{\mathrm{ref}} \tau_c}
-```
-
-也就是不再试图区分“散射到 leak”和“慢 loss”，避免加入没有直接文献支撑的分流假设。
-
-#### `experimental_surrogate_full`
-
-这套 profile 是当前默认值，用于：
-
-- 在不拿原始实验噪声数据文件的前提下
-- 尽可能把实验里已经知道会出现、但论文没有给出完整数值表的误差也纳入有效模型
-
-它在 `strict_literature_minimal` 的基础上再加入：
-
-- `UV T2* -> quasistatic UV detuning` surrogate
-- `T2_echo + T1 ->` 有效 `Rydberg` 纯退相干 surrogate
-- `clock` phase-noise 频谱 surrogate
-- `clock_scattering_rate` 与 `clock_loss_rate` 的拆分
-
-因此：
-
-- `strict_literature_minimal` 更保守，更适合做“这项噪声是否真的由文献直接支持”的基线比较
-- `experimental_surrogate_full` 更接近“完整实验门里还会看到哪些额外误差”的工程模拟
-
-### 6.6 有效建模近似的推导过程
-
-下面逐项写出当前扩展 profile 中各个 surrogate 是如何得到的。
-
-#### 6.6.1 `clock` 热分布导致的 carrier Rabi 波动
+#### 6.5.1 `clock` 热分布导致的 carrier Rabi 波动
 
 在 Lamb-Dicke 区，motional Fock 态 `|n>` 上的 carrier 耦合强度写成：
 
@@ -841,87 +702,9 @@ P_n = \frac{1}{1+\bar n}\left(\frac{\bar n}{1+\bar n}\right)^n
 - 这不是拍脑袋给一个高斯幅度误差
 - 而是把有限温度对 `clock` carrier coupling 的影响显式折成了 shot-to-shot 幅度缩放
 
-#### 6.6.2 `UV T2*` 与 `T2_echo` 的快慢噪声拆分
+#### 6.5.2 可选 `clock` phase-noise PSD surrogate
 
-这个近似只在 `experimental_surrogate_full` 里启用。
-
-假设 `UV` 低频相位噪声和慢 detuning 漂移在一次门内近似常数，则对一次 shot 可以写成一个常数失谐 `\delta`。在这种近似下，相对相位在时间 `t` 后积累为：
-
-```math
-\phi(t) = 2\pi \delta t
-```
-
-如果只看量级，实验测得的 `T2*` 给出总 Ramsey 去相干尺度：
-
-```math
-\sigma_\phi(T_2^*) \sim 1
-```
-
-就得到量级估计：
-
-```math
-\sigma_{\Delta,\mathrm{tot}} \sim \frac{1}{2\pi T_2^*}
-```
-
-但当前代码不再把这个总尺度整个塞进准静态失谐，而是进一步利用 `T2_echo` 分离快噪声尺度：
-
-```math
-\sigma_{\Delta,\mathrm{fast}} \sim \frac{1}{2\pi T2_{\mathrm{echo}}}
-```
-
-再把慢噪声部分定义为：
-
-```math
-\sigma_{\Delta,\mathrm{slow}}
-\approx
-\sqrt{
-\sigma_{\Delta,\mathrm{tot}}^2-\sigma_{\Delta,\mathrm{fast}}^2
-}
-```
-
-在当前默认值
-
-- `T2* = 3.4 us`
-- `T2_echo = 5.1 us`
-
-下：
-
-```math
-\sigma_{\Delta,\mathrm{tot}} \approx 46.8\ \mathrm{kHz}
-```
-
-```math
-\sigma_{\Delta,\mathrm{fast}} \approx 31.2\ \mathrm{kHz}
-```
-
-```math
-\sigma_{\Delta,\mathrm{slow}} \approx 34.9\ \mathrm{kHz}
-```
-
-于是代码对每个 realization 采样：
-
-```math
-\Delta_{\mathrm{UV}} \sim \mathcal N(0,\sigma_{\Delta,\mathrm{slow}}^2)
-```
-
-同时把快部分通过上一节的 `T_\phi^{(r)}` 映到 Lindblad `rydberg_dephasing_rate`。
-
-这样做的含义是：
-
-- `T2*` 的慢部分进入 quasistatic detuning
-- `T2_echo` 的快部分进入 Markovian dephasing
-
-要注意：
-
-- 这不是从 Ramsey 包络精确反演出来的唯一公式
-- 它是一个**把快慢噪声分开的量级匹配近似**
-- 因此这项在 `strict_literature_minimal` 里默认关闭
-
-#### 6.6.3 `clock` phase-noise PSD surrogate
-
-这个近似只在 `experimental_surrogate_full` 里启用。
-
-文献给出了 `clock` phase noise 的频段和建模思路，但没有把可直接导入代码的原始 PSD 数据表完整发布出来。因此代码采用了同类形式的离散频谱合成：
+该项当前默认关闭。若后续重新启用，可用离散频谱合成：
 
 ```math
 \phi(t)=2\sum_k \sqrt{S_\phi(f_k)\Delta f}\cos(2\pi f_k t+\varphi_k)
@@ -956,36 +739,29 @@ u_y
 \end{pmatrix}
 ```
 
-当前代码用的是一个平坦 PSD surrogate：
+历史实现用的是一个平坦 PSD surrogate：
 
 ```math
 S_\phi(f)=S_0
 ```
 
-并在 `10 Hz – 50 kHz` 内取离散频点。这里的 `S_0` 是实验锚定的 surrogate，不是论文直接给出的原始 PSD 数据点，所以这项也在 `strict_literature_minimal` 里默认关闭。
+并在 `10 Hz – 50 kHz` 内取离散频点。当前 baseline 把 `clock_phase_noise_psd_level_rad2_per_hz` 设为 `0.0`，因此不会生成非零 phase trace。
 
-#### 6.6.4 `clock_scattering_rate` 与 `clock_loss_rate` 的拆分
+#### 6.5.3 可选 `Rydberg` 快纯退相干
 
-这个近似只在 `experimental_surrogate_full` 里启用。
+当前 baseline 默认不把 `T2_echo` 自动映射成 Markovian `rydberg_dephasing_rate`。如果后续要重新加入，可以继续使用：
 
-文献层面我们更直接知道的是：
+```math
+\frac{1}{T_\phi^{(r)}}=\frac{1}{T2_{\mathrm{echo}}}-\frac{1}{2\tau_r}
+```
 
-- `clock` 态存在有限寿命
-- 实验里还会出现较慢的原子丢失 / trap loss
+并通过：
 
-但是文献并没有给出一个完整的“微观 Lindblad branching table”，精确告诉我们有多少进入“仍在系统里但错了”的错误子空间，多少直接变成 atom loss。
+```math
+\gamma_{\phi,r} = \frac{1}{2\pi \Omega_{\mathrm{ref}} T_\phi^{(r)}}
+```
 
-因此代码采用一个有效分解：
-
-- `clock_scattering_rate`：跳到 `|leak>`
-- `clock_loss_rate`：跳到 `|loss>`
-
-这样做的目的不是声称它是唯一正确的微观通道，而是为了在有效模型里把两类实验后果区分开：
-
-- 仍在系统中但跑出目标子空间
-- 彻底离开可恢复空间
-
-如果希望严格避免这一额外建模假设，就应使用 `strict_literature_minimal`，把 `clock` 有限寿命收缩成单个总衰减通道。
+映射为无量纲 Lindblad 纯退相干率。当前这只是保留的计算工具，不是默认噪声项。
 
 ## 7. 单位体系与无量纲化
 
