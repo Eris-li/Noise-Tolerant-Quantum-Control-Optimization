@@ -1,95 +1,55 @@
 # 文献索引
 
-这份文档集中记录项目里真正参考过、并且已经对模型或实现产生影响的文献。
+这份索引只记录当前三条保留实验线直接依赖的参考。
 
-## 核心参考
-
-### Jandura and Pupillo, time-optimal phase gates
+## Jandura and Pupillo, time-optimal phase gates
 
 - 链接: https://arxiv.org/abs/2202.00903
-- 在项目中的作用:
-  - `v1` 的理想 `global CZ` 冻结参考
-  - time-optimal 思路、phase-gate fidelity 目标和对称约化思路
-  - `ma2023_time_optimal_2q` 复现线的第一阶段方法来源
+- 对应代码:
+  - [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
+  - [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
+  - [freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
+- 作用:
+  - 理想 global `CZ` reduced model
+  - phase-gate fidelity 目标
+  - `v1` 无噪声 GRAPE 正确性基准
 
-### Evered et al., high-fidelity parallel entangling gates on neutral atoms
+## Evered et al., high-fidelity parallel entangling gates on neutral atoms
 
 - 链接: https://www.nature.com/articles/s41586-023-06481-y
-- 在项目中的作用:
-  - 新增 `evered2023_parallel_cz` 独立复现线
-  - Methods Eq.(1) fixed-amplitude time-optimal CZ 相位轮廓
-  - Methods Eq.(2) 三能级 dark-state Hamiltonian
-  - `v3` 的双光子门物理背景
-  - `v4` 早期 ladder surrogate 的历史背景
-  - lower-leg 振幅加相位控制的实验图像
-  - 中间态散射、Rydberg decay、dephasing、温度效应等误差来源
+- DOI: `10.1038/s41586-023-06481-y`
+- 对应代码:
+  - [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+  - [evered2023_parameterized_grape.py](../src/neutral_yb/optimization/evered2023_parameterized_grape.py)
+  - [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
+- 作用:
+  - Methods Eq. (1) fixed-amplitude time-optimal CZ phase family
+  - Methods Eq. (2) dark-state Hamiltonian
+  - two-photon ladder 和并行 CZ 实验尺度记录
+  - 带基函数 parameterized GRAPE 的验证基准
 
-### Day et al., laser-noise limits in neutral-atom control
-
-- 链接: https://www.nature.com/articles/s41534-022-00586-4
-- 在项目中的作用:
-  - 频率噪声如何映射到 detuning noise
-  - 强度噪声如何映射到 Rabi 振幅噪声
-  - 为 `v2`、`v3`、`v4` 的噪声参数化提供依据
-
-### Jiang et al., laser phase and intensity noise in Rydberg gates
-
-- 链接: https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.042611
-- 在项目中的作用:
-  - 帮助区分 phase noise、detuning noise、amplitude noise 的建模方式
-  - 支撑 `v4` 里 dephasing 和 detuning 偏移的拆分
-
-### Peper et al., spectroscopy and modeling of `^171Yb` Rydberg states for high-fidelity two-qubit gates
-
-- 链接: https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009
-- 在项目中的作用:
-  - `^171Yb` 特定平台上的 Rydberg 态选择和 interaction / blockade 背景
-  - 解释为什么当前 `v4` 应转向 `F=1/2` manifold 的 `clock -> Rydberg` 门图像
-  - 支撑 `v4` 的 Yb-specific blockade 与误差优先级
-
-## 次级参考
-
-### Saffman, Quantum computing with neutral atoms
-
-- 链接: https://pmc.ncbi.nlm.nih.gov/articles/PMC8291449/
-- 在项目中的作用:
-  - 中性原子量子计算整体物理背景
-  - 常见 Rydberg gate 误差来源的总览
-
-### Wu et al., `^171Yb` Rydberg decay and blackbody transitions
-
-- 链接: https://www.nature.com/articles/s41467-022-32094-6
-- 在项目中的作用:
-  - `^171Yb` 平台上 Rydberg radiative decay 和 blackbody transition 的物理背景
-  - 支撑 `v4` 的 decay / loss 通道设计
-
-### Ma et al., erasure conversion in `^171Yb`
-
-- 链接: https://www.nature.com/articles/s41586-023-06438-1
-- 在项目中的作用:
-  - 说明 `^171Yb` 平台里“掉出计算子空间”的误差很重要
-  - 支撑 `v4` 中统一 `loss` sink 的设计思路
-  - 新增独立板块复现 Fig. 3 的 time-optimal two-qubit gate；起点是理想 global CZ，再逐步加入实验误差
-
-### Muniz et al., high-fidelity gates in `^171Yb`
+## Muniz et al., high-fidelity gates in `^{171}Yb`
 
 - 链接: https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.6.020334
-- 在项目中的作用:
-  - 当前 `v4` 主模型最直接的实验门机制来源
-  - 给出 `clock shelving -> UV Rydberg pulse -> unshelving` 的物理图像
-  - 提供 `10 MHz` 量级 UV 驱动、`160 MHz` blockade、`65 us` lifetime、`3.4 us` `T2*` 等关键量级
+- 对应代码:
+  - [shelved_cr_phase_grape.py](../src/neutral_yb/optimization/shelved_cr_phase_grape.py)
+  - [uv_edge_scan.py](../src/neutral_yb/analysis/uv_edge_scan.py)
+  - [scan_yb171_uv_edge_effect.py](../experiments/scan_yb171_uv_edge_effect.py)
+- 作用:
+  - `clock shelving -> UV Rydberg pulse -> unshelving` 的 `^{171}Yb` 门图像
+  - `10 MHz` 量级 UV drive、`160 MHz` blockade、`65 us` Rydberg lifetime 等扫描量级
+  - UV 上升/下降沿影响分析的实验语境
 
-## 和代码的直接对应关系
+## Peper et al., `^{171}Yb` Rydberg spectroscopy and blockade context
 
-- `v1`
-  主要对应 `2202.00903`
-- `v2`
-  主要对应 Saffman review 和 laser-noise / detuning 文献
-- `v3`
-  主要对应 Evered 2023 的双光子门控制图像
-- `v4`
-  主要对应 Evered 2023、Day 2022、Jiang 2023、Peper 2025，加上 `^171Yb` decay / erasure 相关文献
-- `ma2023_time_optimal_2q`
-  主要对应 Ma et al. 2023 的 Fig. 3 和 Jandura-Pupillo 2022 的 time-optimal global CZ 方法
-- `evered2023_parallel_cz`
-  主要对应 Evered et al. 2023 的 fixed-amplitude time-optimal CZ、dark-state two-photon ladder 和并行 CZ 实验尺度
+- 链接: https://journals.aps.org/prx/abstract/10.1103/PhysRevX.15.011009
+- 作用:
+  - `^{171}Yb` Rydberg manifold、blockade 和平台误差背景
+  - 支撑 UV edge 扫描中采用 `^{171}Yb` 语境解释结果
+
+## Wu et al., `^{171}Yb` Rydberg decay and blackbody transitions
+
+- 链接: https://www.nature.com/articles/s41467-022-32094-6
+- 作用:
+  - `^{171}Yb` Rydberg decay / blackbody transition 背景
+  - 支撑 no-jump decay 模型中把 Rydberg lifetime 作为主要损耗量级

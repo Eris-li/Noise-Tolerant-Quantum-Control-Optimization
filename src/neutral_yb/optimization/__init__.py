@@ -43,3 +43,23 @@ __all__ = [
     "PaperGlobalPhaseOptimizer",
     "TimeOptimalScanResult",
 ]
+
+from neutral_yb.optimization.shelved_cr_phase_grape import (
+    ClosedShelvedCRPhaseGRAPE,
+    RydbergDecayShelvedCRPhaseGRAPE,
+    ShelvedCRPhaseGRAPEConfig,
+    phase_regularization,
+    resample_phase_controls,
+    unwrap_for_plot,
+    wrap_phase,
+)
+
+__all__ += [
+    "ClosedShelvedCRPhaseGRAPE",
+    "RydbergDecayShelvedCRPhaseGRAPE",
+    "ShelvedCRPhaseGRAPEConfig",
+    "phase_regularization",
+    "resample_phase_controls",
+    "unwrap_for_plot",
+    "wrap_phase",
+]

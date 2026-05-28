@@ -1,159 +1,68 @@
 # 版本历史
 
-这份文档按版本说明项目到底已经做了什么、每个版本想解决什么问题、哪些结果应该被当作参考基准。
+本轮清理后，仓库只把三条结果线作为当前复现对象。其他历史模型代码可暂时保留在 `src` 中以免破坏 notebook 记录，但旧 experiment、plot helper、data import 和 artifact 不再作为当前入口维护。
 
-## `v1`: 冻结参考
+## `v1`: 无噪声 GRAPE 正确性基准
 
-### 目标
+目标：在理想 4D global `CZ` 模型中，从随机初始化 phase controls 出发，验证无噪声、无基函数 GRAPE 可以找到高保真解。
 
-复现 `arXiv:2202.00903` 理想条件下的 `global CZ`，作为整仓库的基准。
+物理假设：
 
-### 物理假设
-
-- 理想闭系统
+- 闭系统
 - infinite blockade
-- global pulse
-- 无噪声
-- 无 detuning
+- global Rydberg pulse
+- 无噪声、无 detuning、无 decay
 - 4 维对称约化模型
 
-### 对应文件
+对应文件：
 
-- 模型：[global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
-- 优化器：[global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
-- 实验：[freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
+- [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
+- [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
+- [freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
+- [artifacts/v1](../artifacts/v1)
 
-### 状态
+状态：冻结参考。用于证明基础 GRAPE 管线正确，后续不在这条线上继续堆新物理。
 
-冻结。它的职责不是继续升级，而是做对照和回归。
+## `evered2023_parallel_cz`: 带基函数 GRAPE 有效性基准
 
-## `v2`: 闭系统修正版
+目标：复现 Evered et al. Nature 2023 的 fixed-amplitude time-optimal CZ phase family，验证参数化/带基函数 GRAPE 在 two-photon ladder 模型上的有效性。
 
-### 目标
+物理假设：
 
-在不引入开放系统的前提下，把最直接影响 `CZ` 的非理想项先加进去。
-
-### 物理假设
-
-- 闭系统
-- 5 维有效模型
-- 有限 blockade
-- detuning 偏移
-- 振幅误差
-
-### 对应文件
-
-- 模型：[finite_blockade_cz_5d.py](../src/neutral_yb/models/finite_blockade_cz_5d.py)
-- 实验：[two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
-- 出图：[plot_closed_system_cz_v2_two_stage.py](../scripts/plot_closed_system_cz_v2_two_stage.py)
-
-### 状态
-
-保留作闭系统含误差基线，不是当前主线。
-
-## `v3`: 双光子闭系统
-
-### 目标
-
-显式把两光子 ladder 和中间态 `|e>` 放进模型，替代早期的有效单跃迁近似。
-
-### 物理假设
-
-- 闭系统
-- 9 维对称约化模型
-- 显式中间态
-- finite blockade
-- two-photon detuning
-- 当前主线控制是 lower-leg 振幅加单相位
-
-### 对应文件
-
-- 模型：[two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
-- 优化器：[amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
-- coarse scan：[coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
-- 局部扫描：[local_scan_two_photon_cz_v3_7p5_8p5.py](../experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
-
-### 状态
-
-这是当前最成熟的闭系统双光子版本，也是后续 `v4` 的直接前身。
-
-## `v4`: `^171Yb` 开放系统
-
-### 目标
-
-把开放系统主线升级成更符合 `^171Yb` 实验门机制的模型，并把默认参数和噪声解释切到 `Muniz 2025` / `Peper 2025` 口径。
-
-### 物理假设
-
-- 有效 `clock -> Rydberg` 完整门模型
-- 7 维对称约化开放系统空间
-- 显式 `|leak>` 与 `|loss>` sink
-- Rydberg 衰减
-- 默认只保留 Rydberg decay、准静态 UV detuning、pulse-area 漂移和 leakage 为主噪声
-- measured `T2* / T2_echo` 保留作实验量级记录，默认不直接映射成 Lindblad dephasing
-- blockade jitter 默认收回到 0
-- finite blockade
-- 邻近 `m_F` 支路的有效 leakage 通道
-
-### 对应文件
-
-- 模型：[yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
-- 优化器：[open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-- coarse scan：[coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
-- smoke run：[run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
-- benchmark：[benchmark_v4_open_system_vs_v3_closed.py](../experiments/benchmark_v4_open_system_vs_v3_closed.py)
-
-### 当前状态
-
-`v4` 现在已经能：
-
-- 做开放系统传播
-- 用论文 Eq.(7) 的特殊态公式做开放系统 phase-gate GRAPE
-- 对 quasistatic detuning / Doppler / blockade 偏移做 ensemble-averaged robust optimization
-- 产出按 `T` 顺序推进的 coarse scan
-- 产出单点 smoke 结果
-- 给出和 `v3` 的资源对比
-
-当前默认 `^171Yb` 标定不再按 generic neutral-atom / `Rb` 两光子门叙述，而是按 `PRX Quantum 6, 020334 (2025)` 和 `Phys. Rev. X 15, 011009 (2025)` 解释：
-
-- 门机制改成 `clock shelving -> UV Rydberg pulse -> unshelving` 的有效完整门模型
-- interaction / blockade 口径改成 `^171Yb` 更优 `F=1/2` Rydberg manifold 背景
-- 默认误差主项改成 Rydberg decay、准静态 UV detuning 和 pulse-area 漂移
-- 默认不再把 `T2*` 直接塞进 Markovian dephasing
-
-但它还不是最终高保真版本。当前的限制主要是：
-
-- 当前 fidelity 仍然只依赖 active `{|01>, |11>}` 分支上的 paper Eq.(7) 特殊态公式，不是完整 4 维逻辑子空间直接构造出的 noisy process fidelity
-- 开放系统优化比闭系统慢很多，因此当前主线先采用粗扫描，再决定是否进入更细的局部扫描
-
-## `evered2023_parallel_cz`: Evered/Bluvstein/Kalinowski Nature 2023 独立复现线
-
-### 目标
-
-按 `ma2023_time_optimal_2q` 的方式单独开线，用 Evered et al. Nature 622, 268-272 (2023) 的并行高保真 CZ 门控制作为 GRAPE 算法验证基准。第一阶段从随机参数重启出发，验证 parameterized GRAPE 是否能在两原子 9D 双光子 Hamiltonian 中找回 Methods Eq.(1) 的固定振幅 time-optimal 相位轮廓，并把 Methods Eq.(2) 的三能级 dark-state Hamiltonian 放进代码。
-
-### 物理假设
-
-- `87Rb` 实验背景，默认使用无量纲两光子 ladder，标定记录 `Omega/2pi = 4.6 MHz`、`Delta/2pi = 7.8 GHz`
 - 固定振幅全局 Rydberg 脉冲
-- 相位轮廓 `phi(t) = A cos(omega t - phi0) + delta0 t`
-- `A = 2pi * 0.1122`, `omega = 1.0431 Omega`, `phi0 = -0.7318`, `delta0 = 0`, `Omega T / 2pi = 1.215`
-- 额外实现单原子 `|1>, |e>, |r>` 三能级 Hamiltonian，用于后续 dark/bright population 和 scattering 诊断
+- 相位族 `phi(t)=A cos(omega t - phi0)+delta0 t`
+- 默认 two-photon 9D ladder Hamiltonian
+- 从 broad random restarts 出发，不把论文参数当作唯一初值
 
-### 对应文件
+对应文件：
 
-- 模型与脉冲：[evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
-- 实验：[reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
-- 文档：[evered2023-parallel-cz.md](evered2023-parallel-cz.md)
+- [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+- [evered2023_parameterized_grape.py](../src/neutral_yb/optimization/evered2023_parameterized_grape.py)
+- [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
+- [plot_evered2023_parallel_cz.py](../scripts/plot_evered2023_parallel_cz.py)
+- [artifacts/evered2023_parallel_cz](../artifacts/evered2023_parallel_cz)
+- [evered2023-parallel-cz.md](evered2023-parallel-cz.md)
 
-### 状态
+状态：当前保留的文献复现线。它是“有基函数 GRAPE 是否有效”的主要证据，而不是完整实验噪声闭环复现。
 
-新开线。当前已覆盖解析 fixed-amplitude profile 作为对照、9D 双光子 Hamiltonian 上的随机重启 parameterized GRAPE 时间扫描、summary PNG、dark-state 三能级 Hamiltonian 和基础实验尺度记录。完整论文级噪声/实验复现仍需加入 intermediate scattering、Rydberg decay、Doppler/laser noise 和 benchmarking/SPAM 层。
+## `yb171_uv_edge_scan`: UV 上升/下降沿影响
 
-## 如何理解这些版本
+目标：研究 `^{171}Yb` shelved control-Rydberg `CZ` 段中，UV Gaussian edge 单侧时间对最短可行门时间和 no-jump process fidelity 的影响。
 
-- `v1` 是冻结参考，不能丢
-- `v2` 是闭系统含误差基线
-- `v3` 是当前最成熟的闭系统双光子主线
-- `v4` 是当前最重要的新主线
-- `evered2023_parallel_cz` 和 `ma2023_time_optimal_2q` 是独立文献复现线，不并入 numbered `v*` 主线
+物理假设：
+
+- 6 维 shelved control-Rydberg reduced basis
+- phase-only direct GRAPE，无基函数
+- UV 振幅包络为单侧 Gaussian edge
+- Rydberg decay 用 non-Hermitian no-jump 项近似
+- 主要指标为 restricted computational block 的 no-jump process fidelity
+
+对应文件：
+
+- [shelved_cr_phase_grape.py](../src/neutral_yb/optimization/shelved_cr_phase_grape.py)
+- [uv_edge_scan.py](../src/neutral_yb/analysis/uv_edge_scan.py)
+- [scan_yb171_uv_edge_effect.py](../experiments/scan_yb171_uv_edge_effect.py)
+- [artifacts/v5/closed_cr_edge_time_optimal_scan](../artifacts/v5/closed_cr_edge_time_optimal_scan)
+- [yb171-uv-edge-scan.md](yb171-uv-edge-scan.md)
+
+状态：从 notebook 开发记录中抽出了可复用 `src` API。后续重跑或扩展扫描应改 `src/neutral_yb/analysis/uv_edge_scan.py`，而不是编辑 notebook cell。

@@ -13,9 +13,9 @@ services:
     <<: *app
     command: bash -lc "python scripts/build_rydcalc_extension.py && python -m unittest discover -s tests -v"
 
-  smoke-v4:
+  smoke-uv-edge:
     <<: *app
-    command: bash -lc "python scripts/build_rydcalc_extension.py && python experiments/run_two_photon_cz_v4_open_system_smoke.py"
+    command: bash -lc "python experiments/scan_yb171_uv_edge_effect.py --smoke"
 
   dev:
     <<: *app

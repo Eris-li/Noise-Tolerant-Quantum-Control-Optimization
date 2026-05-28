@@ -58,3 +58,7 @@ def evered2023_parallel_cz_dir(root: Path) -> Path:
 def ensure_artifact_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def yb171_uv_edge_artifacts_dir(root: Path) -> Path:
+    return v5_artifacts_dir(root) / "closed_cr_edge_time_optimal_scan"

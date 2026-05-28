@@ -1,178 +1,68 @@
 # 项目地图
 
-这份文档回答两个问题：
+当前仓库按“可复用代码”和“一次性实验结果”分层：
 
-1. 仓库里每个目录主要负责什么。
-2. 当前哪些文件是主线，哪些文件是冻结参考，哪些只是阶段性结果。
+- `src/neutral_yb/`：可复用模型、优化器、扫描/汇总/出图 API。
+- `experiments/`：薄的一次性复现实验入口，不承载核心逻辑。
+- `scripts/`：保留实验线的辅助出图和 Windows 环境脚本。
+- `artifacts/`：保留实验线对应的 JSON/CSV/PNG 结果。
+- `notebooks/`：历史 notebook 开发记录，本轮清理不改动。
+- `docs/`：当前保留实验线的说明和文献索引。
 
-## 目录职责
-
-### 开源协作入口
-
-- [README.md](../README.md)
-  外部读者第一入口，包含项目定位、快速开始、版本线、典型实验入口和文档索引。
-- [CONTRIBUTING.md](../CONTRIBUTING.md)
-  贡献者指南，包含开发环境、目录约定、研究贡献检查表和 PR 检查表。
-- [CITATION.cff](../CITATION.cff)
-  GitHub 引用元数据。正式发布版本时同步更新版本号和发布日期。
-- [SECURITY.md](../SECURITY.md)
-  安全问题报告说明。
-- [.github/workflows/ci.yml](../.github/workflows/ci.yml)
-  GitHub Actions 最小 CI，验证 Python 3.12 下的主包安装和 `unittest`。
-- [open-source-maintenance.md](open-source-maintenance.md)
-  开源维护、子模块、发布前检查和 issue/PR 分类建议。
-
-### `src/neutral_yb/config`
-
-- [species.py](../src/neutral_yb/config/species.py)
-  物种级配置，目前主要是 `^171Yb` 的语义化配置壳。
-- [artifact_paths.py](../src/neutral_yb/config/artifact_paths.py)
-  统一管理各版本和独立复现板块的 artifact 输出目录。
-
-### `src/neutral_yb/models`
-
-- [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
-  `v1` 冻结参考的理想 4 维 `global CZ` 模型。
-- [finite_blockade_cz_5d.py](../src/neutral_yb/models/finite_blockade_cz_5d.py)
-  `v2` 闭系统修正模型，保留有限 blockade 和 `|rr>`。
-- [two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
-  `v3` 双光子闭系统模型，显式保留中间态 `|e>`。
-- [two_photon_cz_open_10d.py](../src/neutral_yb/models/two_photon_cz_open_10d.py)
-  `v4` 早期的双光子开放系统 surrogate，现已退居历史参考。
-- [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
-  `v4` 当前主线模型，使用 `^171Yb` 的有效 `clock -> Rydberg` 完整门开放系统表示；固定前后 `clock` 脉冲并入传播，中间 `UV` 段作为优化变量。
-- [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
-  Ma et al. Nature 2023 Fig. 3 复现线的 metastable-qubit Rydberg gate 模型，保留有限 blockade、loss/leak sink 和开放系统噪声接口。
-- [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
-  Evered et al. Nature 2023 并行 CZ 独立复现线，包含 fixed-amplitude time-optimal 相位轮廓、实验尺度记录、三能级 dark-state Hamiltonian 和 9D 两原子双光子 Hamiltonian。
-
-### `src/neutral_yb/optimization`
-
-- [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
-  `v1`/早期版本的闭系统相位 GRAPE。
-- [amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
-  `v3` 当前主线，闭系统 lower-leg 振幅加单相位优化器。
-- [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-  `v4` 当前主线，按论文 Eq.(7) 传播未归一化特殊态 `|01> + |11>` 并优化 phase-gate fidelity，同时支持 quasistatic ensemble robust optimization。
-- [linear_control_grape.py](../src/neutral_yb/optimization/linear_control_grape.py)
-  历史实验文件，保留作对照，不是当前主线。
-
-### `experiments`
+## 保留实验入口
 
 - [freeze_v1_global_cz_reference.py](../experiments/freeze_v1_global_cz_reference.py)
-  `v1` 冻结参考实验。
-- [reproduce_ma2023_time_optimal_2q_gate.py](../experiments/reproduce_ma2023_time_optimal_2q_gate.py)
-  Ma et al. Nature 2023 Fig. 3 time-optimal two-qubit gate 的独立复现起点；先跑理想 infinite-blockade global CZ。
+  无噪声、无基函数、随机初始化 phase-only GRAPE 基准。
 - [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
-  Evered et al. Nature 2023 fixed-amplitude time-optimal CZ 的 GRAPE 验证入口；从随机参数重启做时间扫描，检查是否能独立找回论文 Eq.(1) 相位轮廓。
-- [scan_ma2023_time_optimal_2q_open_system.py](../experiments/scan_ma2023_time_optimal_2q_open_system.py)
-  Ma et al. Nature 2023 Fig. 3 的开放系统 time scan，输出 fidelity、active population 和 erasure/leakage 诊断。
-- [evaluate_ma2023_fig3_pulse.py](../experiments/evaluate_ma2023_fig3_pulse.py)
-  直接导入并评估 Dataverse Fig. 3 脉冲，用作复现链路的固定脉冲验证入口。
-- [reproduce_ma2023_from_method.py](../experiments/reproduce_ma2023_from_method.py)
-  不使用论文脉冲作为初值，从通用平滑控制出发生成 time-optimal pulse，并与 Dataverse Fig. 3 仅做后处理对照。
-- [two_stage_scan_closed_system_cz_v2.py](../experiments/two_stage_scan_closed_system_cz_v2.py)
-  `v2` 的两阶段时间扫描。
-- [coarse_scan_two_photon_cz_v3.py](../experiments/coarse_scan_two_photon_cz_v3.py)
-  `v3` 的 coarse scan 主实验。
-- [local_scan_two_photon_cz_v3_7p5_8p5.py](../experiments/local_scan_two_photon_cz_v3_7p5_8p5.py)
-  `v3` 的高 restart 局部扫描。
-- [run_two_photon_cz_v4_open_system_smoke.py](../experiments/run_two_photon_cz_v4_open_system_smoke.py)
-  `v4` 的单点开放系统 smoke run。
-- [coarse_scan_two_photon_cz_v4_open_system.py](../experiments/coarse_scan_two_photon_cz_v4_open_system.py)
-  `v4` 的开放系统粗扫描主实验。
-- [physical_time_scan_two_photon_cz_v4_open_system.py](../experiments/physical_time_scan_two_photon_cz_v4_open_system.py)
-  `v4` 的真实时间尺度扫描入口，可显式覆盖 `Omega_max`。
-- [two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py](../experiments/two_stage_scan_two_photon_cz_v4_0_300ns_100mhz.py)
-  `v4` 的 `0–300 ns` 两阶段高驱动扫描脚本，使用 `Omega_max = 100 MHz` 覆盖值。
-- [validate_v4_dynamics_and_optimization.py](../experiments/validate_v4_dynamics_and_optimization.py)
-  `v4` 的时序演化、reduced channel、梯度和优化链路校验脚本。
-- [benchmark_v4_open_system_vs_v3_closed.py](../experiments/benchmark_v4_open_system_vs_v3_closed.py)
-  `v4` 和 `v3` 的本地资源对比。
+  Evered 2023 fixed-amplitude phase family 的 parameterized GRAPE 复现。
+- [scan_yb171_uv_edge_effect.py](../experiments/scan_yb171_uv_edge_effect.py)
+  `^{171}Yb` UV Gaussian edge rise/fall 时间扫描；完整逻辑在 `src`。
 
-### `scripts`
+## 可复用代码入口
+
+### `v1` 无噪声 GRAPE
+
+- [global_cz_4d.py](../src/neutral_yb/models/global_cz_4d.py)
+- [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
+
+### Evered 2023 参数化 GRAPE
+
+- [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
+- [evered2023_benchmarking.py](../src/neutral_yb/models/evered2023_benchmarking.py)
+- [evered2023_parameterized_grape.py](../src/neutral_yb/optimization/evered2023_parameterized_grape.py)
+
+### `^{171}Yb` UV edge 扫描
+
+- [shelved_cr_phase_grape.py](../src/neutral_yb/optimization/shelved_cr_phase_grape.py)
+  shelved control-Rydberg 段的 closed/no-jump phase-only GRAPE。
+- [uv_edge_scan.py](../src/neutral_yb/analysis/uv_edge_scan.py)
+  dense grid、deterministic starts、JSON/CSV 写出、summary 和 PNG 出图。
+- [artifact_paths.py](../src/neutral_yb/config/artifact_paths.py)
+  统一 artifact 目录函数，包括 `yb171_uv_edge_artifacts_dir()`。
+
+## 保留结果
+
+- [artifacts/v1](../artifacts/v1)
+- [artifacts/evered2023_parallel_cz](../artifacts/evered2023_parallel_cz)
+- [artifacts/v5/closed_cr_edge_time_optimal_scan](../artifacts/v5/closed_cr_edge_time_optimal_scan)
+
+旧 Ma/v2/v3/v4/v5 中间扫描结果已经删除，避免把阶段性探索误认为当前复现入口。
+
+## 保留出图脚本
 
 - [plot_freeze_v1_global_cz.py](../scripts/plot_freeze_v1_global_cz.py)
-  `v1` 出图。
-- [plot_closed_system_cz_v2_two_stage.py](../scripts/plot_closed_system_cz_v2_two_stage.py)
-  `v2` 出图。
-- [plot_two_photon_cz_v3.py](../scripts/plot_two_photon_cz_v3.py)
-  `v3` 出图。
-- [plot_ma2023_time_optimal_2q.py](../scripts/plot_ma2023_time_optimal_2q.py)
-  Ma 2023 time-optimal two-qubit gate 复现线的 summary plot。
-- [import_ma2023_dataverse.py](../scripts/import_ma2023_dataverse.py)
-  将 `data/ma2023/*.csv` 规范化为 `data/ma2023/processed/*.json`。
-- [compare_ma2023_method_to_dataverse.py](../scripts/compare_ma2023_method_to_dataverse.py)
-  将 method-first 输出的 pulse、trajectory 和 fidelity 与 Dataverse Fig. 3 数据画在一起。
-- [create_venv.ps1](../scripts/create_venv.ps1)
-  Windows 本地环境创建脚本。
-- [run_python.ps1](../scripts/run_python.ps1)
-  Windows 辅助运行脚本。
+- [plot_evered2023_parallel_cz.py](../scripts/plot_evered2023_parallel_cz.py)
 
-### `artifacts`
+UV edge 线的出图函数已经进入 [uv_edge_scan.py](../src/neutral_yb/analysis/uv_edge_scan.py)，通过 `experiments/scan_yb171_uv_edge_effect.py --replot` 调用。
 
-这里只放已经跑出来的结果，不放逻辑。按版本理解：
+## 测试入口
 
-- `freeze_v1_*`
-  冻结参考结果
-- `closed_system_cz_v2_*`
-  `v2` 结果
-- `two_photon_cz_v3_*`
-  `v3` 结果
-- `two_photon_cz_v4_*`
-  `v4` 结果
-- `benchmark_v4_open_system_vs_v3_closed.json`
-  闭系统和开放系统耗时比较
-- `ma2023_time_optimal_2q`
-  Ma et al. Nature 2023 time-optimal two-qubit gate 复现输出，暂时独立于 `v4/v5`
-- `evered2023_parallel_cz`
-  Evered et al. Nature 2023 并行 CZ 复现输出，独立于 numbered `v*` 主线
+```bash
+./.venv/bin/python -m unittest tests.test_global_cz_4d tests.test_evered2023_parallel_cz tests.test_shelved_cr_phase_grape -v
+```
 
-### `tests`
+完整测试仍可用来检查保留 `src` 模块的兼容性：
 
-- `test_global_cz_4d.py`
-  `v1` 理想参考模型和优化器的基本测试
-- `test_finite_blockade_cz_5d.py`
-  `v2` 闭系统修正版测试
-- `test_two_photon_cz_9d.py`
-  `v3` 双光子闭系统模型测试
-- `test_amplitude_phase_grape.py`
-  `v3` 振幅加单相位优化器测试
-- `test_two_photon_cz_open_10d.py`
-  早期 `v4` ladder surrogate 模型测试，现主要作历史回归
-- `test_yb171_clock_rydberg_cz_open.py`
-  当前 `v4` `^171Yb` `clock -> Rydberg` 模型测试
-- `test_open_system_grape.py`
-  `v4` 开放系统 GRAPE 的 smoke 测试
-
-`__pycache__` 和中间缓存不属于项目逻辑，不需要在迁移时保留。
-
-## 当前主线
-
-如果只看今天仍在推进的主线，应优先关注：
-
-- `v3` 闭系统双光子：
-  - [two_photon_cz_9d.py](../src/neutral_yb/models/two_photon_cz_9d.py)
-  - [amplitude_phase_grape.py](../src/neutral_yb/optimization/amplitude_phase_grape.py)
-- `v4` 开放系统 `^171Yb`：
-  - [yb171_clock_rydberg_cz_open.py](../src/neutral_yb/models/yb171_clock_rydberg_cz_open.py)
-  - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-- `ma2023_time_optimal_2q` 独立复现线：
-  - [ma2023_time_optimal_2q.py](../src/neutral_yb/models/ma2023_time_optimal_2q.py)
-  - [ma2023_calibration.py](../src/neutral_yb/config/ma2023_calibration.py)
-  - [open_system_grape.py](../src/neutral_yb/optimization/open_system_grape.py)
-- `evered2023_parallel_cz` 独立复现线：
-  - [evered2023_parallel_cz.py](../src/neutral_yb/models/evered2023_parallel_cz.py)
-  - [reproduce_evered2023_parallel_cz_gate.py](../experiments/reproduce_evered2023_parallel_cz_gate.py)
-  - [global_phase_grape.py](../src/neutral_yb/optimization/global_phase_grape.py)
-
-## 迁移到 WSL 后先做什么
-
-建议顺序是：
-
-1. 创建 `.venv` 并安装依赖。
-2. 把仓库本身装进虚拟环境：`./.venv/bin/python -m pip install -e .`
-3. 跑测试：`./.venv/bin/python -m unittest discover -s tests -v`
-4. 读 [docs/version-history.md](version-history.md)
-5. 读 [docs/references.md](references.md)
-6. 再决定从 `v3` 还是 `v4` 继续开发
+```bash
+./.venv/bin/python -m unittest discover -s tests -v
+```
