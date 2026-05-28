@@ -7,6 +7,21 @@
 
 ## 目录职责
 
+### 开源协作入口
+
+- [README.md](../README.md)
+  外部读者第一入口，包含项目定位、快速开始、版本线、典型实验入口和文档索引。
+- [CONTRIBUTING.md](../CONTRIBUTING.md)
+  贡献者指南，包含开发环境、目录约定、研究贡献检查表和 PR 检查表。
+- [CITATION.cff](../CITATION.cff)
+  GitHub 引用元数据。正式发布版本时同步更新版本号和发布日期。
+- [SECURITY.md](../SECURITY.md)
+  安全问题报告说明。
+- [.github/workflows/ci.yml](../.github/workflows/ci.yml)
+  GitHub Actions 最小 CI，验证 Python 3.12 下的主包安装和 `unittest`。
+- [open-source-maintenance.md](open-source-maintenance.md)
+  开源维护、子模块、发布前检查和 issue/PR 分类建议。
+
 ### `src/neutral_yb/config`
 
 - [species.py](../src/neutral_yb/config/species.py)

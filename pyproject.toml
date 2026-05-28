@@ -6,7 +6,29 @@ build-backend = "setuptools.build_meta"
 name = "neutral-yb-control"
 version = "0.1.0"
 description = "Neutral 171Yb quantum control simulations and reference experiments."
+readme = "README.md"
 requires-python = ">=3.12"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Eris Li"},
+]
+keywords = [
+  "neutral atoms",
+  "quantum control",
+  "rydberg gates",
+  "ytterbium",
+  "grape",
+  "open quantum systems",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: Chinese (Simplified)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
   "numpy>=1.26,<3",
   "scipy>=1.13,<2",
@@ -23,6 +45,14 @@ rydcalc = [
   "tqdm>=4.67,<5",
   "setuptools>=69",
 ]
+dev = [
+  "build>=1.2,<2",
+]
+
+[project.urls]
+Documentation = "https://github.com/Eris-li/Noise-Tolerant-Quantum-Control-Optimization/tree/main/docs"
+Source = "https://github.com/Eris-li/Noise-Tolerant-Quantum-Control-Optimization"
+Issues = "https://github.com/Eris-li/Noise-Tolerant-Quantum-Control-Optimization/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

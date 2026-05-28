@@ -1,0 +1,32 @@
+name: Research model or reproduction
+description: Propose or discuss a physical model, optimization workflow, or literature reproduction.
+title: "[Model]: "
+labels:
+  - model
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Which model, paper result, or numerical workflow should be added or changed?
+    validations:
+      required: true
+  - type: textarea
+    id: assumptions
+    attributes:
+      label: Physical assumptions
+      description: Basis states, couplings, detunings, noise channels, time units, and parameter sources.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Prior result, analytic limit, benchmark, or consistency check.
+    validations:
+      required: true
+  - type: textarea
+    id: outputs
+    attributes:
+      label: Expected outputs
+      description: Notebook, experiment command, JSON/CSV artifact, figure, or test coverage.

@@ -1,3 +1,6 @@
 [submodule "rydcalc"]
 	path = rydcalc
 	url = https://github.com/ThompsonLabPrinceton/rydcalc.git
+[submodule "ARC-Alkali-Rydberg-Calculator"]
+	path = ARC-Alkali-Rydberg-Calculator
+	url = https://github.com/nikolasibalic/ARC-Alkali-Rydberg-Calculator.git

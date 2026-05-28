@@ -11,6 +11,7 @@ from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_calibrated_model,
     build_yb171_v4_quasistatic_ensemble,
 )
+from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope_from_times
 from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
 
 
@@ -120,6 +121,48 @@ class OpenSystemGRAPETest(unittest.TestCase):
         self.assertEqual(result.raw_ctrl_x.shape, result.ctrl_x.shape)
         self.assertEqual(result.raw_ctrl_y.shape, result.ctrl_y.shape)
         self.assertGreater(np.linalg.norm(result.raw_ctrl_x) + np.linalg.norm(result.raw_ctrl_y), 0.0)
+
+    def test_gaussian_edge_envelope_accepts_one_sided_edge_time(self) -> None:
+        optimizer = self.build_optimizer()
+        optimizer.reconfigure(
+            replace(
+                optimizer.config,
+                control_envelope="GAUSSIAN_EDGE",
+                gaussian_edge_time=0.3,
+                gaussian_edge_sigma_to_edge=1.0 / 3.0,
+            )
+        )
+        expected = gaussian_edge_envelope_from_times(4, optimizer.config.evo_time, 0.3)
+        self.assertTrue(np.allclose(optimizer.control_envelope(), expected))
+
+        result = optimizer._result_from_variables(
+            np.array([0.2, 0.3, 0.4, 0.5, -0.1, -0.2, 0.1, 0.2, 0.1], dtype=np.float64),
+            num_iter=0,
+            num_fid_func_calls=1,
+            wall_time=0.0,
+            termination_reason="test",
+            success=True,
+        )
+        self.assertAlmostEqual(float(result.envelope[0]), 0.0)
+        self.assertAlmostEqual(float(result.envelope[-1]), 0.0)
+        self.assertEqual(result.to_json()["gaussian_edge_time"], 0.3)
+        self.assertEqual(result.to_json()["control_envelope"], "GAUSSIAN_EDGE")
+
+    def test_scan_durations_preserves_gaussian_edge_time(self) -> None:
+        optimizer = self.build_optimizer()
+        optimizer.reconfigure(
+            replace(
+                optimizer.config,
+                control_envelope="GAUSSIAN_EDGE",
+                gaussian_edge_time=0.25,
+                max_iter=1,
+            )
+        )
+        _scan, results = optimizer.scan_durations([1.6])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].gaussian_edge_time, 0.25)
+        expected = gaussian_edge_envelope_from_times(4, 1.6, 0.25)
+        self.assertTrue(np.allclose(results[0].envelope, expected))
 
     def test_special_state_formula_matches_model_method(self) -> None:
         optimizer = self.build_optimizer()

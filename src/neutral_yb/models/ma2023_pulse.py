@@ -48,6 +48,49 @@ def gaussian_edge_envelope(
     return np.clip(envelope, 0.0, 1.0).astype(np.float64)
 
 
+def gaussian_edge_envelope_from_times(
+    num_tslots: int,
+    total_time: float,
+    edge_time: float,
+    sigma_to_edge: float = 1.0 / 3.0,
+) -> np.ndarray:
+    """Gaussian turn-on/off envelope parameterized by one-sided edge time.
+
+    ``edge_time`` is the duration of one Gaussian rising edge; the falling edge
+    uses the same duration. ``total_time`` and ``edge_time`` must use the same
+    time unit, which lets callers work in dimensionless times, microseconds, or
+    nanoseconds without changing this helper. If ``edge_time`` is zero the pulse
+    is flat.
+    """
+
+    slots = int(num_tslots)
+    if slots <= 0:
+        raise ValueError("num_tslots must be positive")
+    duration = float(total_time)
+    if duration <= 0.0:
+        raise ValueError("total_time must be positive")
+    edge = float(edge_time)
+    if edge <= 0.0:
+        return np.ones(slots, dtype=np.float64)
+
+    edge = min(edge, 0.499 * duration)
+    sigma = max(edge * float(sigma_to_edge), 1e-12)
+    grid = np.linspace(0.0, duration, slots, endpoint=True, dtype=np.float64)
+    envelope = np.ones_like(grid)
+    left = grid < edge
+    right = grid > duration - edge
+    edge_floor = np.exp(-0.5 * (edge / sigma) ** 2)
+    if np.any(left):
+        left_gaussian = np.exp(-0.5 * ((grid[left] - edge) / sigma) ** 2)
+        envelope[left] = (left_gaussian - edge_floor) / max(1.0 - edge_floor, 1e-12)
+    if np.any(right):
+        right_gaussian = np.exp(-0.5 * ((grid[right] - (duration - edge)) / sigma) ** 2)
+        envelope[right] = (right_gaussian - edge_floor) / max(1.0 - edge_floor, 1e-12)
+    envelope[0] = 0.0
+    envelope[-1] = 0.0
+    return np.clip(envelope, 0.0, 1.0).astype(np.float64)
+
+
 def wrap_phase(phases: np.ndarray) -> np.ndarray:
     return (np.asarray(phases, dtype=np.float64) + np.pi) % (2.0 * np.pi) - np.pi
 

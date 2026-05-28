@@ -4,6 +4,25 @@
 
 当前项目只关注两比特及以上的门，不实现独立单比特门。主线目标是围绕 `CZ`，后续扩展到 `CNOT` 和三比特门，从理想闭系统模型逐步推进到显式开放系统、含噪声、含损耗和实验标定的控制优化。
 
+## 开源定位
+
+这是一个研究型开源仓库，目标是让外部读者可以：
+
+- 复现项目中保留的 `^171Yb` Rydberg two-qubit gate 模型、扫描和 benchmark。
+- 阅读每条版本线的物理假设、数值方法和验证记录。
+- 在不破坏既有复现链路的前提下继续开发新的模型、优化器和实验脚本。
+
+仓库当前处于 `0.1.0` alpha 阶段。公开 API 仍可能随研究主线变化而调整；稳定性优先级是“可读、可复现、可测试”，而不是发布到 PyPI 的通用库接口。
+
+如果你是第一次接触本项目，建议按这个顺序开始：
+
+1. 读本 README 的“快速开始”和“典型入口”。
+2. 跑 `python -m unittest discover -s tests -v`，确认本地环境可用。
+3. 读 [docs/project-map.md](docs/project-map.md) 和 [docs/version-history.md](docs/version-history.md)。
+4. 选择一条版本线，从对应的 `experiments/`、`scripts/`、`docs/` 和 `artifacts/` 开始。
+
+参与开发请先读 [CONTRIBUTING.md](CONTRIBUTING.md)。如果使用本仓库结果，请参考 [CITATION.cff](CITATION.cff) 和 [docs/references.md](docs/references.md) 同时引用原始物理论文。
+
 ## 当前架构
 
 核心代码是 Python 3.12 包 `neutral_yb`，位于 `src/neutral_yb/`：
@@ -196,12 +215,21 @@ Python 3.12 / NumPy 2 本地验证时需要先临时应用兼容 patch：
 
 长时间运行的结果应记录命令、profile、关键物理假设和输出路径。
 
+## 开发与复现约定
+
+- 新物理模型先写清楚 Hilbert space、basis、耦合、detuning、噪声项和时间单位。
+- 新优化流程需要同时给出目标函数、控制变量、约束、随机种子或 restart 策略。
+- 新结果需要能从 notebook、experiment 命令或 JSON/CSV artifact 追溯。
+- 新公共函数或模型应放入 `src/neutral_yb/`，并添加聚焦的 `unittest`。
+- 不直接修改外部子模块源码；`rydcalc` 或 ARC 兼容性问题应通过 `patches/` 或 `src/neutral_yb/external/` 处理。
+
 ## 文档索引
 
 - 架构总览：[docs/neutral-yb-architecture.md](docs/neutral-yb-architecture.md)
 - 项目地图：[docs/project-map.md](docs/project-map.md)
 - 版本历史：[docs/version-history.md](docs/version-history.md)
 - 文献索引：[docs/references.md](docs/references.md)
+- 开源维护说明：[docs/open-source-maintenance.md](docs/open-source-maintenance.md)
 - Ma 2023 time-optimal 两比特门复现：[docs/ma2023-time-optimal-2q.md](docs/ma2023-time-optimal-2q.md)
 - `rydcalc` 集成记录：[docs/rydcalc-integration.md](docs/rydcalc-integration.md)
 - 闭系统噪声与修正哈密顿量：[docs/yb-noise-and-corrected-hamiltonian.md](docs/yb-noise-and-corrected-hamiltonian.md)

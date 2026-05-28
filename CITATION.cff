@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite it and the primary papers listed in docs/references.md."
+title: "Noise-Tolerant Quantum Control Optimization for Neutral 171Yb"
+type: software
+authors:
+  - family-names: Li
+    given-names: Eris
+repository-code: "https://github.com/Eris-li/Noise-Tolerant-Quantum-Control-Optimization"
+license: MIT
+version: "0.1.0"
+date-released: "2026-05-28"
+keywords:
+  - neutral atoms
+  - quantum control
+  - Rydberg gates
+  - ytterbium
+  - GRAPE
+  - open quantum systems

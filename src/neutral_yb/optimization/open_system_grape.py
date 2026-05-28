@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 import json
 import time
@@ -10,7 +10,7 @@ import qutip
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize, minimize_scalar
 
-from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope
+from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope, gaussian_edge_envelope_from_times
 
 
 @dataclass(frozen=True)
@@ -35,6 +35,8 @@ class OpenSystemGRAPEConfig:
     control_envelope: str = "NONE"
     gaussian_edge_fraction: float = 0.20
     gaussian_edge_sigma_fraction: float = 0.08
+    gaussian_edge_time: float | None = None
+    gaussian_edge_sigma_to_edge: float = 1.0 / 3.0
     target_theta: float = 0.0
     fidelity_target: float = 0.995
     objective_metric: str = "special_state"
@@ -72,6 +74,12 @@ class OpenSystemGRAPEResult:
     control_curvature_cost: float
     amplitude_diff_cost: float
     phase_diff_cost: float
+    control_envelope: str
+    gaussian_edge_fraction: float
+    gaussian_edge_sigma_fraction: float
+    gaussian_edge_time: float | None
+    gaussian_edge_sigma_to_edge: float
+    envelope: np.ndarray
     success: bool
 
     def to_json(self) -> dict[str, float | int | str | bool | list[float] | None]:
@@ -107,6 +115,12 @@ class OpenSystemGRAPEResult:
             "control_curvature_cost": float(self.control_curvature_cost),
             "amplitude_diff_cost": float(self.amplitude_diff_cost),
             "phase_diff_cost": float(self.phase_diff_cost),
+            "control_envelope": self.control_envelope,
+            "gaussian_edge_fraction": float(self.gaussian_edge_fraction),
+            "gaussian_edge_sigma_fraction": float(self.gaussian_edge_sigma_fraction),
+            "gaussian_edge_time": None if self.gaussian_edge_time is None else float(self.gaussian_edge_time),
+            "gaussian_edge_sigma_to_edge": float(self.gaussian_edge_sigma_to_edge),
+            "envelope": [float(x) for x in self.envelope],
             "success": bool(self.success),
         }
 
@@ -340,32 +354,7 @@ class OpenSystemGRAPEOptimizer:
 
         for index, duration in enumerate(durations, start=1):
             started_at = time.perf_counter()
-            self.reconfigure(
-                OpenSystemGRAPEConfig(
-                    num_tslots=self.config.num_tslots,
-                    evo_time=duration,
-                    max_iter=self.config.max_iter,
-                    max_wall_time=self.config.max_wall_time,
-                    fid_err_targ=self.config.fid_err_targ,
-                    min_grad=self.config.min_grad,
-                    num_restarts=self.config.num_restarts,
-                    seed=self.config.seed,
-                    init_pulse_type=self.config.init_pulse_type,
-                    init_control_scale=self.config.init_control_scale,
-                    control_smoothness_weight=self.config.control_smoothness_weight,
-                    control_curvature_weight=self.config.control_curvature_weight,
-                    amplitude_diff_weight=self.config.amplitude_diff_weight,
-                    phase_diff_weight=self.config.phase_diff_weight,
-                    radial_amplitude_bound_weight=self.config.radial_amplitude_bound_weight,
-                    amplitude_diff_threshold=self.config.amplitude_diff_threshold,
-                    phase_diff_threshold=self.config.phase_diff_threshold,
-                    target_theta=self.config.target_theta,
-                    fidelity_target=self.config.fidelity_target,
-                    objective_metric=self.config.objective_metric,
-                    benchmark_active_channel=self.config.benchmark_active_channel,
-                    show_progress=self.config.show_progress,
-                )
-            )
+            self.reconfigure(replace(self.config, evo_time=float(duration)))
             if self.config.show_progress:
                 print(
                     f"[scan] starting {index}/{len(durations)} "
@@ -379,7 +368,7 @@ class OpenSystemGRAPEOptimizer:
             )
             results.append(result)
             fidelities.append(result.objective_fidelity)
-            ctrl_x, ctrl_y, theta = result.ctrl_x, result.ctrl_y, result.optimized_theta
+            ctrl_x, ctrl_y, theta = result.raw_ctrl_x, result.raw_ctrl_y, result.optimized_theta
             if self.config.show_progress:
                 step_elapsed = time.perf_counter() - started_at
                 total_elapsed = time.perf_counter() - scan_started_at
@@ -700,6 +689,14 @@ class OpenSystemGRAPEOptimizer:
             control_curvature_cost=float(self._control_curvature_cost(ctrl_x, ctrl_y)),
             amplitude_diff_cost=float(amplitude_diff_cost),
             phase_diff_cost=float(phase_diff_cost),
+            control_envelope=str(self.config.control_envelope),
+            gaussian_edge_fraction=float(self.config.gaussian_edge_fraction),
+            gaussian_edge_sigma_fraction=float(self.config.gaussian_edge_sigma_fraction),
+            gaussian_edge_time=None
+            if self.config.gaussian_edge_time is None
+            else float(self.config.gaussian_edge_time),
+            gaussian_edge_sigma_to_edge=float(self.config.gaussian_edge_sigma_to_edge),
+            envelope=self.control_envelope(),
             success=bool(success),
         )
 
@@ -741,6 +738,14 @@ class OpenSystemGRAPEOptimizer:
             control_curvature_cost=0.0,
             amplitude_diff_cost=0.0,
             phase_diff_cost=0.0,
+            control_envelope=str(self.config.control_envelope),
+            gaussian_edge_fraction=float(self.config.gaussian_edge_fraction),
+            gaussian_edge_sigma_fraction=float(self.config.gaussian_edge_sigma_fraction),
+            gaussian_edge_time=None
+            if self.config.gaussian_edge_time is None
+            else float(self.config.gaussian_edge_time),
+            gaussian_edge_sigma_to_edge=float(self.config.gaussian_edge_sigma_to_edge),
+            envelope=self.control_envelope(),
             success=True,
         )
 
@@ -1053,6 +1058,13 @@ class OpenSystemGRAPEOptimizer:
         if self.config.control_envelope.upper() in {"", "NONE", "FLAT"}:
             return np.ones(self.config.num_tslots, dtype=np.float64)
         if self.config.control_envelope.upper() == "GAUSSIAN_EDGE":
+            if self.config.gaussian_edge_time is not None:
+                return gaussian_edge_envelope_from_times(
+                    self.config.num_tslots,
+                    self.config.evo_time,
+                    self.config.gaussian_edge_time,
+                    self.config.gaussian_edge_sigma_to_edge,
+                )
             return gaussian_edge_envelope(
                 self.config.num_tslots,
                 self.config.gaussian_edge_fraction,

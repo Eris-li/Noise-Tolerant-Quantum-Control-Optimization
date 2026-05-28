@@ -18,6 +18,8 @@ from neutral_yb.config.ma2023_calibration import (
 from neutral_yb.models.ma2023_pulse import (
     Ma2023GaussianEdgePulse,
     controls_from_envelope_phase,
+    gaussian_edge_envelope,
+    gaussian_edge_envelope_from_times,
     validate_phase_only_pulse,
     wrap_phase,
 )
@@ -77,6 +79,21 @@ class Ma2023TimeOptimal2QModelTest(unittest.TestCase):
         self.assertAlmostEqual(float(envelope[0]), 0.0)
         self.assertAlmostEqual(float(envelope[-1]), 0.0)
         self.assertLessEqual(float(np.max(envelope)), 1.0)
+
+    def test_gaussian_edge_time_api_matches_fraction_api(self) -> None:
+        envelope_by_fraction = gaussian_edge_envelope(
+            num_tslots=32,
+            edge_fraction=0.2,
+            sigma_fraction=0.2 / 3.0,
+        )
+        envelope_by_time = gaussian_edge_envelope_from_times(
+            num_tslots=32,
+            total_time=10.0,
+            edge_time=2.0,
+            sigma_to_edge=1.0 / 3.0,
+        )
+        self.assertTrue(np.allclose(envelope_by_time, envelope_by_fraction))
+        self.assertTrue(np.allclose(gaussian_edge_envelope_from_times(8, 10.0, 0.0), np.ones(8)))
 
     def test_methods_six_level_blockade_hamiltonian_terms(self) -> None:
         model = Ma2023PerfectBlockadeSixLevelModel(delta_r=5.8, include_loss_state=False)
