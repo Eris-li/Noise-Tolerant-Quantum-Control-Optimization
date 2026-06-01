@@ -11,7 +11,8 @@ from neutral_yb.models.two_photon_cz_open_10d import (
     TwoPhotonCZOpen10DModel,
     TwoPhotonOpenNoiseConfig,
 )
-from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+from neutral_yb.optimization.grape import OpenSystemGRAPE
+from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig
 
 
 class TwoPhotonCZOpen10DTest(unittest.TestCase):
@@ -40,7 +41,7 @@ class TwoPhotonCZOpen10DTest(unittest.TestCase):
 
     def test_phase_gate_fidelity_bounds(self) -> None:
         model = self.build_model()
-        optimizer = OpenSystemGRAPEOptimizer(
+        optimizer = OpenSystemGRAPE(
             model=model,
             config=OpenSystemGRAPEConfig(num_tslots=8, evo_time=2.0, max_iter=1, num_restarts=1),
         )

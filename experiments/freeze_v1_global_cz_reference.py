@@ -15,10 +15,8 @@ from scipy.optimize import curve_fit
 from neutral_yb.config.artifact_paths import ensure_artifact_dir, v1_artifacts_dir
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
-from neutral_yb.optimization.global_phase_grape import (
-    GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
-)
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
+from neutral_yb.optimization.global_phase_grape import GlobalPhaseOptimizationConfig
 
 
 def frange(start: float, stop: float, step: float) -> list[float]:
@@ -36,7 +34,7 @@ def run_scan(
     max_iter: int,
 ) -> tuple[object, list[object]]:
     model = GlobalCZ4DModel(species=idealised_yb171())
-    optimizer = PaperGlobalPhaseOptimizer(
+    optimizer = ClosedSystemGRAPE.global_phase(
         model=model,
         config=GlobalPhaseOptimizationConfig(
             num_tslots=num_tslots,
@@ -80,7 +78,7 @@ def main() -> None:
     artifacts = ensure_artifact_dir(v1_artifacts_dir(ROOT))
 
     model = GlobalCZ4DModel(species=idealised_yb171())
-    writer = PaperGlobalPhaseOptimizer(
+    writer = ClosedSystemGRAPE.global_phase(
         model=model,
         config=GlobalPhaseOptimizationConfig(num_tslots=100, evo_time=10.0, max_iter=250),
     )

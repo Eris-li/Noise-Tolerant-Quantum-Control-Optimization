@@ -1,0 +1,304 @@
+{
+  "threshold": 0.999,
+  "noise_model": "Rydberg decay as non-Hermitian no-jump term",
+  "fidelity_definition": "no-jump Kraus process fidelity |Tr(D_CZ^dagger K_comp)|^2 / 16",
+  "uses_basis_functions": false,
+  "uses_regularization": true,
+  "regularization_model": "wrapped first- and second-difference phase penalty",
+  "num_tslots": 100,
+  "max_iter": 360,
+  "smoothness_weight": 0.0001,
+  "curvature_weight": 0.0001,
+  "rydberg_lifetime_s": 6.5e-05,
+  "warm_start": "resampled 64-slot dense noisy result plus deterministic random starts",
+  "summary": [
+    {
+      "omega_max_mhz": 5.0,
+      "edge_ns": 0.0,
+      "shortest_passing_time_ns": null,
+      "first_passing_fidelity": null,
+      "best_time_ns": 260.0,
+      "best_fidelity": 0.9985493399705629,
+      "scanned_times_ns": [
+        240.0,
+        260.0,
+        280.0,
+        300.0,
+        320.0,
+        340.0,
+        360.0,
+        380.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 5.0,
+      "edge_ns": 10.0,
+      "shortest_passing_time_ns": null,
+      "first_passing_fidelity": null,
+      "best_time_ns": 260.0,
+      "best_fidelity": 0.9985735543862327,
+      "scanned_times_ns": [
+        240.0,
+        260.0,
+        280.0,
+        300.0,
+        320.0,
+        340.0,
+        360.0,
+        380.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 5.0,
+      "edge_ns": 20.0,
+      "shortest_passing_time_ns": null,
+      "first_passing_fidelity": null,
+      "best_time_ns": 280.0,
+      "best_fidelity": 0.9985616603981432,
+      "scanned_times_ns": [
+        240.0,
+        260.0,
+        280.0,
+        300.0,
+        320.0,
+        340.0,
+        360.0,
+        380.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 5.0,
+      "edge_ns": 40.0,
+      "shortest_passing_time_ns": null,
+      "first_passing_fidelity": null,
+      "best_time_ns": 300.0,
+      "best_fidelity": 0.9985676196969737,
+      "scanned_times_ns": [
+        240.0,
+        260.0,
+        280.0,
+        300.0,
+        320.0,
+        340.0,
+        360.0,
+        380.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 5.0,
+      "edge_ns": 80.0,
+      "shortest_passing_time_ns": null,
+      "first_passing_fidelity": null,
+      "best_time_ns": 340.0,
+      "best_fidelity": 0.9985632812779931,
+      "scanned_times_ns": [
+        240.0,
+        260.0,
+        280.0,
+        300.0,
+        320.0,
+        340.0,
+        360.0,
+        380.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 10.0,
+      "edge_ns": 0.0,
+      "shortest_passing_time_ns": 120.0,
+      "first_passing_fidelity": 0.9991529838906335,
+      "best_time_ns": 135.0,
+      "best_fidelity": 0.9992679174561118,
+      "scanned_times_ns": [
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0,
+        210.0,
+        240.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 10.0,
+      "edge_ns": 10.0,
+      "shortest_passing_time_ns": 135.0,
+      "first_passing_fidelity": 0.9992921811870177,
+      "best_time_ns": 135.0,
+      "best_fidelity": 0.9992921811870177,
+      "scanned_times_ns": [
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0,
+        210.0,
+        240.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 10.0,
+      "edge_ns": 20.0,
+      "shortest_passing_time_ns": 150.0,
+      "first_passing_fidelity": 0.999286896842191,
+      "best_time_ns": 150.0,
+      "best_fidelity": 0.999286896842191,
+      "scanned_times_ns": [
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0,
+        210.0,
+        240.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 10.0,
+      "edge_ns": 40.0,
+      "shortest_passing_time_ns": 170.0,
+      "first_passing_fidelity": 0.9992821616937421,
+      "best_time_ns": 170.0,
+      "best_fidelity": 0.9992821616937421,
+      "scanned_times_ns": [
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0,
+        210.0,
+        240.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 10.0,
+      "edge_ns": 80.0,
+      "shortest_passing_time_ns": 240.0,
+      "first_passing_fidelity": 0.999223701373429,
+      "best_time_ns": 240.0,
+      "best_fidelity": 0.999223701373429,
+      "scanned_times_ns": [
+        180.0,
+        190.0,
+        210.0,
+        240.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 20.0,
+      "edge_ns": 0.0,
+      "shortest_passing_time_ns": 60.0,
+      "first_passing_fidelity": 0.9996227189595515,
+      "best_time_ns": 60.0,
+      "best_fidelity": 0.9996227189595515,
+      "scanned_times_ns": [
+        60.0,
+        75.0,
+        90.0,
+        105.0,
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 20.0,
+      "edge_ns": 10.0,
+      "shortest_passing_time_ns": 75.0,
+      "first_passing_fidelity": 0.9996495286079728,
+      "best_time_ns": 75.0,
+      "best_fidelity": 0.9996495286079728,
+      "scanned_times_ns": [
+        60.0,
+        75.0,
+        90.0,
+        105.0,
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 20.0,
+      "edge_ns": 20.0,
+      "shortest_passing_time_ns": 90.0,
+      "first_passing_fidelity": 0.9996408224296727,
+      "best_time_ns": 90.0,
+      "best_fidelity": 0.9996408224296727,
+      "scanned_times_ns": [
+        60.0,
+        75.0,
+        90.0,
+        105.0,
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 20.0,
+      "edge_ns": 40.0,
+      "shortest_passing_time_ns": 120.0,
+      "first_passing_fidelity": 0.999613392242092,
+      "best_time_ns": 120.0,
+      "best_fidelity": 0.999613392242092,
+      "scanned_times_ns": [
+        105.0,
+        120.0,
+        135.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0
+      ],
+      "num_tslots": 100
+    },
+    {
+      "omega_max_mhz": 20.0,
+      "edge_ns": 80.0,
+      "shortest_passing_time_ns": 180.0,
+      "first_passing_fidelity": 0.9994650975579914,
+      "best_time_ns": 190.0,
+      "best_fidelity": 0.9994989432833941,
+      "scanned_times_ns": [
+        180.0,
+        190.0
+      ],
+      "num_tslots": 100
+    }
+  ]
+}

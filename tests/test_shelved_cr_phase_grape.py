@@ -16,16 +16,16 @@ from neutral_yb.analysis.uv_edge_scan import (
     load_uv_edge_artifacts,
 )
 from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope_from_times
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.shelved_cr_phase_grape import (
-    RydbergDecayShelvedCRPhaseGRAPE,
     ShelvedCRPhaseGRAPEConfig,
     resample_phase_controls,
 )
 
 
 class ShelvedCRPhaseGRAPETest(unittest.TestCase):
-    def build_optimizer(self) -> RydbergDecayShelvedCRPhaseGRAPE:
-        return RydbergDecayShelvedCRPhaseGRAPE(
+    def build_optimizer(self) -> ClosedSystemGRAPE:
+        return ClosedSystemGRAPE.shelved_cr_phase(
             ShelvedCRPhaseGRAPEConfig(
                 omega_max_mhz=10.0,
                 total_time_ns=80.0,
@@ -34,7 +34,8 @@ class ShelvedCRPhaseGRAPETest(unittest.TestCase):
                 smoothness_weight=1e-4,
                 curvature_weight=1e-4,
                 rydberg_lifetime_s=65e-6,
-            )
+            ),
+            include_rydberg_decay=True,
         )
 
     def test_gaussian_edge_uses_physical_edge_time(self) -> None:

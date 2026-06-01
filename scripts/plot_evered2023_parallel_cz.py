@@ -23,11 +23,10 @@ from neutral_yb.models.evered2023_parallel_cz import (
     build_evered2023_two_photon_ladder_model,
 )
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.evered2023_parameterized_grape import (
     Evered2023ParameterizedGRAPEConfig,
-    Evered2023ParameterizedGRAPEOptimizer,
     Evered2023ParameterizedGRAPEResult,
-    Evered2023TwoPhotonDetuningGRAPEOptimizer,
 )
 
 
@@ -73,7 +72,7 @@ def main() -> None:
             intermediate_detuning_over_effective_rabi=float(h_params["intermediate_detuning"]),
             blockade_shift_over_effective_rabi=float(h_params["blockade_shift"]),
         )
-        trajectory_optimizer = Evered2023TwoPhotonDetuningGRAPEOptimizer(
+        trajectory_optimizer = ClosedSystemGRAPE.evered_detuning(
             model=model,
             omega_t_over_2pi=optimized_pulse.omega_t_over_2pi,
             config=Evered2023ParameterizedGRAPEConfig(num_tslots=num_tslots, num_restarts=1),
@@ -104,7 +103,7 @@ def main() -> None:
             intermediate_detuning=float(h_params["intermediate_detuning"]),
             blockade_shift=float(h_params["blockade_shift"]),
         )
-        optimizer = Evered2023ParameterizedGRAPEOptimizer(
+        optimizer = ClosedSystemGRAPE.evered_parameterized(
             model=model,
             omega_t_over_2pi=optimized_pulse.omega_t_over_2pi,
             config=Evered2023ParameterizedGRAPEConfig(num_tslots=num_tslots, num_restarts=1),
@@ -113,7 +112,7 @@ def main() -> None:
         traj_times, states = trajectory_optimizer.trajectory(optimized_phases)
     else:
         model = GlobalCZ4DModel(species=idealised_yb171())
-        optimizer = Evered2023ParameterizedGRAPEOptimizer(
+        optimizer = ClosedSystemGRAPE.evered_parameterized(
             model=model,
             omega_t_over_2pi=optimized_pulse.omega_t_over_2pi,
             config=Evered2023ParameterizedGRAPEConfig(num_tslots=num_tslots, num_restarts=1),

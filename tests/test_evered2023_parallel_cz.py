@@ -20,14 +20,10 @@ from neutral_yb.models.evered2023_benchmarking import (
     evered2023_exponential_decay_fidelity_from_diagonal_map,
     repeated_diagonal_cz_average_fidelities,
 )
-from neutral_yb.optimization.global_phase_grape import (
-    GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
-)
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
+from neutral_yb.optimization.global_phase_grape import GlobalPhaseOptimizationConfig
 from neutral_yb.optimization.evered2023_parameterized_grape import (
     Evered2023ParameterizedGRAPEConfig,
-    Evered2023ParameterizedGRAPEOptimizer,
-    Evered2023TwoPhotonDetuningGRAPEOptimizer,
 )
 
 
@@ -47,7 +43,7 @@ class Evered2023ParallelCZTest(unittest.TestCase):
     def test_time_optimal_pulse_matches_ideal_global_cz(self) -> None:
         pulse = Evered2023TimeOptimalPulse()
         model = build_evered2023_ideal_global_cz_model(species=idealised_yb171())
-        optimizer = PaperGlobalPhaseOptimizer(
+        optimizer = ClosedSystemGRAPE.global_phase(
             model=model,
             config=GlobalPhaseOptimizationConfig(
                 num_tslots=200,
@@ -120,7 +116,7 @@ class Evered2023ParallelCZTest(unittest.TestCase):
 
     def test_parameterized_grape_gradient_matches_finite_difference(self) -> None:
         model = build_evered2023_ideal_global_cz_model(species=idealised_yb171())
-        optimizer = Evered2023ParameterizedGRAPEOptimizer(
+        optimizer = ClosedSystemGRAPE.evered_parameterized(
             model=model,
             omega_t_over_2pi=1.18,
             config=Evered2023ParameterizedGRAPEConfig(
@@ -151,7 +147,7 @@ class Evered2023ParallelCZTest(unittest.TestCase):
             intermediate_detuning=7.0,
             blockade_shift=20.0,
         )
-        optimizer = Evered2023ParameterizedGRAPEOptimizer(
+        optimizer = ClosedSystemGRAPE.evered_parameterized(
             model=model,
             omega_t_over_2pi=1.18,
             config=Evered2023ParameterizedGRAPEConfig(
@@ -214,7 +210,7 @@ class Evered2023ParallelCZTest(unittest.TestCase):
             intermediate_detuning_over_effective_rabi=8.0,
             blockade_shift_over_effective_rabi=20.0,
         )
-        optimizer = Evered2023TwoPhotonDetuningGRAPEOptimizer(
+        optimizer = ClosedSystemGRAPE.evered_detuning(
             model=model,
             omega_t_over_2pi=1.18,
             config=Evered2023ParameterizedGRAPEConfig(

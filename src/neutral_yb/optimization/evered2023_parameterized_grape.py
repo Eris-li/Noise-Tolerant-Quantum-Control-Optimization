@@ -8,9 +8,9 @@ from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize
 
 from neutral_yb.models.evered2023_parallel_cz import Evered2023TimeOptimalPulse
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -92,14 +92,14 @@ class Evered2023ParameterizedGRAPEResult:
         }
 
 
-class Evered2023ParameterizedGRAPEOptimizer:
+class _Evered2023ParameterizedClosedSystemGRAPE(ClosedSystemGRAPE):
     """GRAPE optimizer for the Evered fixed-amplitude analytic pulse family.
 
     The optimized variables are the global pulse parameters in
 
         phi(t) = A cos(omega t - phi0) + delta0 t.
 
-    Slot-wise GRAPE phase gradients are computed by `PaperGlobalPhaseOptimizer`
+    Slot-wise GRAPE phase gradients are computed by `ClosedSystemGRAPE.global_phase`
     and then chained to the global parameters. The paper profile is used only as
     a reference for reporting errors, not as an initial condition.
     """
@@ -118,7 +118,7 @@ class Evered2023ParameterizedGRAPEOptimizer:
         self.times = (
             np.arange(int(config.num_tslots), dtype=np.float64) + 0.5
         ) * (self.evo_time / int(config.num_tslots))
-        self.slot_optimizer = PaperGlobalPhaseOptimizer(
+        self.slot_optimizer = ClosedSystemGRAPE.global_phase(
             model=model,
             config=GlobalPhaseOptimizationConfig(
                 num_tslots=int(config.num_tslots),
@@ -287,7 +287,7 @@ class Evered2023ParameterizedGRAPEOptimizer:
         )
 
 
-class Evered2023TwoPhotonDetuningGRAPEOptimizer:
+class _Evered2023DetuningClosedSystemGRAPE(ClosedSystemGRAPE):
     """Parameterized GRAPE for the two-photon detuning-gauge Hamiltonian.
 
     The physical control is the two-photon detuning

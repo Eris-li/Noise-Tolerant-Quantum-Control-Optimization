@@ -12,14 +12,13 @@ from neutral_yb.models.yb171_clock_rydberg_cz_open import (
     Yb171ClockRydbergCZOpenModel,
     Yb171ClockRydbergNoiseConfig,
 )
+from neutral_yb.optimization.grape import ClosedSystemGRAPE, OpenSystemGRAPE
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
     GlobalPhaseOptimizationResult,
-    PaperGlobalPhaseOptimizer,
     TimeOptimalScanResult,
 )
 from neutral_yb.optimization.linear_control_grape import (
-    LinearControlGRAPEOptimizer,
     LinearControlOptimizationConfig,
     LinearControlOptimizationResult,
     LinearTimeOptimalScanResult,
@@ -28,34 +27,30 @@ from neutral_yb.optimization.open_system_grape import (
     OpenSystemGRAPEConfig,
     OpenSystemGRAPEResult,
     OpenSystemScanResult,
-    OpenSystemGRAPEOptimizer,
 )
 from neutral_yb.optimization.amplitude_phase_grape import (
     AmplitudePhaseOptimizationConfig,
     AmplitudePhaseOptimizationResult,
-    AmplitudePhaseOptimizer,
     AmplitudePhaseScanResult,
 )
 
 __all__ = [
     "AmplitudePhaseOptimizationConfig",
     "AmplitudePhaseOptimizationResult",
-    "AmplitudePhaseOptimizer",
     "AmplitudePhaseScanResult",
+    "ClosedSystemGRAPE",
     "FiniteBlockadeCZ5DModel",
     "GlobalCZ4DModel",
     "GlobalPhaseOptimizationConfig",
     "GlobalPhaseOptimizationResult",
-    "LinearControlGRAPEOptimizer",
     "LinearControlOptimizationConfig",
     "LinearControlOptimizationResult",
     "LinearTimeOptimalScanResult",
     "NeutralYb171Species",
+    "OpenSystemGRAPE",
     "OpenSystemGRAPEConfig",
     "OpenSystemGRAPEResult",
-    "OpenSystemGRAPEOptimizer",
     "OpenSystemScanResult",
-    "PaperGlobalPhaseOptimizer",
     "TimeOptimalScanResult",
     "TwoPhotonCZOpen10DModel",
     "TwoPhotonCZ9DModel",

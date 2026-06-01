@@ -143,7 +143,7 @@ class OpenSystemScanResult:
         }
 
 
-class OpenSystemGRAPEOptimizer:
+class OpenSystemGRAPE:
     r"""Open-system GRAPE for the active {|01>, |11>} manifold.
 
     The default optimization target follows arXiv:2202.00903. It propagates

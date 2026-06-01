@@ -18,10 +18,9 @@ from neutral_yb.models.evered2023_parallel_cz import (
     build_evered2023_ideal_global_cz_model,
     build_evered2023_two_photon_detuning_model,
 )
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.evered2023_parameterized_grape import (
     Evered2023ParameterizedGRAPEConfig,
-    Evered2023ParameterizedGRAPEOptimizer,
-    Evered2023TwoPhotonDetuningGRAPEOptimizer,
 )
 
 
@@ -34,14 +33,14 @@ def frange(start: float, stop: float, step: float) -> list[float]:
     return values
 
 
-def result_with_paper_style_benchmark(result, optimizer_class, model) -> dict[str, object]:
+def result_with_paper_style_benchmark(result, optimizer_factory, model) -> dict[str, object]:
     payload = result.to_json()
     config = Evered2023ParameterizedGRAPEConfig(
         num_tslots=int(result.num_tslots),
         max_iter=1,
         num_restarts=1,
     )
-    optimizer = optimizer_class(
+    optimizer = optimizer_factory(
         model=model,
         omega_t_over_2pi=float(result.omega_t_over_2pi),
         config=config,
@@ -124,7 +123,7 @@ def main() -> None:
     calibration = Evered2023ParallelCZCalibration()
     if args.model == "effective":
         model = build_evered2023_ideal_global_cz_model(species=idealised_yb171())
-        optimizer_class = Evered2023ParameterizedGRAPEOptimizer
+        optimizer_factory = ClosedSystemGRAPE.evered_parameterized
     elif args.model == "two-photon-detuning":
         detuning_ratio = (
             calibration.intermediate_detuning_hz / calibration.omega_over_2pi_hz
@@ -153,7 +152,7 @@ def main() -> None:
             static_resonance_shift=static_resonance_shift,
             use_leading_order_dressed_basis=bool(args.dressed_basis),
         )
-        optimizer_class = Evered2023TwoPhotonDetuningGRAPEOptimizer
+        optimizer_factory = ClosedSystemGRAPE.evered_detuning
     else:
         detuning_ratio = (
             calibration.intermediate_detuning_hz / calibration.omega_over_2pi_hz
@@ -180,7 +179,7 @@ def main() -> None:
             intermediate_detuning=detuning_ratio,
             blockade_shift=blockade_ratio,
         )
-        optimizer_class = Evered2023ParameterizedGRAPEOptimizer
+        optimizer_factory = ClosedSystemGRAPE.evered_parameterized
     durations = frange(args.start, args.stop, args.step)
     results = []
     for index, duration in enumerate(durations, start=1):
@@ -195,7 +194,7 @@ def main() -> None:
             fidelity_target=float(args.target_fidelity),
             show_progress=args.show_progress,
         )
-        optimizer = optimizer_class(
+        optimizer = optimizer_factory(
             model=model,
             omega_t_over_2pi=duration,
             config=config,
@@ -215,13 +214,13 @@ def main() -> None:
     best_threshold = None if not qualifying else min(qualifying, key=lambda result: result.omega_t_over_2pi)
     best_fidelity = max(results, key=lambda result: result.fidelity)
 
-    result_payloads = [result_with_paper_style_benchmark(result, optimizer_class, model) for result in results]
+    result_payloads = [result_with_paper_style_benchmark(result, optimizer_factory, model) for result in results]
     best_threshold_payload = (
         None
         if best_threshold is None
-        else result_with_paper_style_benchmark(best_threshold, optimizer_class, model)
+        else result_with_paper_style_benchmark(best_threshold, optimizer_factory, model)
     )
-    best_fidelity_payload = result_with_paper_style_benchmark(best_fidelity, optimizer_class, model)
+    best_fidelity_payload = result_with_paper_style_benchmark(best_fidelity, optimizer_factory, model)
 
     payload = {
         "line": "evered2023_parallel_cz",

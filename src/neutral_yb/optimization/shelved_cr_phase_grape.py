@@ -8,6 +8,7 @@ from scipy.linalg import expm, expm_frechet
 from scipy.optimize import OptimizeResult, minimize
 
 from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope_from_times
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 
 
 def wrap_phase(phases: np.ndarray) -> np.ndarray:
@@ -59,7 +60,7 @@ class ShelvedCRPhaseGRAPEConfig:
     rydberg_lifetime_s: float | None = None
 
 
-class ClosedShelvedCRPhaseGRAPE:
+class _ShelvedCRPhaseClosedSystemGRAPE(ClosedSystemGRAPE):
     """Phase-only GRAPE for the shelved control-Rydberg CZ segment.
 
     The reduced basis is ``|00>, |0c>, |0r>, |cc>, |W_cr>, |rr>``. Only the
@@ -244,12 +245,12 @@ class ClosedShelvedCRPhaseGRAPE:
         self.h_y[right, left] = 1j * strength
 
 
-class RydbergDecayShelvedCRPhaseGRAPE(ClosedShelvedCRPhaseGRAPE):
+class _RydbergDecayShelvedCRPhaseClosedSystemGRAPE(_ShelvedCRPhaseClosedSystemGRAPE):
     """Shelved CR phase GRAPE with Rydberg decay as a no-jump non-Hermitian term."""
 
     def __init__(self, config: ShelvedCRPhaseGRAPEConfig) -> None:
         if config.rydberg_lifetime_s is None:
-            raise ValueError("RydbergDecayShelvedCRPhaseGRAPE requires rydberg_lifetime_s")
+            raise ValueError("ClosedSystemGRAPE.shelved_cr_phase(include_rydberg_decay=True) requires rydberg_lifetime_s")
         super().__init__(config)
         self.rydberg_lifetime_s = float(config.rydberg_lifetime_s)
         self.decay_rate_over_omega = 1.0 / (2.0 * np.pi * self.omega_max_mhz * 1e6 * self.rydberg_lifetime_s)

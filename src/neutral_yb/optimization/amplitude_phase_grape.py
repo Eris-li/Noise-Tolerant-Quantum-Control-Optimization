@@ -9,6 +9,8 @@ import numpy as np
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize
 
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
+
 
 @dataclass(frozen=True)
 class AmplitudePhaseOptimizationConfig:
@@ -85,7 +87,7 @@ class AmplitudePhaseScanResult:
         }
 
 
-class AmplitudePhaseOptimizer:
+class _AmplitudePhaseClosedSystemGRAPE(ClosedSystemGRAPE):
     """Single-phase, single-amplitude optimizer for the lower leg."""
 
     def __init__(self, model, config: AmplitudePhaseOptimizationConfig):
@@ -94,7 +96,7 @@ class AmplitudePhaseOptimizer:
         self.h_d = model.drift_hamiltonian().full()
         groups = model.phase_control_hamiltonians()
         if len(groups) != 1:
-            raise ValueError("AmplitudePhaseOptimizer expects a single optimized control channel")
+            raise ValueError("ClosedSystemGRAPE.amplitude_phase expects a single optimized control channel")
         self.h_x, self.h_y = [operator.full() for operator in groups[0]]
         self.initial_state = model.initial_state().full().ravel()
         self.phase_gate_indices = model.phase_gate_state_indices()
@@ -186,7 +188,7 @@ class AmplitudePhaseOptimizer:
 
         for index, duration in enumerate(durations, start=1):
             started_at = time.perf_counter()
-            optimizer = AmplitudePhaseOptimizer(
+            optimizer = _AmplitudePhaseClosedSystemGRAPE(
                 self.model,
                 AmplitudePhaseOptimizationConfig(
                     num_tslots=self.config.num_tslots,

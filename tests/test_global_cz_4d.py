@@ -8,9 +8,9 @@ from tests import _bootstrap  # noqa: F401
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.global_cz_4d import GlobalCZ4DModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -28,7 +28,7 @@ class GlobalCZ4DTest(unittest.TestCase):
 
     def test_optimizer_objective_runs(self) -> None:
         model = GlobalCZ4DModel(species=idealised_yb171())
-        optimizer = PaperGlobalPhaseOptimizer(
+        optimizer = ClosedSystemGRAPE.global_phase(
             model,
             GlobalPhaseOptimizationConfig(num_tslots=6, evo_time=2.0, max_iter=1),
         )

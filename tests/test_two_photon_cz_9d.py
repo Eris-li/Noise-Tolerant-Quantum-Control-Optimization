@@ -8,9 +8,9 @@ from tests import _bootstrap  # noqa: F401
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -41,7 +41,7 @@ class TwoPhotonCZ9DTest(unittest.TestCase):
             two_photon_detuning_01=0.02,
             two_photon_detuning_11=0.02,
         )
-        optimizer = PaperGlobalPhaseOptimizer(
+        optimizer = ClosedSystemGRAPE.global_phase(
             model,
             GlobalPhaseOptimizationConfig(num_tslots=5, evo_time=2.0, max_iter=1),
         )

@@ -8,9 +8,9 @@ from tests import _bootstrap  # noqa: F401
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.finite_blockade_cz_5d import FiniteBlockadeCZ5DModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.global_phase_grape import (
     GlobalPhaseOptimizationConfig,
-    PaperGlobalPhaseOptimizer,
 )
 
 
@@ -34,7 +34,7 @@ class FiniteBlockadeCZ5DTest(unittest.TestCase):
             static_detuning_11=0.01,
             rabi_scale=0.98,
         )
-        optimizer = PaperGlobalPhaseOptimizer(
+        optimizer = ClosedSystemGRAPE.global_phase(
             model,
             GlobalPhaseOptimizationConfig(num_tslots=6, evo_time=2.0, max_iter=1),
         )

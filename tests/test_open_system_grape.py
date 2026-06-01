@@ -12,11 +12,12 @@ from neutral_yb.config.yb171_calibration import (
     build_yb171_v4_quasistatic_ensemble,
 )
 from neutral_yb.models.ma2023_pulse import gaussian_edge_envelope_from_times
-from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig, OpenSystemGRAPEOptimizer
+from neutral_yb.optimization.grape import OpenSystemGRAPE
+from neutral_yb.optimization.open_system_grape import OpenSystemGRAPEConfig
 
 
 class OpenSystemGRAPETest(unittest.TestCase):
-    def build_optimizer(self) -> OpenSystemGRAPEOptimizer:
+    def build_optimizer(self) -> OpenSystemGRAPE:
         model = replace(
             build_yb171_v4_calibrated_model(
                 include_noise=True,
@@ -25,7 +26,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
             clock_num_steps=2,
             clock_pi_time=0.2,
         )
-        return OpenSystemGRAPEOptimizer(
+        return OpenSystemGRAPE(
             model=model,
             config=OpenSystemGRAPEConfig(
                 num_tslots=4,
@@ -38,7 +39,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
             ),
         )
 
-    def build_active_channel_optimizer(self) -> OpenSystemGRAPEOptimizer:
+    def build_active_channel_optimizer(self) -> OpenSystemGRAPE:
         model = replace(
             build_yb171_v4_calibrated_model(
                 include_noise=False,
@@ -47,7 +48,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
             clock_num_steps=1,
             clock_pi_time=0.05,
         )
-        return OpenSystemGRAPEOptimizer(
+        return OpenSystemGRAPE(
             model=model,
             config=OpenSystemGRAPEConfig(
                 num_tslots=1,
@@ -176,7 +177,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
 
     def test_single_member_ensemble_matches_nominal_objective(self) -> None:
         optimizer = self.build_optimizer()
-        ensemble_optimizer = OpenSystemGRAPEOptimizer(
+        ensemble_optimizer = OpenSystemGRAPE(
             model=optimizer.model,
             config=optimizer.config,
             ensemble_models=[
@@ -190,7 +191,7 @@ class OpenSystemGRAPETest(unittest.TestCase):
             ],
         )
         variables = np.array([0.02, -0.01, 0.03, -0.02, -0.01, 0.03, -0.02, 0.01, 0.4], dtype=np.float64)
-        objective_nominal, gradient_nominal = OpenSystemGRAPEOptimizer(
+        objective_nominal, gradient_nominal = OpenSystemGRAPE(
             model=replace(
                 build_yb171_v4_calibrated_model(include_noise=False, effective_rabi_hz=10e6),
                 clock_num_steps=2,

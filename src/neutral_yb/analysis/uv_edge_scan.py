@@ -9,8 +9,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.shelved_cr_phase_grape import (
-    RydbergDecayShelvedCRPhaseGRAPE,
     ShelvedCRPhaseGRAPEConfig,
     unwrap_for_plot,
 )
@@ -80,7 +80,7 @@ def config_metadata(config: UVDenseEdgeScanConfig) -> dict[str, object]:
 
 
 def _initial_starts(
-    grape: RydbergDecayShelvedCRPhaseGRAPE,
+    grape: ClosedSystemGRAPE,
     previous_variables: np.ndarray | None,
     omega_max_mhz: float,
     edge_ns: float,
@@ -108,7 +108,7 @@ def run_uv_edge_scan(config: UVDenseEdgeScanConfig) -> list[dict[str, object]]:
                 if not dense_time_is_allowed(total_time, edge):
                     continue
 
-                grape = RydbergDecayShelvedCRPhaseGRAPE(
+                grape = ClosedSystemGRAPE.shelved_cr_phase(
                     ShelvedCRPhaseGRAPEConfig(
                         omega_max_mhz=float(omega),
                         total_time_ns=float(total_time),
@@ -118,7 +118,8 @@ def run_uv_edge_scan(config: UVDenseEdgeScanConfig) -> list[dict[str, object]]:
                         smoothness_weight=config.smoothness_weight,
                         curvature_weight=config.curvature_weight,
                         rydberg_lifetime_s=config.rydberg_lifetime_s,
-                    )
+                    ),
+                    include_rydberg_decay=True,
                 )
                 result, evaluated = grape.optimize(
                     _initial_starts(grape, previous_variables, omega, edge, time_index),

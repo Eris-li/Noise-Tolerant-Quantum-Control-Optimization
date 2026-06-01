@@ -9,6 +9,8 @@ import numpy as np
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize
 
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
+
 
 class LinearPhaseGateModel(Protocol):
     def drift_hamiltonian(self): ...
@@ -88,7 +90,7 @@ class LinearTimeOptimalScanResult:
         }
 
 
-class LinearControlGRAPEOptimizer:
+class _LinearControlClosedSystemGRAPE(ClosedSystemGRAPE):
     """GRAPE optimizer for linearly controlled phase-gate Hamiltonians."""
 
     def __init__(self, model: LinearPhaseGateModel, config: LinearControlOptimizationConfig):
@@ -183,7 +185,7 @@ class LinearControlGRAPEOptimizer:
         fidelities: list[float] = []
 
         for duration in durations:
-            optimizer = LinearControlGRAPEOptimizer(
+            optimizer = _LinearControlClosedSystemGRAPE(
                 self.model,
                 LinearControlOptimizationConfig(
                     num_tslots=self.config.num_tslots,

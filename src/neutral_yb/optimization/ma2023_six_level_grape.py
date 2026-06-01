@@ -16,6 +16,7 @@ from neutral_yb.models.ma2023_pulse import (
 )
 from neutral_yb.models.ma2023_noise import Ma2023NoiseTrace, apply_noise_trace_to_controls
 from neutral_yb.models.ma2023_six_level import Ma2023PerfectBlockadeSixLevelModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,7 @@ class Ma2023SixLevelGRAPEResult:
         return payload
 
 
-class Ma2023SixLevelPhaseOptimizer:
+class _Ma2023SixLevelPhaseClosedSystemGRAPE(ClosedSystemGRAPE):
     """Phase-only GRAPE optimizer for the Ma 2023 perfect-blockade six-level model."""
 
     def __init__(
@@ -387,7 +388,7 @@ class Ma2023SixLevelPhaseOptimizer:
         return projector
 
 
-class Ma2023SixLevelChebyshevPhaseRateOptimizer(Ma2023SixLevelPhaseOptimizer):
+class _Ma2023SixLevelChebyshevClosedSystemGRAPE(_Ma2023SixLevelPhaseClosedSystemGRAPE):
     """GRAPE optimizer using the Ma 2023 Chebyshev phase-rate parameterization.
 
     The optimized control variables are ``c_0..c_n, phi_0, theta_0, theta_1``.

@@ -8,13 +8,13 @@ from tests import _bootstrap  # noqa: F401
 
 from neutral_yb.config.species import idealised_yb171
 from neutral_yb.models.two_photon_cz_9d import TwoPhotonCZ9DModel
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
 from neutral_yb.optimization.amplitude_phase_grape import (
     AmplitudePhaseOptimizationConfig,
-    AmplitudePhaseOptimizer,
 )
 
 
-class AmplitudePhaseOptimizerTest(unittest.TestCase):
+class AmplitudePhaseClosedSystemGRAPETest(unittest.TestCase):
     def test_objective_runs(self) -> None:
         model = TwoPhotonCZ9DModel(
             species=idealised_yb171(),
@@ -23,7 +23,7 @@ class AmplitudePhaseOptimizerTest(unittest.TestCase):
             intermediate_detuning=8.0,
             blockade_shift=9.0,
         )
-        optimizer = AmplitudePhaseOptimizer(
+        optimizer = ClosedSystemGRAPE.amplitude_phase(
             model,
             AmplitudePhaseOptimizationConfig(num_tslots=6, evo_time=2.0, max_iter=1),
         )

@@ -10,6 +10,8 @@ import numpy as np
 from scipy.linalg import expm, expm_frechet
 from scipy.optimize import minimize
 
+from neutral_yb.optimization.grape import ClosedSystemGRAPE
+
 
 class PhaseGateModel(Protocol):
     species: object
@@ -91,7 +93,7 @@ class TimeOptimalScanResult:
         }
 
 
-class PaperGlobalPhaseOptimizer:
+class _GlobalPhaseClosedSystemGRAPE(ClosedSystemGRAPE):
     """Paper-style optimizer for phase-gate control problems.
 
     The optimizer supports one or more phase-modulated control channels.
@@ -213,7 +215,7 @@ class PaperGlobalPhaseOptimizer:
 
         for duration in durations:
             started_at = time.perf_counter()
-            optimizer = PaperGlobalPhaseOptimizer(
+            optimizer = _GlobalPhaseClosedSystemGRAPE(
                 self.model,
                 GlobalPhaseOptimizationConfig(
                     num_tslots=self.config.num_tslots,
