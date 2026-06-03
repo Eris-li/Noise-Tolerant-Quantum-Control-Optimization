@@ -1,0 +1,909 @@
+{
+  "source": {
+    "zotero_item_key": "IK4SLCXW",
+    "zotero_attachment_key": "CCXS3N3C",
+    "doi": "10.1088/1367-2630/adcfbe",
+    "title": "Erasing Doppler dephasing error in Rydberg quantum gates",
+    "authors": [
+      "Rui Li",
+      "Jing Qian",
+      "Weiping Zhang"
+    ],
+    "journal": "New Journal of Physics",
+    "year": 2025
+  },
+  "config": {
+    "omega_max_mhz": 10.0,
+    "total_time_ns": 170.0,
+    "edge_time_ns": 40.0,
+    "num_tslots": 64,
+    "nominal_blockade_shift_mhz": 160.0,
+    "rydberg_lifetime_s": 6.5e-05,
+    "atom_mass_amu": 171.0,
+    "trap_frequency_khz": 50.0,
+    "mean_motional_occupation": 0.25,
+    "mean_motional_occupation_uncertainty": 0.1,
+    "pair_spacing_um": 3.0,
+    "uv_wavelength_nm": 301.9,
+    "source_phase_path": "artifacts/v5/closed_cr_edge_time_optimal_scan/rydberg_decay_65us_dense_selected_phase_rows.json",
+    "artifact_dir": "artifacts/v5/uv_thermal_blockade_noise_response_20260603"
+  },
+  "temperature_reference": {
+    "source": "inferred from reported nbar using Bose-Einstein oscillator relation",
+    "nbar": 0.25,
+    "reference_temperature_uK": 1.4909686895492906
+  },
+  "doppler_summary": {
+    "temperature_source": "inferred from reported nbar using Bose-Einstein oscillator relation",
+    "reference_temperature_uK": 1.4909686895492906,
+    "nbar_used_for_reference": 0.25,
+    "sigma_velocity_m_per_s": 0.008514385294874896,
+    "k_uv_per_um": 20.81214079887243,
+    "single_atom_sigma_delta_over_2pi_khz": 28.20266742257336,
+    "common_mode_sigma_delta_over_2pi_khz": 19.94229738205055,
+    "differential_sigma_delta_over_2pi_khz": 19.94229738205055,
+    "double_rydberg_sum_sigma_delta_over_2pi_khz": 39.88459476410111,
+    "single_atom_sigma_delta_over_2pi_khz_per_sqrt_uK": 23.09701861606123,
+    "common_mode_sigma_delta_over_2pi_khz_per_sqrt_uK": 16.332058488608823,
+    "double_rydberg_sum_sigma_delta_over_2pi_khz_per_sqrt_uK": 32.66411697721765,
+    "sigma_delta_over_omega": 0.002820266742257336,
+    "full_gate_single_rydberg_rms_phase_rad": 0.0301244395473735,
+    "full_gate_single_rydberg_rms_phase_rad_per_sqrt_uK": 0.024670884161375185,
+    "common_mode_average_process_fidelity": 0.9992746788303174,
+    "conservative_single_atom_sigma_common_detuning_average_process_fidelity": 0.9992683346554267,
+    "common_mode_average_loss_proxy": 0.0007214267540647112
+  },
+  "common_mode_response_rows": [
+    {
+      "common_detuning_khz": -141.01333711286682,
+      "process_fidelity": 0.9989691126803252,
+      "active_population": 0.9991639070925045,
+      "process_infidelity": 0.0010308873196748225,
+      "loss_proxy": 0.0008360929074955337
+    },
+    {
+      "common_detuning_khz": -138.66311482765238,
+      "process_fidelity": 0.9989793993375166,
+      "active_population": 0.9991677870938029,
+      "process_infidelity": 0.0010206006624834396,
+      "loss_proxy": 0.0008322129061970607
+    },
+    {
+      "common_detuning_khz": -136.31289254243794,
+      "process_fidelity": 0.9989895153760681,
+      "active_population": 0.9991716037212065,
+      "process_infidelity": 0.0010104846239319398,
+      "loss_proxy": 0.0008283962787934973
+    },
+    {
+      "common_detuning_khz": -133.9626702572235,
+      "process_fidelity": 0.998999460698746,
+      "active_population": 0.9991753568747165,
+      "process_infidelity": 0.0010005393012539887,
+      "loss_proxy": 0.0008246431252835196
+    },
+    {
+      "common_detuning_khz": -131.61244797200902,
+      "process_fidelity": 0.9990092352083761,
+      "active_population": 0.9991790464542416,
+      "process_infidelity": 0.0009907647916238549,
+      "loss_proxy": 0.0008209535457583961
+    },
+    {
+      "common_detuning_khz": -129.26222568679458,
+      "process_fidelity": 0.9990188388078606,
+      "active_population": 0.9991826723596127,
+      "process_infidelity": 0.0009811611921394237,
+      "loss_proxy": 0.0008173276403873331
+    },
+    {
+      "common_detuning_khz": -126.91200340158014,
+      "process_fidelity": 0.9990282714001607,
+      "active_population": 0.999186234490567,
+      "process_infidelity": 0.0009717285998392944,
+      "loss_proxy": 0.0008137655094330176
+    },
+    {
+      "common_detuning_khz": -124.5617811163657,
+      "process_fidelity": 0.9990375328883103,
+      "active_population": 0.9991897327467607,
+      "process_infidelity": 0.0009624671116896799,
+      "loss_proxy": 0.000810267253239294
+    },
+    {
+      "common_detuning_khz": -122.21155883115125,
+      "process_fidelity": 0.9990466231754083,
+      "active_population": 0.9991931670277623,
+      "process_infidelity": 0.000953376824591734,
+      "loss_proxy": 0.0008068329722377143
+    },
+    {
+      "common_detuning_khz": -119.8613365459368,
+      "process_fidelity": 0.9990555421646252,
+      "active_population": 0.9991965372330586,
+      "process_infidelity": 0.000944457835374779,
+      "loss_proxy": 0.0008034627669414318
+    },
+    {
+      "common_detuning_khz": -117.51111426072235,
+      "process_fidelity": 0.9990642897591928,
+      "active_population": 0.9991998432620447,
+      "process_infidelity": 0.000935710240807186,
+      "loss_proxy": 0.0008001567379553043
+    },
+    {
+      "common_detuning_khz": -115.1608919755079,
+      "process_fidelity": 0.9990728658624151,
+      "active_population": 0.9992030850140344,
+      "process_infidelity": 0.0009271341375849396,
+      "loss_proxy": 0.0007969149859655689
+    },
+    {
+      "common_detuning_khz": -112.81066969029345,
+      "process_fidelity": 0.9990812703776678,
+      "active_population": 0.99920626238826,
+      "process_infidelity": 0.0009187296223321928,
+      "loss_proxy": 0.000793737611739953
+    },
+    {
+      "common_detuning_khz": -110.46044740507901,
+      "process_fidelity": 0.9990895032083884,
+      "active_population": 0.9992093752838626,
+      "process_infidelity": 0.0009104967916115925,
+      "loss_proxy": 0.0007906247161374447
+    },
+    {
+      "common_detuning_khz": -108.11022511986457,
+      "process_fidelity": 0.9990975642580854,
+      "active_population": 0.9992124235999023,
+      "process_infidelity": 0.0009024357419146201,
+      "loss_proxy": 0.0007875764000977448
+    },
+    {
+      "common_detuning_khz": -105.76000283465012,
+      "process_fidelity": 0.999105453430342,
+      "active_population": 0.9992154072353583,
+      "process_infidelity": 0.000894546569658039,
+      "loss_proxy": 0.0007845927646417117
+    },
+    {
+      "common_detuning_khz": -103.40978054943567,
+      "process_fidelity": 0.9991131706287953,
+      "active_population": 0.9992183260891133,
+      "process_infidelity": 0.000886829371204656,
+      "loss_proxy": 0.0007816739108866821
+    },
+    {
+      "common_detuning_khz": -101.05955826422121,
+      "process_fidelity": 0.9991207157571719,
+      "active_population": 0.999221180059984,
+      "process_infidelity": 0.0008792842428281267,
+      "loss_proxy": 0.0007788199400160511
+    },
+    {
+      "common_detuning_khz": -98.70933597900677,
+      "process_fidelity": 0.9991280887192487,
+      "active_population": 0.9992239690466862,
+      "process_infidelity": 0.0008719112807512586,
+      "loss_proxy": 0.0007760309533137999
+    },
+    {
+      "common_detuning_khz": -96.35911369379232,
+      "process_fidelity": 0.999135289418882,
+      "active_population": 0.9992266929478612,
+      "process_infidelity": 0.0008647105811180333,
+      "loss_proxy": 0.0007733070521388496
+    },
+    {
+      "common_detuning_khz": -94.00889140857788,
+      "process_fidelity": 0.9991423177600008,
+      "active_population": 0.9992293516620695,
+      "process_infidelity": 0.0008576822399991579,
+      "loss_proxy": 0.0007706483379305018
+    },
+    {
+      "common_detuning_khz": -91.65866912336344,
+      "process_fidelity": 0.9991491736465963,
+      "active_population": 0.9992319450877822,
+      "process_infidelity": 0.0008508263534037219,
+      "loss_proxy": 0.0007680549122177638
+    },
+    {
+      "common_detuning_khz": -89.30844683814898,
+      "process_fidelity": 0.9991558569827321,
+      "active_population": 0.9992344731233881,
+      "process_infidelity": 0.0008441430172678732,
+      "loss_proxy": 0.0007655268766119105
+    },
+    {
+      "common_detuning_khz": -86.95822455293454,
+      "process_fidelity": 0.9991623676725434,
+      "active_population": 0.9992369356671955,
+      "process_infidelity": 0.0008376323274565944,
+      "loss_proxy": 0.0007630643328044862
+    },
+    {
+      "common_detuning_khz": -84.60800226772008,
+      "process_fidelity": 0.9991687056202359,
+      "active_population": 0.9992393326174299,
+      "process_infidelity": 0.000831294379764147,
+      "loss_proxy": 0.0007606673825700794
+    },
+    {
+      "common_detuning_khz": -82.25777998250564,
+      "process_fidelity": 0.9991748707300809,
+      "active_population": 0.9992416638722296,
+      "process_infidelity": 0.0008251292699190671,
+      "loss_proxy": 0.0007583361277704315
+    },
+    {
+      "common_detuning_khz": -79.9075576972912,
+      "process_fidelity": 0.9991808629064292,
+      "active_population": 0.9992439293296591,
+      "process_infidelity": 0.0008191370935708431,
+      "loss_proxy": 0.0007560706703408915
+    },
+    {
+      "common_detuning_khz": -77.55733541207675,
+      "process_fidelity": 0.9991866820536943,
+      "active_population": 0.9992461288876935,
+      "process_infidelity": 0.0008133179463056806,
+      "loss_proxy": 0.0007538711123065145
+    },
+    {
+      "common_detuning_khz": -75.2071131268623,
+      "process_fidelity": 0.9991923280763707,
+      "active_population": 0.9992482624442346,
+      "process_infidelity": 0.000807671923629294,
+      "loss_proxy": 0.0007517375557654082
+    },
+    {
+      "common_detuning_khz": -72.85689084164785,
+      "process_fidelity": 0.9991978008790083,
+      "active_population": 0.9992503298970876,
+      "process_infidelity": 0.0008021991209916646,
+      "loss_proxy": 0.0007496701029123809
+    },
+    {
+      "common_detuning_khz": -70.50666855643341,
+      "process_fidelity": 0.9992031003662427,
+      "active_population": 0.9992523311439904,
+      "process_infidelity": 0.0007968996337572865,
+      "loss_proxy": 0.0007476688560096312
+    },
+    {
+      "common_detuning_khz": -68.15644627121895,
+      "process_fidelity": 0.999208226442773,
+      "active_population": 0.999254266082591,
+      "process_infidelity": 0.0007917735572270379,
+      "loss_proxy": 0.0007457339174089528
+    },
+    {
+      "common_detuning_khz": -65.80622398600451,
+      "process_fidelity": 0.9992131790133763,
+      "active_population": 0.9992561346104634,
+      "process_infidelity": 0.0007868209866237486,
+      "loss_proxy": 0.0007438653895366354
+    },
+    {
+      "common_detuning_khz": -63.45600170079007,
+      "process_fidelity": 0.9992179579828999,
+      "active_population": 0.999257936625098,
+      "process_infidelity": 0.0007820420171000819,
+      "loss_proxy": 0.0007420633749020134
+    },
+    {
+      "common_detuning_khz": -61.10577941557561,
+      "process_fidelity": 0.9992225632562566,
+      "active_population": 0.9992596720238982,
+      "process_infidelity": 0.0007774367437434204,
+      "loss_proxy": 0.0007403279761017956
+    },
+    {
+      "common_detuning_khz": -58.75555713036117,
+      "process_fidelity": 0.99922699473844,
+      "active_population": 0.9992613407041955,
+      "process_infidelity": 0.0007730052615599892,
+      "loss_proxy": 0.0007386592958045224
+    },
+    {
+      "common_detuning_khz": -56.405334845146726,
+      "process_fidelity": 0.9992312523345134,
+      "active_population": 0.9992629425632384,
+      "process_infidelity": 0.0007687476654866243,
+      "loss_proxy": 0.0007370574367615568
+    },
+    {
+      "common_detuning_khz": -54.05511255993227,
+      "process_fidelity": 0.9992353359496109,
+      "active_population": 0.999264477498193,
+      "process_infidelity": 0.0007646640503891078,
+      "loss_proxy": 0.0007355225018069733
+    },
+    {
+      "common_detuning_khz": -51.704890274717826,
+      "process_fidelity": 0.9992392454889382,
+      "active_population": 0.9992659454061448,
+      "process_infidelity": 0.0007607545110618341,
+      "loss_proxy": 0.0007340545938552268
+    },
+    {
+      "common_detuning_khz": -49.35466798950338,
+      "process_fidelity": 0.9992429808577801,
+      "active_population": 0.9992673461841046,
+      "process_infidelity": 0.0007570191422199279,
+      "loss_proxy": 0.0007326538158953788
+    },
+    {
+      "common_detuning_khz": -47.00444570428894,
+      "process_fidelity": 0.9992465419614887,
+      "active_population": 0.9992686797289994,
+      "process_infidelity": 0.0007534580385113454,
+      "loss_proxy": 0.0007313202710006461
+    },
+    {
+      "common_detuning_khz": -44.654223419074484,
+      "process_fidelity": 0.9992499287054907,
+      "active_population": 0.9992699459376765,
+      "process_infidelity": 0.0007500712945093246,
+      "loss_proxy": 0.0007300540623235152
+    },
+    {
+      "common_detuning_khz": -42.30400113386004,
+      "process_fidelity": 0.9992531409952902,
+      "active_population": 0.9992711447069089,
+      "process_infidelity": 0.0007468590047098322,
+      "loss_proxy": 0.0007288552930910797
+    },
+    {
+      "common_detuning_khz": -39.9537788486456,
+      "process_fidelity": 0.9992561787364586,
+      "active_population": 0.9992722759333836,
+      "process_infidelity": 0.0007438212635414443,
+      "loss_proxy": 0.0007277240666163642
+    },
+    {
+      "common_detuning_khz": -37.60355656343114,
+      "process_fidelity": 0.9992590418346458,
+      "active_population": 0.9992733395137138,
+      "process_infidelity": 0.0007409581653542441,
+      "loss_proxy": 0.0007266604862862236
+    },
+    {
+      "common_detuning_khz": -35.2533342782167,
+      "process_fidelity": 0.9992617301955745,
+      "active_population": 0.999274335344434,
+      "process_infidelity": 0.0007382698044254843,
+      "loss_proxy": 0.0007256646555660051
+    },
+    {
+      "common_detuning_khz": -32.903111993002256,
+      "process_fidelity": 0.9992642437250416,
+      "active_population": 0.9992752633219972,
+      "process_infidelity": 0.0007357562749583657,
+      "loss_proxy": 0.0007247366780027686
+    },
+    {
+      "common_detuning_khz": -30.5528897077878,
+      "process_fidelity": 0.9992665823289182,
+      "active_population": 0.9992761233427813,
+      "process_infidelity": 0.0007334176710818152,
+      "loss_proxy": 0.0007238766572187361
+    },
+    {
+      "common_detuning_khz": -28.202667422573356,
+      "process_fidelity": 0.9992687459131437,
+      "active_population": 0.9992769153030785,
+      "process_infidelity": 0.0007312540868562589,
+      "loss_proxy": 0.0007230846969215055
+    },
+    {
+      "common_detuning_khz": -25.852445137358913,
+      "process_fidelity": 0.9992707343837492,
+      "active_population": 0.9992776390991203,
+      "process_infidelity": 0.0007292656162507516,
+      "loss_proxy": 0.0007223609008797371
+    },
+    {
+      "common_detuning_khz": -23.502222852144456,
+      "process_fidelity": 0.9992725476468257,
+      "active_population": 0.9992782946270454,
+      "process_infidelity": 0.0007274523531742849,
+      "loss_proxy": 0.000721705372954573
+    },
+    {
+      "common_detuning_khz": -21.152000566930013,
+      "process_fidelity": 0.9992741856085433,
+      "active_population": 0.9992788817829196,
+      "process_infidelity": 0.0007258143914566917,
+      "loss_proxy": 0.0007211182170804298
+    },
+    {
+      "common_detuning_khz": -18.80177828171557,
+      "process_fidelity": 0.9992756481751439,
+      "active_population": 0.9992794004627277,
+      "process_infidelity": 0.0007243518248560843,
+      "loss_proxy": 0.0007205995372723262
+    },
+    {
+      "common_detuning_khz": -16.451555996501114,
+      "process_fidelity": 0.9992769352529515,
+      "active_population": 0.9992798505623843,
+      "process_infidelity": 0.0007230647470485296,
+      "loss_proxy": 0.0007201494376156692
+    },
+    {
+      "common_detuning_khz": -14.10133371128667,
+      "process_fidelity": 0.9992780467483643,
+      "active_population": 0.9992802319777263,
+      "process_infidelity": 0.0007219532516357097,
+      "loss_proxy": 0.0007197680222736924
+    },
+    {
+      "common_detuning_khz": -11.751111426072214,
+      "process_fidelity": 0.9992789825678516,
+      "active_population": 0.9992805446045085,
+      "process_infidelity": 0.0007210174321483631,
+      "loss_proxy": 0.0007194553954914529
+    },
+    {
+      "common_detuning_khz": -9.400889140857771,
+      "process_fidelity": 0.9992797426179649,
+      "active_population": 0.9992807883384159,
+      "process_infidelity": 0.0007202573820350722,
+      "loss_proxy": 0.0007192116615840627
+    },
+    {
+      "common_detuning_khz": -7.050666855643328,
+      "process_fidelity": 0.9992803268053243,
+      "active_population": 0.9992809630750499,
+      "process_infidelity": 0.0007196731946756962,
+      "loss_proxy": 0.0007190369249501227
+    },
+    {
+      "common_detuning_khz": -4.7004445704288855,
+      "process_fidelity": 0.9992807350366307,
+      "active_population": 0.9992810687099403,
+      "process_infidelity": 0.0007192649633692705,
+      "loss_proxy": 0.0007189312900597322
+    },
+    {
+      "common_detuning_khz": -2.3502222852144428,
+      "process_fidelity": 0.9992809672186685,
+      "active_population": 0.9992811051385484,
+      "process_infidelity": 0.0007190327813314523,
+      "loss_proxy": 0.0007188948614516022
+    },
+    {
+      "common_detuning_khz": 0.0,
+      "process_fidelity": 0.9992810232582837,
+      "active_population": 0.9992810722562444,
+      "process_infidelity": 0.0007189767417162818,
+      "loss_proxy": 0.000718927743755593
+    },
+    {
+      "common_detuning_khz": 2.350222285214471,
+      "process_fidelity": 0.9992809030624066,
+      "active_population": 0.999280969958332,
+      "process_infidelity": 0.000719096937593422,
+      "loss_proxy": 0.0007190300416679563
+    },
+    {
+      "common_detuning_khz": 4.700444570428914,
+      "process_fidelity": 0.999280606538052,
+      "active_population": 0.9992807981400444,
+      "process_infidelity": 0.000719393461948048,
+      "loss_proxy": 0.0007192018599555539
+    },
+    {
+      "common_detuning_khz": 7.050666855643357,
+      "process_fidelity": 0.9992801335922977,
+      "active_population": 0.9992805566965293,
+      "process_infidelity": 0.0007198664077022743,
+      "loss_proxy": 0.0007194433034707348
+    },
+    {
+      "common_detuning_khz": 9.4008891408578,
+      "process_fidelity": 0.9992794841323102,
+      "active_population": 0.9992802455228674,
+      "process_infidelity": 0.0007205158676898415,
+      "loss_proxy": 0.0007197544771325726
+    },
+    {
+      "common_detuning_khz": 11.751111426072242,
+      "process_fidelity": 0.9992786580653229,
+      "active_population": 0.9992798645140577,
+      "process_infidelity": 0.0007213419346771,
+      "loss_proxy": 0.000720135485942297
+    },
+    {
+      "common_detuning_khz": 14.101333711286685,
+      "process_fidelity": 0.9992776552986607,
+      "active_population": 0.9992794135650359,
+      "process_infidelity": 0.0007223447013392503,
+      "loss_proxy": 0.0007205864349640878
+    },
+    {
+      "common_detuning_khz": 16.451555996501128,
+      "process_fidelity": 0.9992764757397136,
+      "active_population": 0.999278892570652,
+      "process_infidelity": 0.0007235242602864345,
+      "loss_proxy": 0.0007211074293479447
+    },
+    {
+      "common_detuning_khz": 18.8017782817156,
+      "process_fidelity": 0.9992751192959567,
+      "active_population": 0.9992783014256896,
+      "process_infidelity": 0.000724880704043307,
+      "loss_proxy": 0.0007216985743103699
+    },
+    {
+      "common_detuning_khz": 21.15200056693004,
+      "process_fidelity": 0.9992735858749423,
+      "active_population": 0.9992776400248569,
+      "process_infidelity": 0.000726414125057695,
+      "loss_proxy": 0.0007223599751431387
+    },
+    {
+      "common_detuning_khz": 23.502222852144484,
+      "process_fidelity": 0.999271875384298,
+      "active_population": 0.9992769082627849,
+      "process_infidelity": 0.0007281246157020416,
+      "loss_proxy": 0.0007230917372150758
+    },
+    {
+      "common_detuning_khz": 25.852445137358927,
+      "process_fidelity": 0.9992699877317329,
+      "active_population": 0.9992761060340362,
+      "process_infidelity": 0.0007300122682670773,
+      "loss_proxy": 0.0007238939659638399
+    },
+    {
+      "common_detuning_khz": 28.20266742257337,
+      "process_fidelity": 0.9992679228250345,
+      "active_population": 0.9992752332330979,
+      "process_infidelity": 0.0007320771749654842,
+      "loss_proxy": 0.0007247667669021407
+    },
+    {
+      "common_detuning_khz": 30.552889707787813,
+      "process_fidelity": 0.9992656805720728,
+      "active_population": 0.9992742897543887,
+      "process_infidelity": 0.0007343194279272325,
+      "loss_proxy": 0.0007257102456112996
+    },
+    {
+      "common_detuning_khz": 32.903111993002284,
+      "process_fidelity": 0.9992632608807835,
+      "active_population": 0.9992732754922424,
+      "process_infidelity": 0.0007367391192164563,
+      "loss_proxy": 0.0007267245077575701
+    },
+    {
+      "common_detuning_khz": 35.25333427821673,
+      "process_fidelity": 0.9992606636592003,
+      "active_population": 0.9992721903409356,
+      "process_infidelity": 0.0007393363407997011,
+      "loss_proxy": 0.0007278096590643823
+    },
+    {
+      "common_detuning_khz": 37.60355656343117,
+      "process_fidelity": 0.9992578888154207,
+      "active_population": 0.9992710341946613,
+      "process_infidelity": 0.0007421111845793416,
+      "loss_proxy": 0.000728965805338655
+    },
+    {
+      "common_detuning_khz": 39.95377884864561,
+      "process_fidelity": 0.9992549362576301,
+      "active_population": 0.9992698069475471,
+      "process_infidelity": 0.0007450637423699336,
+      "loss_proxy": 0.000730193052452921
+    },
+    {
+      "common_detuning_khz": 42.304001133860055,
+      "process_fidelity": 0.9992518058940925,
+      "active_population": 0.9992685084936461,
+      "process_infidelity": 0.0007481941059075403,
+      "loss_proxy": 0.0007314915063538763
+    },
+    {
+      "common_detuning_khz": 44.6542234190745,
+      "process_fidelity": 0.9992484976331524,
+      "active_population": 0.9992671387269422,
+      "process_infidelity": 0.0007515023668476228,
+      "loss_proxy": 0.0007328612730578277
+    },
+    {
+      "common_detuning_khz": 47.00444570428894,
+      "process_fidelity": 0.9992450113832333,
+      "active_population": 0.9992656975413459,
+      "process_infidelity": 0.0007549886167667053,
+      "loss_proxy": 0.0007343024586541347
+    },
+    {
+      "common_detuning_khz": 49.35466798950341,
+      "process_fidelity": 0.9992413470528326,
+      "active_population": 0.9992641848306909,
+      "process_infidelity": 0.0007586529471673709,
+      "loss_proxy": 0.0007358151693090953
+    },
+    {
+      "common_detuning_khz": 51.704890274717854,
+      "process_fidelity": 0.9992375045505419,
+      "active_population": 0.9992626004887531,
+      "process_infidelity": 0.000762495449458056,
+      "loss_proxy": 0.0007373995112468501
+    },
+    {
+      "common_detuning_khz": 54.0551125599323,
+      "process_fidelity": 0.999233483785021,
+      "active_population": 0.9992609444092247,
+      "process_infidelity": 0.0007665162149790294,
+      "loss_proxy": 0.0007390555907752505
+    },
+    {
+      "common_detuning_khz": 56.40533484514674,
+      "process_fidelity": 0.9992292846650211,
+      "active_population": 0.9992592164857387,
+      "process_infidelity": 0.0007707153349788554,
+      "loss_proxy": 0.0007407835142613228
+    },
+    {
+      "common_detuning_khz": 58.75555713036118,
+      "process_fidelity": 0.999224907099364,
+      "active_population": 0.9992574166118477,
+      "process_infidelity": 0.000775092900636043,
+      "loss_proxy": 0.0007425833881522514
+    },
+    {
+      "common_detuning_khz": 61.105779415575626,
+      "process_fidelity": 0.9992203509969575,
+      "active_population": 0.9992555446810384,
+      "process_infidelity": 0.0007796490030425041,
+      "loss_proxy": 0.0007444553189616121
+    },
+    {
+      "common_detuning_khz": 63.4560017007901,
+      "process_fidelity": 0.9992156162667972,
+      "active_population": 0.9992536005867342,
+      "process_infidelity": 0.0007843837332027759,
+      "loss_proxy": 0.0007463994132658192
+    },
+    {
+      "common_detuning_khz": 65.80622398600454,
+      "process_fidelity": 0.9992107028179465,
+      "active_population": 0.999251584222275,
+      "process_infidelity": 0.00078929718205345,
+      "loss_proxy": 0.0007484157777249978
+    },
+    {
+      "common_detuning_khz": 68.15644627121898,
+      "process_fidelity": 0.999205610559563,
+      "active_population": 0.9992494954809434,
+      "process_infidelity": 0.0007943894404369711,
+      "loss_proxy": 0.0007505045190565607
+    },
+    {
+      "common_detuning_khz": 70.50666855643343,
+      "process_fidelity": 0.9992003394008798,
+      "active_population": 0.999247334255948,
+      "process_infidelity": 0.0007996605991201777,
+      "loss_proxy": 0.0007526657440519724
+    },
+    {
+      "common_detuning_khz": 72.85689084164787,
+      "process_fidelity": 0.9991948892512106,
+      "active_population": 0.9992451004404251,
+      "process_infidelity": 0.0008051107487894171,
+      "loss_proxy": 0.000754899559574862
+    },
+    {
+      "common_detuning_khz": 75.20711312686231,
+      "process_fidelity": 0.999189260019958,
+      "active_population": 0.99924279392745,
+      "process_infidelity": 0.0008107399800419968,
+      "loss_proxy": 0.0007572060725500318
+    },
+    {
+      "common_detuning_khz": 77.55733541207678,
+      "process_fidelity": 0.9991834516165992,
+      "active_population": 0.999240414610021,
+      "process_infidelity": 0.0008165483834008391,
+      "loss_proxy": 0.0007595853899790006
+    },
+    {
+      "common_detuning_khz": 79.90755769729122,
+      "process_fidelity": 0.9991774639507047,
+      "active_population": 0.9992379623810793,
+      "process_infidelity": 0.0008225360492952749,
+      "loss_proxy": 0.0007620376189206857
+    },
+    {
+      "common_detuning_khz": 82.25777998250567,
+      "process_fidelity": 0.9991712969319151,
+      "active_population": 0.9992354371334843,
+      "process_infidelity": 0.0008287030680849128,
+      "loss_proxy": 0.0007645628665157167
+    },
+    {
+      "common_detuning_khz": 84.60800226772011,
+      "process_fidelity": 0.9991649504699637,
+      "active_population": 0.9992328387600393,
+      "process_infidelity": 0.0008350495300363248,
+      "loss_proxy": 0.0007671612399606786
+    },
+    {
+      "common_detuning_khz": 86.95822455293455,
+      "process_fidelity": 0.9991584244746596,
+      "active_population": 0.999230167153471,
+      "process_infidelity": 0.0008415755253403656,
+      "loss_proxy": 0.0007698328465289839
+    },
+    {
+      "common_detuning_khz": 89.308446838149,
+      "process_fidelity": 0.9991517188559033,
+      "active_population": 0.9992274222064469,
+      "process_infidelity": 0.0008482811440967408,
+      "loss_proxy": 0.0007725777935531086
+    },
+    {
+      "common_detuning_khz": 91.65866912336344,
+      "process_fidelity": 0.999144833523669,
+      "active_population": 0.9992246038115574,
+      "process_infidelity": 0.000855166476330993,
+      "loss_proxy": 0.0007753961884425786
+    },
+    {
+      "common_detuning_khz": 94.00889140857791,
+      "process_fidelity": 0.9991377683880244,
+      "active_population": 0.9992217118613371,
+      "process_infidelity": 0.0008622316119756279,
+      "loss_proxy": 0.0007782881386628748
+    },
+    {
+      "common_detuning_khz": 96.35911369379235,
+      "process_fidelity": 0.9991305233591155,
+      "active_population": 0.9992187462482466,
+      "process_infidelity": 0.0008694766408845478,
+      "loss_proxy": 0.000781253751753419
+    },
+    {
+      "common_detuning_khz": 98.7093359790068,
+      "process_fidelity": 0.9991230983471747,
+      "active_population": 0.999215706864684,
+      "process_infidelity": 0.0008769016528252793,
+      "loss_proxy": 0.0007842931353160276
+    },
+    {
+      "common_detuning_khz": 101.05955826422124,
+      "process_fidelity": 0.9991154932625143,
+      "active_population": 0.9992125936029748,
+      "process_infidelity": 0.0008845067374857463,
+      "loss_proxy": 0.0007874063970252365
+    },
+    {
+      "common_detuning_khz": 103.40978054943568,
+      "process_fidelity": 0.999107708015533,
+      "active_population": 0.9992094063553821,
+      "process_infidelity": 0.0008922919844670529,
+      "loss_proxy": 0.0007905936446178652
+    },
+    {
+      "common_detuning_khz": 105.76000283465012,
+      "process_fidelity": 0.9990997425167198,
+      "active_population": 0.9992061450141086,
+      "process_infidelity": 0.0009002574832801535,
+      "loss_proxy": 0.0007938549858913513
+    },
+    {
+      "common_detuning_khz": 108.1102251198646,
+      "process_fidelity": 0.9990915966766372,
+      "active_population": 0.9992028094712806,
+      "process_infidelity": 0.0009084033233628386,
+      "loss_proxy": 0.0007971905287194048
+    },
+    {
+      "common_detuning_khz": 110.46044740507904,
+      "process_fidelity": 0.9990832704059441,
+      "active_population": 0.9991993996189686,
+      "process_infidelity": 0.0009167295940558651,
+      "loss_proxy": 0.0008006003810313578
+    },
+    {
+      "common_detuning_khz": 112.81066969029348,
+      "process_fidelity": 0.9990747636153792,
+      "active_population": 0.9991959153491745,
+      "process_infidelity": 0.0009252363846208311,
+      "loss_proxy": 0.0008040846508254873
+    },
+    {
+      "common_detuning_khz": 115.16089197550795,
+      "process_fidelity": 0.9990660762157654,
+      "active_population": 0.9991923565538339,
+      "process_infidelity": 0.0009339237842346249,
+      "loss_proxy": 0.0008076434461661286
+    },
+    {
+      "common_detuning_khz": 117.5111142607224,
+      "process_fidelity": 0.9990572081180121,
+      "active_population": 0.999188723124819,
+      "process_infidelity": 0.00094279188198787,
+      "loss_proxy": 0.0008112768751810107
+    },
+    {
+      "common_detuning_khz": 119.86133654593684,
+      "process_fidelity": 0.9990481592331129,
+      "active_population": 0.9991850149539347,
+      "process_infidelity": 0.0009518407668871465,
+      "loss_proxy": 0.000814985046065253
+    },
+    {
+      "common_detuning_khz": 122.21155883115128,
+      "process_fidelity": 0.9990389294721496,
+      "active_population": 0.9991812319329262,
+      "process_infidelity": 0.0009610705278504383,
+      "loss_proxy": 0.0008187680670738162
+    },
+    {
+      "common_detuning_khz": 124.56178111636572,
+      "process_fidelity": 0.999029518746287,
+      "active_population": 0.9991773739534698,
+      "process_infidelity": 0.0009704812537130181,
+      "loss_proxy": 0.0008226260465301616
+    },
+    {
+      "common_detuning_khz": 126.91200340158017,
+      "process_fidelity": 0.999019926966783,
+      "active_population": 0.9991734409071862,
+      "process_infidelity": 0.0009800730332170104,
+      "loss_proxy": 0.0008265590928138167
+    },
+    {
+      "common_detuning_khz": 129.2622256867946,
+      "process_fidelity": 0.999010154044974,
+      "active_population": 0.9991694326856246,
+      "process_infidelity": 0.0009898459550260474,
+      "loss_proxy": 0.0008305673143753634
+    },
+    {
+      "common_detuning_khz": 131.61244797200905,
+      "process_fidelity": 0.9990001998922865,
+      "active_population": 0.9991653491802736,
+      "process_infidelity": 0.0009998001077135,
+      "loss_proxy": 0.0008346508197264457
+    },
+    {
+      "common_detuning_khz": 133.9626702572235,
+      "process_fidelity": 0.9989900644202314,
+      "active_population": 0.9991611902825579,
+      "process_infidelity": 0.0010099355797685838,
+      "loss_proxy": 0.0008388097174421016
+    },
+    {
+      "common_detuning_khz": 136.31289254243794,
+      "process_fidelity": 0.998979747540408,
+      "active_population": 0.99915695588384,
+      "process_infidelity": 0.0010202524595920304,
+      "loss_proxy": 0.0008430441161599855
+    },
+    {
+      "common_detuning_khz": 138.66311482765238,
+      "process_fidelity": 0.9989692491645078,
+      "active_population": 0.9991526458754245,
+      "process_infidelity": 0.0010307508354922001,
+      "loss_proxy": 0.0008473541245754834
+    },
+    {
+      "common_detuning_khz": 141.01333711286682,
+      "process_fidelity": 0.9989585692042962,
+      "active_population": 0.999148260148542,
+      "process_infidelity": 0.001041430795703846,
+      "loss_proxy": 0.0008517398514580332
+    }
+  ],
+  "model_limitations": [
+    "The current 6D symmetric model includes common Doppler detuning only.",
+    "Independent atom velocities also produce differential Doppler coupling from the symmetric |W_cr> state to an antisymmetric state not present in this notebook basis."
+  ]
+}
