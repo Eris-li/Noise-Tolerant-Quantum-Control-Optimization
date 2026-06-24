@@ -2,6 +2,32 @@
 
 这份索引只记录当前三条保留实验线直接依赖的参考。
 
+## Noise-tolerant / erasure-biased Rydberg gate reproduction
+
+- Zhang et al., `Logical Qubits with Erasure Conversion Using Metastable Neutral Atoms`
+  - 链接: https://www.nature.com/articles/s41567-026-03309-0
+  - DOI: `10.1038/s41567-026-03309-0`
+  - BibTeX key: `zhangLogicalQubitsErasure2026`
+  - 对应开发入口:
+    - [noise_tolerant_rydberg_gate_reproduction.ipynb](../notebooks/noise_tolerant_rydberg_gate_reproduction.ipynb)
+    - [noise-tolerant-rydberg-reproduction.md](noise-tolerant-rydberg-reproduction.md)
+    - [main.tex](../Slides/noise_tolerant_rydberg_reproduction/main.tex)
+  - 作用:
+    - metastable `^{171}Yb` erasure conversion
+    - located erasure-like events vs unlocated computational errors
+    - logical-qubit circuits and logical-performance target context
+- Jandura, Thompson, and Pupillo, `Optimizing Rydberg Gates for Logical-Qubit Performance`
+  - 链接: https://link.aps.org/doi/10.1103/PRXQuantum.4.020336
+  - DOI: `10.1103/PRXQuantum.4.020336`
+  - BibTeX key: `janduraOptimizingRydbergGates2023`
+  - 对应开发入口:
+    - [noise_tolerant_rydberg_gate_reproduction.ipynb](../notebooks/noise_tolerant_rydberg_gate_reproduction.ipynb)
+    - [noise-tolerant-rydberg-reproduction.md](noise-tolerant-rydberg-reproduction.md)
+  - 作用:
+    - blockade-limit Rydberg CZ Hamiltonian
+    - amplitude-robust、Doppler-robust、ADR/CADR pulse families
+    - physical-channel decomposition feeding the logical-performance line
+
 ## Jandura and Pupillo, time-optimal phase gates
 
 - 链接: https://arxiv.org/abs/2202.00903

@@ -1,0 +1,165 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{physics}
+\usepackage{hyperref}
+\usepackage{CJKutf8}
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{main.bib}
+
+\title[\texorpdfstring{$^{171}$Yb Förster resonance}{171Yb Forster resonance}]%
+{Förster resonance 对 \texorpdfstring{$^{171}\mathrm{Yb}$}{171Yb} UV CZ time-optimal 序列 fidelity 的影响}
+\subtitle{Notebook-first 研究计划：no-jump 优化序列的完整 Lindblad 评估}
+\author{Noise-Tolerant Quantum Control Optimization}
+\date{\today}
+
+\newcommand{\ketb}{\ket{b}}
+\newcommand{\ketloss}{\ket{\mathrm{loss}}}
+\newcommand{\Dforster}{\Delta_F}
+\newcommand{\Fproj}{F_{\mathrm{proj}}}
+
+\begin{document}
+\begin{CJK*}{UTF8}{gbsn}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{本阶段目标}
+  \begin{block}{核心问题}
+    既有 UV edge scan 使用 Rydberg decay 的 no-jump 非厄密有效生成元训练
+    phase-only time-optimal 序列。现在的问题是：若加入 Peper et al. 指出的
+    nearby Förster pair state，这些序列的实际 Lindblad fidelity 会下降多少？
+  \end{block}
+
+  \begin{itemize}
+    \item 训练阶段：暂不重新优化，沿用已有 artifact 中的相位序列。
+    \item 评估阶段：显式加入 Förster pair state，并用完整 Lindblad 主方程传播。
+    \item 输出目标：扫描 \(\Dforster\) 与 coupling \(W\)，判断 resonance dip 和 edge-time sensitivity。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{文献动机}
+  \begin{itemize}
+    \item Ma et al. 2022 首次在 \({}^{171}\mathrm{Yb}\) nuclear-spin qubit 上展示 Rydberg blockade gate，并指出强 blockade 可能和 hyperfine-induced Förster resonance 有关 \cite{maUniversalGateOperations2022}.
+    \item Ma et al. 2023 使用 metastable qubit 与 302 nm 单光子 Rydberg excitation，实现 CZ fidelity \(0.980(1)\)，但误差预算仍有未解释项 \cite{maHighfidelityGatesMidcircuit2023a}.
+    \item Peper et al. 2025 用 MQDT 找到此前 \(F=3/2\) Rydberg state 的 anomalous Förster resonance，并通过选择更干净的 \(F=1/2\) state 把 CZ fidelity 提升到 \(0.994(1)\) \cite{peperSpectroscopyModelingYb2025}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{为什么不能只用 no-jump 生成元}
+  no-jump 近似对应只传播未发生 quantum jump 的 Kraus branch：
+  \[
+    G=-iH-\frac12\sum_j C_j^\dagger C_j .
+  \]
+
+  对只关心 Rydberg lifetime loss 的优化，这可以作为高效训练目标。
+  但 Förster resonance 引入的是 coherent pair-state mixing：
+  \[
+    \ket{rr}\leftrightarrow \ketb .
+  \]
+
+  若 \(\ketb\) 有自己的 decay/leakage 路径，jump branch 也属于实际 trace-preserving channel 的一部分。
+  因此评估 fidelity 时应使用完整 Lindblad 方程：
+  \[
+    \dot\rho=-i[H,\rho]+\sum_j C_j\rho C_j^\dagger
+    -\frac12\sum_j\{C_j^\dagger C_j,\rho\}.
+  \]
+\end{frame}
+
+\begin{frame}{第一阶段最小模型}
+  Hilbert basis 在原 reduced UV basis 上增加一个 pair state 与一个 absorbing loss state：
+  \[
+  \{\ket{00},\ket{0c},\ket{0r},\ket{cc},\ket{W_{cr}},\ket{rr},\ketb,\ketloss\}.
+  \]
+
+  Hamiltonian：
+  \[
+    H(t)=H_0 + A(t)\left[\cos\phi(t)H_x+\sin\phi(t)H_y\right],
+  \]
+  \[
+    H_0 = V\ket{rr}\bra{rr}
+    +(V+\Dforster)\ketb\bra{b}
+    +W(\ket{rr}\bra{b}+\ketb\bra{rr}).
+  \]
+
+  这里 \(\Dforster\) 是相对 target \(\ket{rr}\) branch 的 Förster defect。
+\end{frame}
+
+\begin{frame}{Decay channels}
+  Rydberg decay 用 one-way Lindblad jumps 进入 \(\ketloss\)：
+  \[
+    C_{0r}=\sqrt{\gamma_r}\ketloss\bra{0r},
+    \qquad
+    C_{W}=\sqrt{\gamma_r}\ketloss\bra{W_{cr}},
+  \]
+  \[
+    C_{rr}=\sqrt{2\gamma_r}\ketloss\bra{rr},
+    \qquad
+    C_b=\sqrt{2\gamma_r}\ketloss\bra{b}.
+  \]
+
+  第一阶段不加入 Doppler、laser phase noise、amplitude noise 或额外 \(m_F\) leakage。
+  这些项可以在 resonance sensitivity 明确后逐项加入。
+\end{frame}
+
+\begin{frame}{Fidelity 口径}
+  计算子空间代表态：
+  \[
+    \{\ket{00},\ket{0c},\ket{cc}\},
+  \]
+  权重 \((1,2,1)\) 对应完整 computational basis 中
+  \(\ket{00},\ket{01}/\ket{10},\ket{11}\)。
+
+  第一阶段使用 projected probe fidelity：
+  \[
+    \Fproj = \frac{1}{N}\sum_k
+    \bra{\psi_k^{\mathrm{target}}}
+    P_{\mathrm{active}}\rho_k(T)P_{\mathrm{active}}
+    \ket{\psi_k^{\mathrm{target}}},
+  \]
+  其中 target phase 中的 local phases 数值优化。
+
+  该口径比 no-jump diagonal process fidelity 更保守，因为 loss branch 不会被丢弃。
+\end{frame}
+
+\begin{frame}{Notebook 和执行路径}
+  \begin{itemize}
+    \item Notebook：
+      \[
+        \texttt{notebooks/yb171\_forster\_resonance.ipynb}
+      \]
+    \item 输入 artifact：
+      \[
+        \texttt{artifacts/v5/closed\_cr\_edge\_time\_optimal\_scan/}
+      \]
+      \[
+        \texttt{rydberg\_decay\_65us\_dense\_selected\_phase\_rows.json}
+      \]
+    \item 默认先评估 \(\Omega_{\max}/2\pi=10\,\mathrm{MHz}\), edge \(=40\,\mathrm{ns}\) 的已优化序列。
+    \item 扫描变量：\(\Dforster\in[-20,20]\,\mathrm{MHz}\)，\(W\in[0,5]\,\mathrm{MHz}\) 起步。
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{待验证结论}
+  \begin{enumerate}
+    \item \(W=0\) 时，完整 Lindblad projected fidelity 应接近已有 no-jump 序列的趋势，但数值口径不必完全相同。
+    \item 当 \(|\Dforster|\) 为几 MHz 且 \(W\) 可观时，应检查 fidelity 是否出现 resonance dip。
+    \item 比较不同 edge time 的同类序列，判断 Gaussian edge smoothing 是否降低 Förster sensitivity。
+    \item 若 \(|\Dforster|\gg W\)，结果应接近 effective blockade-shift picture。
+    \item 若 resonance dip 明显，后续优化应把 \(\ketb\) 显式纳入 GRAPE，而不是只使用非厄密有效生成元。
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{参考文献}
+  \printbibliography
+\end{frame}
+
+\end{CJK*}
+\end{document}

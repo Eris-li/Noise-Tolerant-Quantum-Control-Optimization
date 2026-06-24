@@ -19,6 +19,7 @@ Notebooks are historical development records and should not be edited unless the
 - `scripts/`: retained plotting/environment helpers for the kept result lines.
 - `artifacts/`: retained JSON/CSV/PNG outputs for the three current result lines.
 - `docs/`: project map, version history, references, and focused result-line notes.
+- `notes/`: working notes for background knowledge needed to read, organize, and connect related literature.
 - `rydcalc/`: upstream submodule; do not edit it casually.
 
 Do not put reusable logic in `experiments/`. If a workflow will be reused, move the logic into `src/neutral_yb/` and keep the experiment as a small CLI wrapper.

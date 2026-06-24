@@ -1,0 +1,374 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{main.bib}
+
+\title[Noise-Tolerant Rydberg Gates]{Joint Reproduction Plan: Noise-Tolerant and Erasure-Biased Rydberg Gates}
+\author{Noise-Tolerant Quantum Control Optimization}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Target Papers}
+  \begin{itemize}
+    \item Zhang et al., \emph{Logical Qubits with Erasure Conversion Using Metastable Neutral Atoms} \cite{zhangLogicalQubitsErasure2026}.
+    \item Jandura, Thompson, and Pupillo, \emph{Optimizing Rydberg Gates for Logical-Qubit Performance} \cite{janduraOptimizingRydbergGates2023}.
+    \item Joint goal: connect robust physical Rydberg gates, erasure conversion, and logical-level performance.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Project Structure}
+  \begin{itemize}
+    \item \textbf{Physical-gate layer}: reproduce blockade-limit Rydberg CZ dynamics and robust-pulse sensitivity from Jandura et al.
+    \item \textbf{Erasure-conversion layer}: model metastable \(^{171}\mathrm{Yb}\) erasure detection and biased error channels from Zhang et al.
+    \item \textbf{Logical layer}: compare physical infidelity, erasure bias, and small-code logical performance after the physical channel is validated.
+    \item \textbf{Current notebook}: executable baseline for the physical-gate Hamiltonian and error scans.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Physical System}
+  Each atom is modeled as a three-level system:
+  \[
+    |0\rangle,\qquad |1\rangle,\qquad |r\rangle .
+  \]
+  \begin{itemize}
+    \item Qubit information is stored in \(|0\rangle,|1\rangle\).
+    \item A global laser couples only \(|1\rangle \leftrightarrow |r\rangle\), with complex Rabi frequency
+      \[
+        \Omega(t)=\Omega_{\max}e^{i\phi(t)} .
+      \]
+    \item \(|0\rangle\) is dark, so states containing \(|0\rangle\) only evolve through the other atom if that atom is in \(|1\rangle\).
+    \item If both atoms are in \(|r\rangle\), the van der Waals blockade shift \(B\) makes \(|rr\rangle\) off-resonant.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Rotating-Frame Hamiltonian}
+  In the rotating-wave frame, before eliminating \(|rr\rangle\),
+  \[
+    H =
+      \sum_{i=1}^{2}
+      \left[
+        \frac{(1+\epsilon_i)\Omega(t)}{2}
+        |r_i\rangle\langle 1_i|
+        + \mathrm{h.c.}
+        + \Delta_i |r_i\rangle\langle r_i|
+      \right]
+      + B |rr\rangle\langle rr| .
+  \]
+  \begin{itemize}
+    \item \(\epsilon_i\): atom-dependent laser-amplitude or intensity error.
+    \item \(\Delta_i\): atom-dependent detuning, e.g. Doppler shift.
+    \item \(B\gg \Omega_{\max}\): blockade suppresses double Rydberg excitation.
+    \item The factor \(1/2\) is the standard Rabi-frequency convention after the rotating-wave approximation.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Blockade Branches}
+  Because the laser never couples \(|0\rangle\), the computational input sectors decouple:
+  \[
+    H = H_{10}\oplus H_{01}\oplus H_{11}.
+  \]
+  For example,
+  \[
+    H_{10}=
+      \frac{(1+\epsilon_1)\Omega(t)}{2}|r0\rangle\langle 10|
+      +\mathrm{h.c.}
+      +\Delta_1|r0\rangle\langle r0|,
+  \]
+  and similarly for \(H_{01}\). For the \(|11\rangle\) branch, perfect blockade removes \(|rr\rangle\), leaving
+  \[
+    \{|11\rangle,\ |r1\rangle,\ |1r\rangle\}.
+  \]
+  This is the finite-dimensional model used by the notebook.
+\end{frame}
+
+\begin{frame}{Why \(W_\pm\) Matters}
+  With \(\epsilon_i=0\), the \(|11\rangle\) branch can be written in
+  \[
+    |W_\pm\rangle=\frac{|r1\rangle\pm |1r\rangle}{\sqrt{2}} .
+  \]
+  Then
+  \[
+    H_{11}
+      =
+      \frac{\sqrt{2}\Omega(t)}{2}|W_+\rangle\langle 11|
+      +\mathrm{h.c.}
+      +\Delta_+\left(|W_+\rangle\langle W_+|+|W_-\rangle\langle W_-|\right)
+      +\Delta_-\left(|W_+\rangle\langle W_-|+\mathrm{h.c.}\right),
+  \]
+  where \(\Delta_\pm=(\Delta_1\pm\Delta_2)/2\).
+  \begin{itemize}
+    \item Common detuning has \(\Delta_-=0\), so it does not mix \(W_+\) and \(W_-\).
+    \item Fig.~2(b) uses \(\Delta_1\neq0,\Delta_2=0\), so \(\Delta_-\neq0\); this coupling must be included.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Imperfections and Error Bias}
+  \begin{itemize}
+    \item Amplitude inhomogeneity: atom-dependent \(\epsilon_i\) rescales the Rabi coupling.
+    \item Doppler or laser detuning: atom-dependent \(\Delta_i\) shifts the Rydberg state.
+    \item Optional no-jump decay can be added as \(-i\gamma/2\) on Rydberg levels.
+    \item The erasure-conversion line will separate located leakage/erasure-like events from unlocated computational errors.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Fidelity Convention}
+  For a diagonal computational map
+  \[
+    M = \mathrm{diag}(1, \alpha_{01}, \alpha_{10}, \beta_{11}),
+  \]
+  the notebook optimizes local phases \(\theta_{01},\theta_{10}\) and reports process overlap
+  \[
+    F_{\mathrm{pro}} =
+      \frac{\left|1
+      + e^{-i\theta_{01}}\alpha_{01}
+      + e^{-i\theta_{10}}\alpha_{10}
+      - e^{-i(\theta_{01}+\theta_{10})}\beta_{11}\right|^2}{16}.
+  \]
+\end{frame}
+
+\begin{frame}{What Problem AR Pulses Solve}
+  Jandura et al. first isolate amplitude robustness by setting
+  \(\Delta_i=0\) and allowing unknown Rabi-frequency errors \cite{janduraOptimizingRydbergGates2023}:
+  \[
+    \Omega_i(t)=(1+\varepsilon_i)\Omega(t).
+  \]
+  \begin{itemize}
+    \item Physically, \(\varepsilon_i\) models gate-beam intensity inhomogeneity, slow power drift, or atom-dependent beam-position error.
+    \item A time-optimal pulse can still be very accurate at \(\varepsilon_i=0\), but its return amplitude and acquired phase generally shift linearly with \(\varepsilon_i\).
+    \item In an erasure-biased architecture this matters because coherent computational errors are worse than located Rydberg leakage.
+    \item The AR task is therefore not only ``make \(F\) large'', but make the final computational map insensitive to first order in \(\varepsilon_i\).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First-Order Robustness Criterion}
+  The paper expands both the Hamiltonian and each branch state around zero amplitude error:
+  \[
+    H_q=H_q^{(0)}+\varepsilon H_q^{(1)},\qquad
+    |\psi_q(t)\rangle=
+    |\psi_q^{(0)}(t)\rangle+
+    \varepsilon|\psi_q^{(1)}(t)\rangle+O(\varepsilon^2).
+  \]
+  \begin{itemize}
+    \item The zero-order condition is still a CZ gate up to one-qubit phases:
+      \[
+        |\psi_q^{(0)}(\tau)\rangle=e^{i\theta_q}|q\rangle,\qquad
+        \theta_{11}-\theta_{10}-\theta_{01}=(2n+1)\pi .
+      \]
+    \item Amplitude robustness adds the stronger endpoint condition
+      \[
+        |\psi_q^{(1)}(\tau)\rangle=0
+        \quad\text{for }q\in\{10,01,11\}.
+      \]
+    \item If this holds, the leading coherent endpoint error is quadratic rather than linear in \(\varepsilon_i\).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{How the Paper Finds AR Pulses}
+  The AR pulse is obtained by minimizing a first-order sensitivity objective:
+  \[
+    J_{\mathrm{AR}} =
+      1-F+\sum_q
+      \langle\psi_q^{(1)}(\tau)|\psi_q^{(1)}(\tau)\rangle .
+  \]
+  The sensitivity states obey the inhomogeneous equations
+  \[
+    \dot{\psi}_q^{(0)}=-iH_q^{(0)}\psi_q^{(0)},\qquad
+    \dot{\psi}_q^{(1)}=-iH_q^{(0)}\psi_q^{(1)}
+      -iH_q^{(1)}\psi_q^{(0)} .
+  \]
+  \begin{itemize}
+    \item The control is represented as a piecewise-constant GRAPE pulse
+      \(\Omega(t)=\Omega_j\) on time slot \(j\).
+    \item The optimizer searches for \(J_{\mathrm{AR}}=0\): perfect nominal CZ plus zero first-order amplitude sensitivity.
+    \item The shortest solution found is a phase-only pulse,
+      \(\Omega(t)=\Omega_{\max}e^{i\varphi(t)}\), with smooth \(\varphi(t)\).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Published AR Pulse Result}
+  The paper reports a critical duration
+  \[
+    \tau_* \approx 14.32/\Omega_{\max},
+  \]
+  above which the amplitude-robust objective can be driven to \(J_{\mathrm{AR}}=0\).
+  \begin{itemize}
+    \item This is longer than the time-optimal CZ pulse, but it keeps the experimentally simple constraint \(|\Omega(t)|=\Omega_{\max}\).
+    \item The AR pulse spends an average time
+      \(\tau_R=4.74/\Omega_{\max}\) in the Rydberg state, versus
+      \(2.96/\Omega_{\max}\) for the TO pulse.
+    \item In the no-decay diagnostic of Fig.~2(a), the AR pulse keeps
+      \(1-F<10^{-4}\) for common amplitude errors \(|\varepsilon|\leq0.05\).
+    \item The tradeoff is explicit: more Rydberg exposure, but much flatter coherent error response to laser-amplitude deviations.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Implication for Our Reproduction}
+  The paper's AR construction gives a specific target for this repository:
+  \begin{itemize}
+    \item The fidelity-only scan is not enough; we must propagate
+      \(|\psi_q^{(1)}\rangle\) and minimize its endpoint norm.
+    \item Finite-probe optimization can improve selected endpoints, but it does not prove the derivative condition
+      \(|\psi_q^{(1)}(\tau)\rangle=0\).
+    \item A compact Fourier correction space can diagnose the objective, but the published pulse was found with a much larger GRAPE slot space.
+    \item Therefore the reproduction milestone is paper-level AR first:
+      \(\Omega_{\max}T\approx14.32\), phase-only control, near-unit nominal CZ, and first-order amplitude sensitivity suppressed across all three nontrivial branches.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Initial Numerical Scope}
+  \begin{itemize}
+    \item Reuse the repository's existing time-optimal phase seed from the current ideal global-CZ line.
+    \item Scan common amplitude error and Fig.~2(b)-style single-atom detuning error \(\Delta_1\), with \(\Delta_2=0\).
+    \item Use this scan as a baseline before adding first-order robustness constraints for AR, DR, ADR, and CADR pulses.
+    \item Store notebook outputs directly in the notebook so the report can cite concrete current-run values.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Current Baseline Output}
+  The saved notebook execution currently gives:
+  \begin{itemize}
+    \item Dimensionless seed duration: \(\Omega_{\max}T = 7.634070\).
+    \item Nominal process fidelity: \(F_{\mathrm{pro}} = 0.999993035320\).
+    \item Nominal leakage-like loss: \(6.959\times 10^{-6}\).
+    \item Common-amplitude scan minimum fidelity over the starter range: \(0.978025007390\).
+    \item Fig.~2(b)-style single-atom \(\Delta_1\) scan minimum fidelity over the starter range: \(0.802681536884\).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First Time Optimal/AR/DR Attempt}
+  The notebook now contains a first executable Time Optimal/AR/DR attempt:
+  \begin{itemize}
+    \item Time Optimal: \(F_0=0.999993035320\), \(1-F_{\epsilon=+0.04}=5.221\times10^{-3}\), \(1-F_{\Delta_1=0.20}=3.743\times10^{-2}\).
+    \item AR first pass: \(F_0=0.988494437919\), \(1-F_{\epsilon=+0.04}=4.979\times10^{-2}\), \(1-F_{\Delta_1=0.20}=2.263\times10^{-2}\).
+    \item DR first pass: \(F_0=0.9899073209\), sign-reversal \(1-F_{\Delta_1=0.20}=2.421\times10^{-2}\).
+    \item Current diagnosis: the compact Fourier finite-difference proxy is runnable, but it has not yet reproduced the paper's AR/DR robustness.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Finite-Probe Robust Pass}
+  The notebook now also optimizes over explicit finite noise probes:
+  \begin{itemize}
+    \item Time Optimal at \(\Omega_{\max}T=14.32\): optimizer seed fidelity \(0.999999761162\).
+    \item AR, common amplitude \(\epsilon=\pm0.05\): worst endpoint fidelity improves from \(0.998262227353\) to \(0.998552745966\).
+    \item AR nominal fidelity after robust balancing: \(0.999927393819\).
+    \item DR, midpoint sign-reversed \(\Delta_1/\Omega_{\max}=\pm0.20\), \(\Delta_2=0\): worst endpoint fidelity improves from \(0.979043468996\) to \(0.980303143863\).
+    \item DR at the half probe \(|\Delta_1|/\Omega_{\max}=0.10\) remains near \(0.99481\).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Current Optimization Variables}
+  The notebook optimization is intentionally compact:
+  \[
+    \phi(t_j)=\phi_{\mathrm{base}}(t_j)+
+      \sum_{m=1}^{M}
+      a_m\sin\left(\frac{2\pi m t_j}{T}\right)
+      +b_m\cos\left(\frac{2\pi m t_j}{T}\right).
+  \]
+  \begin{itemize}
+    \item Optimized variables: Fourier coefficients \(a_m,b_m\), and for first-order least-squares also local phases \(\theta_{10},\theta_{01}\).
+    \item The laser amplitude is fixed at \(|\Omega(t)|=\Omega_{\max}\), matching the paper's phase-only pulse family.
+    \item This is not full GRAPE over all time slots; it searches a much smaller correction space around a seed pulse.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Finite-Probe Objective}
+  The finite-probe pass minimizes a heuristic objective over a small grid of probe errors:
+  \[
+    J_{\mathrm{probe}}
+      =
+      \sum_{\eta\in\mathcal{P}}\left(1-F(\eta)\right)^2
+      +w_{\max}\max_{\eta\in\mathcal{P}}\left(1-F(\eta)\right)^2
+      +\lambda\|c\|_2^2 .
+  \]
+  \begin{itemize}
+    \item AR probe set: \(\eta=\epsilon\in\{0,\pm0.025,\pm0.05\}\), with \(\epsilon_1=\epsilon_2\).
+    \item DR probe set: \(\eta=\Delta_1\), \(\Delta_2=0\), with midpoint sign reversal for the DR candidate.
+    \item This can balance finite endpoints, but it does not enforce vanishing first-order sensitivity.
+    \item Therefore it is a diagnostic optimizer, not the paper's robust-pulse construction.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First-Order Sensitivity Propagation}
+  For a perturbation parameter \(\eta\), the state expansion is
+  \[
+    |\psi_q(t)\rangle =
+      |\psi_q^{(0)}(t)\rangle
+      +\eta|\psi_q^{(1)}(t)\rangle
+      +O(\eta^2).
+  \]
+  The notebook propagates each time slot using Frechet derivatives of the matrix exponential:
+  \[
+    \frac{\partial}{\partial\eta}
+    \exp[-i(H^{(0)}+\eta H^{(1)})\Delta t]\bigg|_{\eta=0}.
+  \]
+  \begin{itemize}
+    \item This avoids finite-difference noise in the first-order states.
+    \item Unit tests compare the propagated \(|\psi^{(1)}\rangle\) against central finite differences.
+    \item Atom-resolved detuning now uses separate \(\Delta_1,\Delta_2\) perturbation traces.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{AR versus DR Robust Conditions}
+  AR and DR do not impose the same first-order condition.
+  \begin{itemize}
+    \item AR follows the paper's amplitude-robust objective:
+      \[
+        J_{\mathrm{AR}}=1-F+\sum_q
+        \langle\psi_q^{(1)}|\psi_q^{(1)}\rangle .
+      \]
+      The full first-order state is penalized.
+    \item DR follows the paper's projected condition:
+      \[
+        J_{\mathrm{DR}}=1-F+\sum_{j,q}
+        \langle\psi_q^{(1,j)}|
+        (I-|q\rangle\langle q|)
+        |\psi_q^{(1,j)}\rangle .
+      \]
+    \item The component along \(|q\rangle\) is allowed for DR because the second half flips the Doppler sign and cancels that first-order phase contribution.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First-Order Sensitivity Objective}
+  The notebook now implements the paper-style \(|\psi_q^{(1)}\rangle\) sensitivity-state objective:
+  \begin{itemize}
+    \item Reusable helper: exact slot-wise first-order propagation via matrix exponential Frechet derivatives, including atom-resolved detuning.
+    \item AR at \(\epsilon=\pm0.05\): worst endpoint fidelity improves from \(0.995662275603\) to \(0.996558440020\).
+    \item AR sensitivity norm drops from \(9.636384\times10^{1}\) to \(5.740975\), with \(F_0=0.999991477077\).
+    \item Corrected DR diagnostic at \(\Delta_1/\Omega_{\max}=\pm0.20\), \(\Delta_2=0\): current compact full-pulse search drops from Time Optimal worst endpoint \(0.976711957540\) to \(0.906992297543\).
+    \item Diagnosis: the remaining Fig.~2(b) gap is pulse construction; next implement the repeated CRz(\(\pi/2\)) half-pulse GRAPE used in the paper.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why the Current Optimization Underperforms}
+  The corrected model exposes a real algorithmic gap:
+  \begin{itemize}
+    \item \textbf{Pulse structure mismatch}: the paper optimizes a CRz\((\pi/2)\) half-pulse and applies it twice with opposite Doppler sign; the notebook still searches one compact full-pulse correction.
+    \item \textbf{Restricted basis}: 10 Fourier coefficients cannot span the same space as slot-wise or documented-basis GRAPE.
+    \item \textbf{No analytic GRAPE gradient}: least-squares over compact coefficients is slower and more prone to local minima.
+    \item \textbf{Seed mismatch}: our Time Optimal seed is from the repository's current line, not the paper's released optimized pulse samples.
+    \item \textbf{Weight sensitivity}: large zero-order weights protect nominal fidelity but can suppress movement toward robust manifolds.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Next Reproduction Milestones}
+  \begin{enumerate}
+    \item Replace the compact first-order search with full slot-wise or documented-basis GRAPE gradients.
+    \item Reproduce the published AR/DR pulse families at paper-level fidelity.
+    \item Extend the Doppler sign-reversal implementation to ADR/CADR pulse families.
+    \item Decompose physical errors into erasure-like and computational components.
+    \item Add Zhang-style erasure-conversion checks for metastable \(^{171}\mathrm{Yb}\).
+    \item Only after the physical channel is validated, add a small logical-error-rate surrogate.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{References}
+  \printbibliography
+\end{frame}
+
+\end{document}
