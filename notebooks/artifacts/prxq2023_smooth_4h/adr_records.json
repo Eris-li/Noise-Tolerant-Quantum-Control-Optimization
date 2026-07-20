@@ -1,0 +1,115 @@
+{
+  "optimizer_results": {
+    "ADR": {
+      "cost_twice_scipy_cost": 1.8257078169339573,
+      "message": "`ftol` termination condition is satisfied.",
+      "nfev": 561,
+      "status": 2,
+      "success": true
+    }
+  },
+  "scan_records": {
+    "ADR": [
+      {
+        "duration": 10.5,
+        "nominal_cost": 0.09688431661833356,
+        "nominal_nfev": 147,
+        "nominal_success": true,
+        "robust_cost": 31.154302930489237,
+        "robust_nfev": 619,
+        "robust_success": true,
+        "start_index": 0,
+        "target": "ADR"
+      },
+      {
+        "duration": 10.5,
+        "nominal_cost": 0.10094144663619051,
+        "nominal_nfev": 249,
+        "nominal_success": true,
+        "robust_cost": 42.66657754361643,
+        "robust_nfev": 257,
+        "robust_success": true,
+        "start_index": 1,
+        "target": "ADR"
+      },
+      {
+        "duration": 10.5,
+        "nominal_cost": 0.08762566890420849,
+        "nominal_nfev": 130,
+        "nominal_success": true,
+        "robust_cost": 27.26351899139378,
+        "robust_nfev": 632,
+        "robust_success": true,
+        "start_index": 2,
+        "target": "ADR"
+      },
+      {
+        "duration": 10.5,
+        "nominal_cost": 0.0026912027617119532,
+        "nominal_nfev": 167,
+        "nominal_success": true,
+        "robust_cost": 2.960969770620584,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "ADR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.03907739360249928,
+        "nominal_nfev": 54,
+        "nominal_success": true,
+        "robust_cost": 126.30499386162558,
+        "robust_nfev": 312,
+        "robust_success": true,
+        "start_index": 0,
+        "target": "ADR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.006963667435524733,
+        "nominal_nfev": 166,
+        "nominal_success": true,
+        "robust_cost": 2.664809710920921,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "ADR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.0019294989480123448,
+        "nominal_nfev": 226,
+        "nominal_success": true,
+        "robust_cost": 3.769647222696079,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "ADR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.0014071346299494903,
+        "nominal_nfev": 184,
+        "nominal_success": true,
+        "robust_cost": 1.8156485505385922,
+        "robust_nfev": 561,
+        "robust_success": true,
+        "start_index": 3,
+        "target": "ADR"
+      }
+    ]
+  },
+  "selected": {
+    "adr_half_total_time": 11.5,
+    "adr_robust_cost": 1.8156485505385922
+  },
+  "settings": {
+    "adr_half_duration_candidates": [
+      10.5,
+      11.5
+    ]
+  },
+  "stage": "ADR",
+  "wall_time_seconds": 3530.878979444504
+}

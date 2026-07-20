@@ -1,0 +1,59 @@
+{
+  "optimizer_results": {
+    "DR": {
+      "cost_twice_scipy_cost": 344.03287794422204,
+      "message": "`ftol` termination condition is satisfied.",
+      "nfev": 194,
+      "status": 2,
+      "success": true
+    }
+  },
+  "scan_records": {
+    "DR": [
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.028568087033288517,
+        "nominal_nfev": 171,
+        "nominal_success": true,
+        "robust_cost": 403.3528280644549,
+        "robust_nfev": 174,
+        "robust_success": true,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.35780122025687894,
+        "nominal_nfev": 400,
+        "nominal_success": false,
+        "robust_cost": 1267.1558597808246,
+        "robust_nfev": 400,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.008281836300777355,
+        "nominal_nfev": 265,
+        "nominal_success": true,
+        "robust_cost": 344.03287794422204,
+        "robust_nfev": 194,
+        "robust_success": true,
+        "start_index": 2,
+        "target": "DR"
+      }
+    ]
+  },
+  "selected": {
+    "dr_half_total_time": 7.7,
+    "dr_robust_cost": 344.03287794422204
+  },
+  "settings": {
+    "dr_half_duration_candidates": [
+      7.7
+    ]
+  },
+  "stage": "DR",
+  "wall_time_seconds": 371.89517974853516
+}

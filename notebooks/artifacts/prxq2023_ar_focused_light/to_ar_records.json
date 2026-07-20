@@ -1,0 +1,124 @@
+{
+  "optimizer_results": {
+    "AR": {
+      "cost_twice_scipy_cost": 0.05899778095925436,
+      "message": "The maximum number of function evaluations is exceeded.",
+      "nfev": 800,
+      "status": 0,
+      "success": false
+    },
+    "TO": {
+      "cost_twice_scipy_cost": 2.85256917718237e-16,
+      "message": "`gtol` termination condition is satisfied.",
+      "nfev": 40,
+      "status": 1,
+      "success": true
+    }
+  },
+  "scan_records": {
+    "AR": [
+      {
+        "duration": 14.32,
+        "nominal_cost": 3.7494744881319435e-17,
+        "nominal_nfev": 43,
+        "nominal_success": true,
+        "robust_cost": 0.22357573511745268,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "AR"
+      },
+      {
+        "duration": 14.32,
+        "nominal_cost": 4.07903416401612e-18,
+        "nominal_nfev": 34,
+        "nominal_success": true,
+        "robust_cost": 0.05899778095925432,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "AR"
+      },
+      {
+        "duration": 14.32,
+        "nominal_cost": 8.704749912654193e-19,
+        "nominal_nfev": 55,
+        "nominal_success": true,
+        "robust_cost": 3.669003266469825,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "AR"
+      },
+      {
+        "duration": 14.7,
+        "nominal_cost": 3.820454829686871e-15,
+        "nominal_nfev": 35,
+        "nominal_success": true,
+        "robust_cost": 3.89458394657904,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "AR"
+      },
+      {
+        "duration": 14.7,
+        "nominal_cost": 1.8026076765809828e-16,
+        "nominal_nfev": 47,
+        "nominal_success": true,
+        "robust_cost": 9.263169752117374,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "AR"
+      },
+      {
+        "duration": 14.7,
+        "nominal_cost": 2.6960591282890416e-15,
+        "nominal_nfev": 40,
+        "nominal_success": true,
+        "robust_cost": 0.5090075546147068,
+        "robust_nfev": 800,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "AR"
+      }
+    ],
+    "TO": [
+      {
+        "duration": 7.63407,
+        "nominal_cost": 2.85256917718237e-16,
+        "nominal_nfev": 40,
+        "nominal_success": true,
+        "robust_cost": 2.85256917718237e-16,
+        "robust_nfev": 40,
+        "robust_success": true,
+        "start_index": 0,
+        "target": "TO"
+      }
+    ]
+  },
+  "selected": {
+    "ar_robust_cost": 0.05899778095925432,
+    "full_ar_time": 14.32,
+    "to_nominal_cost": 2.85256917718237e-16,
+    "to_time": 7.63407
+  },
+  "settings": {
+    "ar_duration_candidates": [
+      14.32,
+      14.7
+    ],
+    "ar_nominal_max_nfev": 500,
+    "ar_num_random_starts": 3,
+    "ar_robust_max_nfev": 800,
+    "num_half_tslots": 96,
+    "to_duration_candidates": [
+      7.63407
+    ],
+    "to_nominal_max_nfev": 250,
+    "to_num_random_starts": 1
+  },
+  "stage": "TO_AR",
+  "wall_time_seconds": 1815.0306158065796
+}

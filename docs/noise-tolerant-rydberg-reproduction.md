@@ -64,8 +64,8 @@ record:
   detuning-probe infidelity `2.421e-02`.
 
 These AR/DR first-pass values are diagnostic, not successful paper
-reproductions. The compact Fourier correction and finite-difference proxy did
-not reproduce the published robust-pulse advantage.
+reproductions. The earlier reduced-basis phase correction and finite-difference
+proxy did not reproduce the published robust-pulse advantage.
 
 ## Current Robust Optimization Output
 
@@ -87,11 +87,11 @@ points.
   - DR nominal fidelity after robust balancing: `0.998971262643`;
   - half-probe `|Delta_1|/Omega_max = 0.10` fidelity remains about `0.99481`.
 
-Interpretation: the amplitude-robust compact search gives a small but clear
-robustness improvement while preserving high nominal fidelity. The detuning
-result is only a modest improvement at the large `0.20` probe, so the next
-technical step remains the paper's half-pulse, sign-reversal DR construction
-with full GRAPE or the documented pulse basis.
+Interpretation: this finite-probe result is a historical diagnostic, not the
+current reproduction route. The current notebook uses direct slot-wise phase
+optimization instead of a reduced-basis search. The next technical step remains
+the paper's half-pulse, sign-reversal DR construction with all phase slots in
+the chosen discretization optimized directly.
 
 ## Paper-Style First-Order Objective Output
 
@@ -101,29 +101,63 @@ state construction. The reusable propagation helper is in
 the propagated `psi^(1)` states match central finite differences for both
 common amplitude noise and atom-resolved, midpoint sign-reversed detuning.
 
-The compact first-order pass uses `Omega_max*T = 14.32`, 40 time slots, and 10
-Fourier correction coefficients:
+The corrected paper-structured pass uses the PRX Quantum pulse construction:
+AR is optimized as a full CZ pulse, while DR and ADR are optimized as
+`controlled-Rz(pi/2)` half-pulses and then applied twice with Doppler detuning
+reversed in the second half. The current notebook no longer imports a fixed TO
+pulse or any PRX Quantum optimized pulse. It uses a from-zero scan with
+deterministic random phase profiles for TO, AR, DR, and ADR. TO is optimized
+only against the nominal full-CZ objective and is the sole non-robust baseline.
 
-- Time Optimal: `F0 = 0.999999981780`.
-- AR first-order robust pass:
-  - sensitivity norm drops from `9.636384e+01` to `5.740975e+00`;
-  - diagnostic `epsilon = +/-0.05` worst endpoint fidelity improves from
-    `0.995662275603` to `0.996558440020`;
-  - nominal fidelity remains `0.999991477077`.
-- DR first-order robust pass with midpoint sign reversal:
-  - diagnostic `Delta_1/Omega_max = +/-0.20`, `Delta_2=0` worst endpoint
-    fidelity is `0.906992297543`, worse than the Time Optimal diagnostic
-    `0.976711957540`;
-  - nominal fidelity drops to `0.986372734744`;
-  - projected detuning sensitivity norm changes from `1.917865e+00` to
-    `7.005785e+00`.
+The notebook-local optimizer now supplies analytic residual Jacobians to
+`scipy.optimize.least_squares`. The nominal branch derivatives use the same
+prefix/suffix plus `expm_frechet` structure as the packaged GRAPE optimizers.
+The AR/DR/ADR first-order sensitivity derivatives use an augmented generator
+for the coupled zero-order and first-order states, so no standalone
+`noise_tolerant_phase_grape.py` module is introduced at this stage.
 
-This diagnostic explains the Fig. 2 discrepancy. The previous notebook compared
-against the wrong detuning scan (`Delta_1=Delta_2`) and used an over-constrained
-DR first-order target. Those issues are now corrected. The current compact
-full-pulse optimizer still does not reproduce the paper's DR curve because the
-paper's DR pulse is built as a repeated half-pulse: one CRz(pi/2) pulse is
-optimized, then the same pulse is applied again with the Doppler shift reversed.
-Implementing that half-pulse construction, with full slot-wise or documented-
-basis GRAPE and analytic gradients, is required before claiming
-publication-level Fig. 2(b), ADR, or CADR reproduction.
+The notebook has been changed in place from the earlier checked 32-slot run to
+a smoothness-regularized staged setting intended to finish on the order of four
+hours. The default stage control is `run_stages = ("ALL",)`, so the notebook
+optimizes a lightweight smooth TO baseline and heavier smooth AR/DR/ADR
+candidates in one run. The default numerical settings are:
+
+- `num_half_tslots = 96`;
+- TO uses one random start, nominal `max_nfev = 300`, and only
+  `Omega_max*T = [7.634070]`;
+- AR uses four random starts per duration, nominal `max_nfev = 800`, robust
+  `max_nfev = 1200`, and
+  `Omega_max*T = [14.32, 14.70]`;
+- DR uses four random starts per half-duration, nominal/robust
+  `max_nfev = 800`, with
+  `Omega_max*T_half = [7.70, 8.20]`;
+- ADR uses four random starts per half-duration, nominal/robust
+  `max_nfev = 800`, with
+  `Omega_max*T_half = [10.50, 11.50]`;
+- smoothness regularization uses wrapped first- and second-difference phase
+  penalties with weights `(0.020, 0.015)` for TO and `(0.060, 0.040)` for
+  AR/DR/ADR.
+
+The previous 32-slot diagnostic results are no longer treated as current
+outputs. The notebook outputs were cleared after changing the settings so that
+the next execution records only production-scale from-zero optimization
+results. Stage checkpoints are written under
+`notebooks/artifacts/prxq2023_smooth_4h/`, including
+`to_ar_phases.npz`, `to_ar_records.json`, and `available_summary.json` after
+the run.
+
+The repeated-half DR/ADR construction assumes a real Doppler-reversal
+mechanism between the two identical halves. In the switch method the laser
+direction is reversed, so `k` changes sign. In the wait method the sequence
+waits for `pi / omega_trap`, half of the motional period, so the velocity
+reverses and `Delta_j = k v_j` changes sign. The notebook models this as an
+ideal sign flip in the detuning trace; it does not simulate the idle wait
+dynamics.
+
+The staged production run is designed to reproduce the qualitative Fig. 2
+advantages while avoiding visually abrupt phase profiles. AR should flatten the
+common-amplitude scan near `|epsilon| <= 0.05` compared with TO, while DR/ADR
+test whether repeated half-pulse first-order conditions flatten the Doppler
+scan with `Delta_2 = 0`. Because no optimized paper pulse is imported, the
+reproduction still depends on the local optimizer finding those basins from
+random starts.

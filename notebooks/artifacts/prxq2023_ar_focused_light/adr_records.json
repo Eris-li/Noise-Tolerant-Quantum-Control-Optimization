@@ -1,0 +1,59 @@
+{
+  "optimizer_results": {
+    "ADR": {
+      "cost_twice_scipy_cost": 26.10475634299971,
+      "message": "The maximum number of function evaluations is exceeded.",
+      "nfev": 400,
+      "status": 0,
+      "success": false
+    }
+  },
+  "scan_records": {
+    "ADR": [
+      {
+        "duration": 10.5,
+        "nominal_cost": 5.18355047738642e-17,
+        "nominal_nfev": 76,
+        "nominal_success": true,
+        "robust_cost": 32.71735754160542,
+        "robust_nfev": 400,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "ADR"
+      },
+      {
+        "duration": 10.5,
+        "nominal_cost": 0.00041334939409142267,
+        "nominal_nfev": 361,
+        "nominal_success": true,
+        "robust_cost": 46.90059523669564,
+        "robust_nfev": 257,
+        "robust_success": true,
+        "start_index": 1,
+        "target": "ADR"
+      },
+      {
+        "duration": 10.5,
+        "nominal_cost": 3.927381543111086e-20,
+        "nominal_nfev": 47,
+        "nominal_success": true,
+        "robust_cost": 26.104756342999714,
+        "robust_nfev": 400,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "ADR"
+      }
+    ]
+  },
+  "selected": {
+    "adr_half_total_time": 10.5,
+    "adr_robust_cost": 26.104756342999714
+  },
+  "settings": {
+    "adr_half_duration_candidates": [
+      10.5
+    ]
+  },
+  "stage": "ADR",
+  "wall_time_seconds": 637.8471391201019
+}

@@ -1,0 +1,351 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global/global}
+    \entry{janduraOptimizingRydbergGates2023}{article}{}{}
+      \name{author}{3}{}{%
+        {{hash=8bc38d76095a8fb94c89aa063ecf99fd}{%
+           family={Jandura},
+           familyi={J\bibinitperiod},
+           given={Sven},
+           giveni={S\bibinitperiod}}}%
+        {{hash=97308d8cbf01634c17c749057d74a8ad}{%
+           family={Thompson},
+           familyi={T\bibinitperiod},
+           given={Jeff\bibnamedelima D.},
+           giveni={J\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=f2852eb0c9a59ae9e4b30465f6876ddf}{%
+           family={Pupillo},
+           familyi={P\bibinitperiod},
+           given={Guido},
+           giveni={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{fullhash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{fullhashraw}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{bibnamehash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{authorbibnamehash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{authornamehash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{authorfullhash}{439c7da6a965f7c081e9de77512dcba4}
+      \strng{authorfullhashraw}{439c7da6a965f7c081e9de77512dcba4}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{day}{5}
+      \field{issn}{2691-3399}
+      \field{journaltitle}{PRX Quantum}
+      \field{langid}{english}
+      \field{month}{6}
+      \field{number}{2}
+      \field{shortjournal}{PRX Quantum}
+      \field{title}{Optimizing {{Rydberg Gates}} for {{Logical-Qubit Performance}}}
+      \field{urlday}{22}
+      \field{urlmonth}{6}
+      \field{urlyear}{2026}
+      \field{volume}{4}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{020336}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1103/PRXQuantum.4.020336
+      \endverb
+      \verb{file}
+      \verb C:\Users\32169\Zotero\storage\8MWCUSCC\Jandura 等 - 2023 - Optimizing Rydberg Gates for Logical-Qubit Performance.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://link.aps.org/doi/10.1103/PRXQuantum.4.020336
+      \endverb
+      \verb{url}
+      \verb https://link.aps.org/doi/10.1103/PRXQuantum.4.020336
+      \endverb
+    \endentry
+    \entry{maHighfidelityGatesMidcircuit2023a}{article}{}{}
+      \name{author}{10}{}{%
+        {{hash=09d5aaacdfbbc789c9d61fce1728387a}{%
+           family={Ma},
+           familyi={M\bibinitperiod},
+           given={Shuo},
+           giveni={S\bibinitperiod}}}%
+        {{hash=18c8ff13c1b4d3f50de5bb0c904ecca4}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Genyue},
+           giveni={G\bibinitperiod}}}%
+        {{hash=2eaf4ab1b7fbff3799d43f8e06db9995}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Pai},
+           giveni={P\bibinitperiod}}}%
+        {{hash=c8aa7f4f13efae73a12cc4daa014c1d5}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Bichen},
+           giveni={B\bibinitperiod}}}%
+        {{hash=8bc38d76095a8fb94c89aa063ecf99fd}{%
+           family={Jandura},
+           familyi={J\bibinitperiod},
+           given={Sven},
+           giveni={S\bibinitperiod}}}%
+        {{hash=f04756c94a8a37b453bfea99ae28a510}{%
+           family={Claes},
+           familyi={C\bibinitperiod},
+           given={Jahan},
+           giveni={J\bibinitperiod}}}%
+        {{hash=3ab711808d7a0ae2371767d0f71ca531}{%
+           family={Burgers},
+           familyi={B\bibinitperiod},
+           given={Alex\bibnamedelima P.},
+           giveni={A\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=f2852eb0c9a59ae9e4b30465f6876ddf}{%
+           family={Pupillo},
+           familyi={P\bibinitperiod},
+           given={Guido},
+           giveni={G\bibinitperiod}}}%
+        {{hash=7e87353998bc5444ec07ed2b21d2e233}{%
+           family={Puri},
+           familyi={P\bibinitperiod},
+           given={Shruti},
+           giveni={S\bibinitperiod}}}%
+        {{hash=97308d8cbf01634c17c749057d74a8ad}{%
+           family={Thompson},
+           familyi={T\bibinitperiod},
+           given={Jeff\bibnamedelima D.},
+           giveni={J\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+      }
+      \strng{namehash}{16d8a10bc9fa6913586dcbf8b4d004e1}
+      \strng{fullhash}{9001c84f4a25859c87d190a9597d50a8}
+      \strng{fullhashraw}{9001c84f4a25859c87d190a9597d50a8}
+      \strng{bibnamehash}{16d8a10bc9fa6913586dcbf8b4d004e1}
+      \strng{authorbibnamehash}{16d8a10bc9fa6913586dcbf8b4d004e1}
+      \strng{authornamehash}{16d8a10bc9fa6913586dcbf8b4d004e1}
+      \strng{authorfullhash}{9001c84f4a25859c87d190a9597d50a8}
+      \strng{authorfullhashraw}{9001c84f4a25859c87d190a9597d50a8}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The development of scalable, high-fidelity qubits is a key challenge in quantum information science. Neutral atom qubits have progressed rapidly in recent years, demonstrating programmable processors and quantum simulators with scaling to hundreds of atoms. Exploring new atomic species, such as alkaline earth atoms, or combining multiple species can provide new paths to improving coherence, control and scalability. For example, for eventual application in quantum error correction, it is advantageous to realize qubits with structured error models, such as biased Pauli errors or conversion of errors into detectable erasures. In this work, we demonstrate a new neutral atom qubit, using the nuclear spin of a long-lived metastable state in \$\{\}\textasciicircum\{171\}\$Yb. The long coherence time and fast excitation to the Rydberg state allow one- and two-qubit gates with fidelities of 0.9990(1) and 0.980(1), respectively. Importantly, a significant fraction of all gate errors result in decays out of the qubit subspace, to the ground state. By performing fast, mid-circuit detection of these errors, we convert them into erasure errors; during detection, the induced error probability on qubits remaining in the computational space is less than \$10\textasciicircum\{-5\}\$. This work establishes metastable \$\{\}\textasciicircum\{171\}\$Yb as a promising platform for realizing fault-tolerant quantum computing.}
+      \field{day}{12}
+      \field{eprintclass}{quant-ph}
+      \field{eprinttype}{arXiv}
+      \field{issn}{0028-0836, 1476-4687}
+      \field{journaltitle}{Nature}
+      \field{langid}{american}
+      \field{month}{10}
+      \field{number}{7982}
+      \field{shortjournal}{Nature}
+      \field{title}{High-Fidelity Gates with Mid-Circuit Erasure Conversion in a Metastable Neutral Atom Qubit}
+      \field{urlday}{6}
+      \field{urlmonth}{5}
+      \field{urlyear}{2026}
+      \field{volume}{622}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{279\bibrangedash 284}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1038/s41586-023-06438-1
+      \endverb
+      \verb{eprint}
+      \verb 2305.05493
+      \endverb
+      \verb{file}
+      \verb C\:\\Users\\32169\\Zotero\\storage\\IMXCIKL6\\Ma 等 - 2023 - High-fidelity gates and mid-circuit erasure conversion in an atomic qubit.pdf;C\:\\Users\\32169\\Zotero\\storage\\P38AUGMJ\\Ma 等 - 2023 - High-fidelity gates with mid-circuit erasure conversion in a metastable neutral atom qubit.pdf;C\:\\Users\\32169\\Zotero\\storage\\ZW86E9P4\\2305.html
+      \endverb
+      \verb{urlraw}
+      \verb http://arxiv.org/abs/2305.05493
+      \endverb
+      \verb{url}
+      \verb http://arxiv.org/abs/2305.05493
+      \endverb
+      \keyw{Physics - Atomic Physics,Quantum Physics,Qubits,Ultracold gases}
+    \endentry
+    \entry{zhangLogicalQubitsErasure2026}{article}{}{}
+      \name{author}{9}{}{%
+        {{hash=c8aa7f4f13efae73a12cc4daa014c1d5}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Bichen},
+           giveni={B\bibinitperiod}}}%
+        {{hash=18c8ff13c1b4d3f50de5bb0c904ecca4}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Genyue},
+           giveni={G\bibinitperiod}}}%
+        {{hash=5d4385ffa4915f0fc59e1bbea6571a50}{%
+           family={Bornet},
+           familyi={B\bibinitperiod},
+           given={Guillaume},
+           giveni={G\bibinitperiod}}}%
+        {{hash=ca2676f70f332ef311a1b8888de2a020}{%
+           family={Horvath},
+           familyi={H\bibinitperiod},
+           given={Sebastian\bibnamedelima P.},
+           giveni={S\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=2eaf4ab1b7fbff3799d43f8e06db9995}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Pai},
+           giveni={P\bibinitperiod}}}%
+        {{hash=09d5aaacdfbbc789c9d61fce1728387a}{%
+           family={Ma},
+           familyi={M\bibinitperiod},
+           given={Shuo},
+           giveni={S\bibinitperiod}}}%
+        {{hash=58f50df5be9ce4706bfa82ae0bc1df64}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Shilin},
+           giveni={S\bibinitperiod}}}%
+        {{hash=7e87353998bc5444ec07ed2b21d2e233}{%
+           family={Puri},
+           familyi={P\bibinitperiod},
+           given={Shruti},
+           giveni={S\bibinitperiod}}}%
+        {{hash=97308d8cbf01634c17c749057d74a8ad}{%
+           family={Thompson},
+           familyi={T\bibinitperiod},
+           given={Jeff\bibnamedelima D.},
+           giveni={J\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{74b50631ff6925113a278466c90e5337}
+      \strng{fullhash}{ffd9855f3d618b038d2829824ea17023}
+      \strng{fullhashraw}{ffd9855f3d618b038d2829824ea17023}
+      \strng{bibnamehash}{74b50631ff6925113a278466c90e5337}
+      \strng{authorbibnamehash}{74b50631ff6925113a278466c90e5337}
+      \strng{authornamehash}{74b50631ff6925113a278466c90e5337}
+      \strng{authorfullhash}{ffd9855f3d618b038d2829824ea17023}
+      \strng{authorfullhashraw}{ffd9855f3d618b038d2829824ea17023}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Implementing large-scale quantum algorithms with practical advantage will require fault tolerance achieved through quantum error correction, but the associated overhead is prohibitive. This overhead can be reduced by engineering physical qubits with fewer errors, and by shaping the residual errors to be more easily correctable. In this work, we demonstrate quantum error-correcting codes and logical qubit circuits in a metastable ytterbium-171 nuclear spin qubit with a noise bias towards erasure errors. These errors can be located separately from any syndrome information diagnosing the error, and we demonstrate adaptive circuit execution based on erasure information. We show that dephasing errors on the qubit during coherent transport can be strongly suppressed, and implement entangling gates that maintain a high fidelity in the presence of gate-beam inhomogeneity or pointing errors. Furthermore, we demonstrate logical qubit encoding in the [[4, 2, 2]] code, with error correction during decoding based on mid-circuit erasure measurements despite the fact that the code is too small to correct any Pauli errors. Finally, we demonstrate logical qubit teleportation between multiple code blocks with conditionally selected ancillas based on mid-circuit erasure checks, a key part of leakage-robust error correction schemes using neutral atoms.}
+      \field{issn}{1745-2481}
+      \field{journaltitle}{Nature Physics}
+      \field{langid}{english}
+      \field{month}{6}
+      \field{number}{6}
+      \field{shortjournal}{Nat. Phys.}
+      \field{title}{Logical Qubits with Erasure Conversion Using Metastable Neutral Atoms}
+      \field{urlday}{22}
+      \field{urlmonth}{6}
+      \field{urlyear}{2026}
+      \field{volume}{22}
+      \field{year}{2026}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{910\bibrangedash 916}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1038/s41567-026-03309-0
+      \endverb
+      \verb{file}
+      \verb C:\Users\32169\Zotero\storage\LLM9BKJ9\Zhang 等 - 2026 - Logical qubits with erasure conversion using metastable neutral atoms.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/s41567-026-03309-0
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/s41567-026-03309-0
+      \endverb
+      \keyw{Information theory and computation,Qubits}
+    \endentry
+    \entry{wuErasureConversionFaulttolerant2022}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=5054d8715f6746af9ed28c566f168046}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Yue},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=1d7a222c6cd258cd6b48235ab32ab9bf}{%
+           family={Kolkowitz},
+           familyi={K\bibinitperiod},
+           given={Shimon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=7e87353998bc5444ec07ed2b21d2e233}{%
+           family={Puri},
+           familyi={P\bibinitperiod},
+           given={Shruti},
+           giveni={S\bibinitperiod}}}%
+        {{hash=97308d8cbf01634c17c749057d74a8ad}{%
+           family={Thompson},
+           familyi={T\bibinitperiod},
+           given={Jeff\bibnamedelima D.},
+           giveni={J\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{77aa4285bb0660bf6222f13bc03c3431}
+      \strng{fullhash}{1b892d76d2077dc5258d55be7dc6636b}
+      \strng{fullhashraw}{1b892d76d2077dc5258d55be7dc6636b}
+      \strng{bibnamehash}{77aa4285bb0660bf6222f13bc03c3431}
+      \strng{authorbibnamehash}{77aa4285bb0660bf6222f13bc03c3431}
+      \strng{authornamehash}{77aa4285bb0660bf6222f13bc03c3431}
+      \strng{authorfullhash}{1b892d76d2077dc5258d55be7dc6636b}
+      \strng{authorfullhashraw}{1b892d76d2077dc5258d55be7dc6636b}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Executing quantum algorithms on error-corrected logical qubits is a critical step for scalable quantum computing, but the requisite numbers of qubits and physical error rates are demanding for current experimental hardware. Recently, the development of error correcting codes tailored to particular physical noise models has helped relax these requirements. In this work, we propose a qubit encoding and gate protocol for 171Yb neutral atom qubits that converts the dominant physical errors into erasures, that is, errors in known locations. The key idea is to encode qubits in a metastable electronic level, such that gate errors predominantly result in transitions to disjoint subspaces whose populations can be continuously monitored via fluorescence. We estimate that 98\% of errors can be converted into erasures. We quantify the benefit of this approach via circuit-level simulations of the surface code, finding a threshold increase from 0.937\% to 4.15\%. We also observe a larger code distance near the threshold, leading to a faster decrease in the logical error rate for the same number of physical qubits, which is important for near-term implementations. Erasure conversion should benefit any error correcting code, and may also be applied to design new gates and encodings in other qubit platforms.}
+      \field{day}{9}
+      \field{issn}{2041-1723}
+      \field{journaltitle}{Nature Communications}
+      \field{langid}{english}
+      \field{month}{8}
+      \field{number}{1}
+      \field{shortjournal}{Nat Commun}
+      \field{title}{Erasure Conversion for Fault-Tolerant Quantum Computing in Alkaline Earth {{Rydberg}} Atom Arrays}
+      \field{urlday}{16}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{13}
+      \field{year}{2022}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{4657}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1038/s41467-022-32094-6
+      \endverb
+      \verb{file}
+      \verb C:\Users\32169\Zotero\storage\S3ZBMEMN\Wu 等 - 2022 - Erasure conversion for fault-tolerant quantum computing in alkaline earth Rydberg atom arrays.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/s41467-022-32094-6
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/s41467-022-32094-6
+      \endverb
+      \keyw{Atomic and molecular physics,Quantum information,Qubits}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

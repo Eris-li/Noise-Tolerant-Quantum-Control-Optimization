@@ -1,0 +1,46 @@
+{
+  "available_labels": [
+    "TO optimized",
+    "AR full CZ",
+    "DR repeated half",
+    "ADR repeated half"
+  ],
+  "summary_rows": [
+    {
+      "detuning_asymmetry_p_minus_m": -0.00024240527891861152,
+      "detuning_fidelity_m0p05": 0.9971436391400706,
+      "detuning_fidelity_p0p05": 0.996901233861152,
+      "doppler_reversal": false,
+      "label": "TO optimized",
+      "min_amp_fidelity_pm_0p05": 0.9908515636658661,
+      "nominal_fidelity": 0.9999999999658566
+    },
+    {
+      "detuning_asymmetry_p_minus_m": 0.000894369465567646,
+      "detuning_fidelity_m0p05": 0.9951126396834928,
+      "detuning_fidelity_p0p05": 0.9960070091490605,
+      "doppler_reversal": false,
+      "label": "AR full CZ",
+      "min_amp_fidelity_pm_0p05": 0.999932438871776,
+      "nominal_fidelity": 0.9999999999966827
+    },
+    {
+      "detuning_asymmetry_p_minus_m": -2.6354211709600506e-06,
+      "detuning_fidelity_m0p05": 0.9999547815456223,
+      "detuning_fidelity_p0p05": 0.9999521461244514,
+      "doppler_reversal": true,
+      "label": "DR repeated half",
+      "min_amp_fidelity_pm_0p05": 0.9944705480594317,
+      "nominal_fidelity": 0.9999999982190357
+    },
+    {
+      "detuning_asymmetry_p_minus_m": 5.118052336383627e-07,
+      "detuning_fidelity_m0p05": 0.9999316524235672,
+      "detuning_fidelity_p0p05": 0.9999321642288008,
+      "doppler_reversal": true,
+      "label": "ADR repeated half",
+      "min_amp_fidelity_pm_0p05": 0.9957625300918407,
+      "nominal_fidelity": 0.9999999609227087
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "gamma_over_omega": 0.0002448537586029159,
+  "noise_model": "Rydberg decay as branch-level non-Hermitian no-jump term; no pulse reoptimization",
+  "omega_max_hz": 10000000.0,
+  "rows": [
+    {
+      "closed_nominal_fidelity": 0.9999999999658566,
+      "decay_active_survival": 0.9992697726084373,
+      "decay_detuning_fidelity_m0p05": 0.9964208485322021,
+      "decay_detuning_fidelity_p0p05": 0.9961692133669687,
+      "decay_loss_proxy": 0.0007302273915626989,
+      "decay_min_amp_fidelity_pm_0p05": 0.990136947996231,
+      "decay_nominal_fidelity": 0.9992697211759543,
+      "doppler_reversal": false,
+      "label": "TO optimized",
+      "nominal_decay_delta": -0.0007302787899023944,
+      "physical_time_us": 0.12149999764095455,
+      "total_time_omega": 7.63407
+    },
+    {
+      "closed_nominal_fidelity": 0.9999999999966827,
+      "decay_active_survival": 0.9988375518323512,
+      "decay_detuning_fidelity_m0p05": 0.9939436300317489,
+      "decay_detuning_fidelity_p0p05": 0.9948609978177196,
+      "decay_loss_proxy": 0.0011624481676487664,
+      "decay_min_amp_fidelity_pm_0p05": 0.9987679786744559,
+      "decay_nominal_fidelity": 0.998837438139219,
+      "doppler_reversal": false,
+      "label": "AR full CZ",
+      "nominal_decay_delta": -0.001162561857463662,
+      "physical_time_us": 0.22790987850759412,
+      "total_time_omega": 14.32
+    },
+    {
+      "closed_nominal_fidelity": 0.9999999982190357,
+      "decay_active_survival": 0.9984425193794317,
+      "decay_detuning_fidelity_m0p05": 0.9983892580754369,
+      "decay_detuning_fidelity_p0p05": 0.9983866242688685,
+      "decay_loss_proxy": 0.0015574806205682634,
+      "decay_min_amp_fidelity_pm_0p05": 0.9929605429772934,
+      "decay_nominal_fidelity": 0.9984423086840811,
+      "doppler_reversal": true,
+      "label": "DR repeated half",
+      "nominal_decay_delta": -0.0015576895349546094,
+      "physical_time_us": 0.36605636911135925,
+      "total_time_omega": 23.0
+    },
+    {
+      "closed_nominal_fidelity": 0.9999999609227087,
+      "decay_active_survival": 0.998483193894663,
+      "decay_detuning_fidelity_m0p05": 0.9984061820332055,
+      "decay_detuning_fidelity_p0p05": 0.9984066383297484,
+      "decay_loss_proxy": 0.0015168061053369986,
+      "decay_min_amp_fidelity_pm_0p05": 0.9942984479362902,
+      "decay_nominal_fidelity": 0.9984829539965806,
+      "doppler_reversal": true,
+      "label": "ADR repeated half",
+      "nominal_decay_delta": -0.001517006926128106,
+      "physical_time_us": 0.36605636911135925,
+      "total_time_omega": 23.0
+    }
+  ],
+  "rydberg_lifetime_s": 6.5e-05
+}

@@ -1,0 +1,430 @@
+{
+  "optimizer_results": {
+    "DR": {
+      "cost_twice_scipy_cost": 0.07515938571533205,
+      "message": "`ftol` termination condition is satisfied.",
+      "nfev": 590,
+      "status": 2,
+      "success": true
+    }
+  },
+  "scan_records": {
+    "DR": [
+      {
+        "duration": 7.0,
+        "nominal_cost": 0.0015215021354327482,
+        "nominal_nfev": 147,
+        "nominal_success": true,
+        "robust_cost": 250.17529527217397,
+        "robust_nfev": 544,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 7.0,
+        "nominal_cost": 47.28915819975474,
+        "nominal_nfev": 421,
+        "nominal_success": true,
+        "robust_cost": 118482.69981476583,
+        "robust_nfev": 376,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 7.0,
+        "nominal_cost": 0.07621331059548951,
+        "nominal_nfev": 1000,
+        "nominal_success": false,
+        "robust_cost": 266.9461325926478,
+        "robust_nfev": 485,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 7.0,
+        "nominal_cost": 0.04188293739244062,
+        "nominal_nfev": 972,
+        "nominal_success": true,
+        "robust_cost": 249.69180362774546,
+        "robust_nfev": 28,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 7.0,
+        "nominal_cost": 0.11400540725758428,
+        "nominal_nfev": 248,
+        "nominal_success": true,
+        "robust_cost": 340.0557639765033,
+        "robust_nfev": 275,
+        "robust_success": false,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 7.0,
+        "nominal_cost": 0.03094638248531471,
+        "nominal_nfev": 175,
+        "nominal_success": true,
+        "robust_cost": 265.0602349654257,
+        "robust_nfev": 322,
+        "robust_success": false,
+        "start_index": 5,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.08222179560413084,
+        "nominal_nfev": 118,
+        "nominal_success": true,
+        "robust_cost": 359.10005410639087,
+        "robust_nfev": 237,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.1389193690009353,
+        "nominal_nfev": 257,
+        "nominal_success": true,
+        "robust_cost": 283.1350983125612,
+        "robust_nfev": 439,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.09614101090757228,
+        "nominal_nfev": 223,
+        "nominal_success": true,
+        "robust_cost": 293.9569936009501,
+        "robust_nfev": 353,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.017361130222820452,
+        "nominal_nfev": 242,
+        "nominal_success": true,
+        "robust_cost": 235.42812296233492,
+        "robust_nfev": 301,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.013395263480989244,
+        "nominal_nfev": 1000,
+        "nominal_success": false,
+        "robust_cost": 227.44026872022044,
+        "robust_nfev": 1568,
+        "robust_success": false,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 7.7,
+        "nominal_cost": 0.0020043986879768882,
+        "nominal_nfev": 43,
+        "nominal_success": true,
+        "robust_cost": 238.1135644044072,
+        "robust_nfev": 1045,
+        "robust_success": false,
+        "start_index": 5,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 0.008804960548651748,
+        "nominal_nfev": 1000,
+        "nominal_success": false,
+        "robust_cost": 202.10820104135036,
+        "robust_nfev": 1014,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 0.0023214490114388106,
+        "nominal_nfev": 50,
+        "nominal_success": true,
+        "robust_cost": 202.23149142897975,
+        "robust_nfev": 473,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 0.0024146516759368,
+        "nominal_nfev": 85,
+        "nominal_success": true,
+        "robust_cost": 254.42666695760374,
+        "robust_nfev": 711,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 0.05251532568414508,
+        "nominal_nfev": 161,
+        "nominal_success": true,
+        "robust_cost": 12.178373394311752,
+        "robust_nfev": 612,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 10.757971074868948,
+        "nominal_nfev": 357,
+        "nominal_success": true,
+        "robust_cost": 26635.250975749375,
+        "robust_nfev": 443,
+        "robust_success": false,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 8.2,
+        "nominal_cost": 0.0022473014232084246,
+        "nominal_nfev": 56,
+        "nominal_success": true,
+        "robust_cost": 29.965078268682504,
+        "robust_nfev": 82,
+        "robust_success": false,
+        "start_index": 5,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 7.721520979099683,
+        "nominal_nfev": 298,
+        "nominal_success": true,
+        "robust_cost": 18902.666940509884,
+        "robust_nfev": 162,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 0.0158163186046227,
+        "nominal_nfev": 167,
+        "nominal_success": true,
+        "robust_cost": 6.689919156084424,
+        "robust_nfev": 544,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 0.002175121500645172,
+        "nominal_nfev": 75,
+        "nominal_success": true,
+        "robust_cost": 233.40524103209324,
+        "robust_nfev": 86,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 0.003658334156727644,
+        "nominal_nfev": 83,
+        "nominal_success": true,
+        "robust_cost": 7.249934924065469,
+        "robust_nfev": 1572,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 0.2775576402539376,
+        "nominal_nfev": 255,
+        "nominal_success": true,
+        "robust_cost": 20.856895983825794,
+        "robust_nfev": 218,
+        "robust_success": false,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 9.0,
+        "nominal_cost": 0.0063605370661937305,
+        "nominal_nfev": 85,
+        "nominal_success": true,
+        "robust_cost": 19.43262578733552,
+        "robust_nfev": 411,
+        "robust_success": false,
+        "start_index": 5,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.010922173138135616,
+        "nominal_nfev": 148,
+        "nominal_success": true,
+        "robust_cost": 162.1514113817811,
+        "robust_nfev": 506,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.006753168426930518,
+        "nominal_nfev": 146,
+        "nominal_success": true,
+        "robust_cost": 0.04396579127563287,
+        "robust_nfev": 768,
+        "robust_success": true,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.018275238809074862,
+        "nominal_nfev": 350,
+        "nominal_success": true,
+        "robust_cost": 37.412703028565645,
+        "robust_nfev": 858,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.017178924658190126,
+        "nominal_nfev": 182,
+        "nominal_success": true,
+        "robust_cost": 4.0193064570850146,
+        "robust_nfev": 670,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.002866677391688834,
+        "nominal_nfev": 120,
+        "nominal_success": true,
+        "robust_cost": 0.017514773005126764,
+        "robust_nfev": 380,
+        "robust_success": true,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 10.0,
+        "nominal_cost": 0.06395593299521585,
+        "nominal_nfev": 201,
+        "nominal_success": true,
+        "robust_cost": 287.2610644227633,
+        "robust_nfev": 446,
+        "robust_success": false,
+        "start_index": 5,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.0014071346290224366,
+        "nominal_nfev": 133,
+        "nominal_success": true,
+        "robust_cost": 0.14590993290237952,
+        "robust_nfev": 1600,
+        "robust_success": false,
+        "start_index": 0,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.05972257931947274,
+        "nominal_nfev": 538,
+        "nominal_success": true,
+        "robust_cost": 11.203864414654877,
+        "robust_nfev": 799,
+        "robust_success": false,
+        "start_index": 1,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.002002072507143679,
+        "nominal_nfev": 214,
+        "nominal_success": true,
+        "robust_cost": 100.72727968926785,
+        "robust_nfev": 1154,
+        "robust_success": false,
+        "start_index": 2,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.005264488025732817,
+        "nominal_nfev": 83,
+        "nominal_success": true,
+        "robust_cost": 62.05172805652456,
+        "robust_nfev": 157,
+        "robust_success": false,
+        "start_index": 3,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.00551064274049535,
+        "nominal_nfev": 136,
+        "nominal_success": true,
+        "robust_cost": 40.13579646766773,
+        "robust_nfev": 795,
+        "robust_success": false,
+        "start_index": 4,
+        "target": "DR"
+      },
+      {
+        "duration": 11.5,
+        "nominal_cost": 0.003323901127954332,
+        "nominal_nfev": 121,
+        "nominal_success": true,
+        "robust_cost": 0.003028913280801106,
+        "robust_nfev": 590,
+        "robust_success": true,
+        "start_index": 5,
+        "target": "DR"
+      }
+    ]
+  },
+  "selected": {
+    "dr_half_total_time": 11.5,
+    "dr_robust_cost": 0.003028913280801106
+  },
+  "settings": {
+    "dr_half_duration_candidates": [
+      7.0,
+      7.7,
+      8.2,
+      9.0,
+      10.0,
+      11.5
+    ],
+    "dr_nominal_max_nfev": 1000,
+    "dr_num_random_starts": 6,
+    "dr_robust_max_nfev": 1600
+  },
+  "stage": "DR",
+  "wall_time_seconds": 11388.167164087296
+}
