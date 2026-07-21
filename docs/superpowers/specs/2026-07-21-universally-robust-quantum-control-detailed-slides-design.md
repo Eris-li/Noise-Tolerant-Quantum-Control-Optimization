@@ -4,7 +4,7 @@
 
 Rebuild `Slides/universally_robust_quantum_control/main.tex` as a self-contained derivation lecture based on `notes/universally-robust-quantum-control.md` and Poggi et al., *Phys. Rev. Lett.* **132**, 193801 (2024), including the paper's supplementary derivations where they are already developed in the note.
 
-The new deck is not constrained to the previous 25--30 minute talk length. Mathematical completeness and readable logical continuity take priority over brevity. The expected final length is approximately 60--68 frames.
+The new deck is not constrained to the previous 25--30 minute talk length. Mathematical completeness and readable logical continuity take priority over brevity. The expected final length is approximately 68--72 frames.
 
 ## Scope
 
@@ -73,7 +73,7 @@ The narrative order is:
 | Extensions and implementation | Classical fluctuations, boundaries, discrete \(M_0\), gradient skeleton | 4 |
 | Final index | Derived logical chain and formula index | 1 |
 
-The exact count may vary within 60--68 frames when equations require an additional split to avoid overcrowding.
+The exact count may vary within 68--72 frames when equations require an additional split to avoid overcrowding.
 
 ## Mathematical Presentation Rules
 
@@ -173,6 +173,7 @@ If a frame overflows, the content will be split into an additional frame rather 
 Primary file to modify:
 
 - `Slides/universally_robust_quantum_control/main.tex`
+- `Slides/universally_robust_quantum_control/README.md`
 
 Existing assets to reuse:
 
@@ -189,10 +190,10 @@ No notebook, Python source, artifact, or `rydcalc` file will be modified.
 
 Completion requires all of the following:
 
-1. `latexmk -pdf main.tex` exits successfully in `Slides/universally_robust_quantum_control/`.
+1. `latexmk -xelatex main.tex` exits successfully in `Slides/universally_robust_quantum_control/`.
 2. The LaTeX log contains no undefined control sequence, missing file, undefined reference, or overfull `\vbox` warning.
 3. Overfull `\hbox` warnings are inspected individually; visible mathematical overflow is not accepted.
-4. The resulting PDF contains approximately 60--68 pages.
+4. The resulting PDF contains approximately 68--72 pages.
 5. Every requested derivation appears in the PDF text extraction.
 6. Rasterized page contact sheets and targeted full-resolution page images are inspected for clipping, tiny formulas, caption collisions, and excessive empty space.
 7. Fig. 1 and Fig. 2 appear after their model assumptions.
