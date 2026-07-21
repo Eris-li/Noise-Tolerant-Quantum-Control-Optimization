@@ -66,8 +66,8 @@ Create the following structure:
     ├── README.md
     ├── reference.bib
     └── figures/
-        ├── poggi2024_fig1.pdf
-        └── poggi2024_fig2.pdf
+        ├── poggi2024_fig1.png
+        └── poggi2024_fig2.png
 
 The deck will use the repository convention:
 
@@ -206,7 +206,8 @@ M_0
   target-only, robustness to known \(V\), and universal robustness.
 - Fig. 2 supports the two-qubit/generalized-robustness conclusion.
 - Figures will be obtained from the official arXiv v2 source or PDF and
-  stored as cropped vector PDFs under the deck’s figures/ directory.
+  stored from the official source PNG files under the deck’s figures/
+  directory.
 - Captions in the slides will be concise paraphrases, not copied verbatim.
 
 ## Verification
